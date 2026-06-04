@@ -143,7 +143,8 @@ export default function App() {
       {showSplash ? (
         <SplashScreen
           settings={settings}
-          onUnlock={() => {
+          onEnter={() => setShowSplash(false)}
+          onAdmin={() => {
             setShowSplash(false);
             setSettingsOpen(true);
           }}
