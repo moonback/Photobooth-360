@@ -19,7 +19,7 @@ Cette feuille de route détaille les différentes phases d'implémentation pour 
 ## Phase 3 : Déploiement Cloud & Distribution (À venir)
 - [ ] **Stockage Distant** : Intégration d'un backend (ex: Firebase Storage, Supabase Storage, AWS S3) pour uploader les vidéos de façon transparente après l'enregistrement.
 - [x] **Génération de QR Code** : Interface de récupération par scan prête (connexion au backend requise pour le vrai lien).
-- [ ] **Galerie de l'événement** : Une page accessible (avec URL secrète ou mot de passe) regroupant de manière élégante toutes les captations prises lors de l'événement.
+- [x] **Galerie de l'événement** : Implémentation d'une galerie de session locale regroupant les captations prises lors de l'utilisation en cours.
 
 ## Phase 4 : Processing Vidéo & Avancé (WebAssembly)
 - [ ] **Slow-Motion / Boomerang** : Utilisation de `FFmpeg.wasm` pour post-traiter la vidéo directement dans le navigateur du client avant l'upload au serveur pour des effets dignes des Photobooth 360 premium.

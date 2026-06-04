@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, SwitchCamera, QrCode } from "lucide-react";
+import { Camera, Download, RefreshCcw, StopCircle, Video, SwitchCamera, QrCode, Film } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRecorder } from "./hooks/useRecorder";
 
@@ -11,9 +11,13 @@ export default function App() {
   const [duration, setDuration] = useState<number>(15000);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [showFlash, setShowFlash] = useState<boolean>(false);
+  const [gallery, setGallery] = useState<string[]>([]);
 
   const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
-    onRecordingComplete: (url) => setVideoUrl(url),
+    onRecordingComplete: (url) => {
+      setVideoUrl(url);
+      setGallery((prev) => [url, ...prev]);
+    },
     onRecordingStart: () => {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
@@ -219,7 +223,7 @@ export default function App() {
             <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center">
               <div className="bg-white p-4 rounded-xl shadow-lg">
                 <QRCodeSVG
-                  value={"https://photobooth360.app/demo/share/12345"}
+                  value={videoUrl} // In production, this would be a remote URL
                   size={120}
                   bgColor={"#ffffff"}
                   fgColor={"#000000"}
@@ -234,6 +238,31 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Local Session Gallery */}
+        {gallery.length > 0 && (
+          <div className="w-full max-w-3xl mt-4 animate-in slide-in-from-bottom-8 fade-in duration-500">
+            <div className="flex items-center gap-2 mb-4 px-2">
+              <Film className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-xl font-semibold text-white">Galerie de la session</h2>
+              <span className="bg-zinc-800 text-zinc-300 text-xs py-1 px-2 rounded-full">{gallery.length}</span>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x px-2 scrollbar-none">
+              {gallery.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setVideoUrl(url)}
+                  className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900 rounded-xl overflow-hidden snap-start transition-all border ${
+                    videoUrl === url ? "border-indigo-500 scale-95 opacity-100" : "border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <video src={url} className="w-full h-full object-cover pointer-events-none" />
+                  <div className="absolute inset-0 bg-black/10 hover:bg-transparent transition-colors" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
