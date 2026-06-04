@@ -114,6 +114,11 @@
   --tw-enter-scale: 0.95;
 }
 
+/* Slide-in modifier used by the session gallery entrance */
+@utility slide-in-from-bottom-8 {
+  --tw-enter-translate-y: 2rem;
+}
+
 /* Duration overrides that also set --tw-duration for animate-in compatibility */
 @utility duration-75 { --tw-duration: 75ms; }
 @utility duration-100 { --tw-duration: 100ms; }
@@ -123,6 +128,40 @@
 @utility duration-500 { --tw-duration: 500ms; }
 @utility duration-700 { --tw-duration: 700ms; }
 @utility duration-1000 { --tw-duration: 1000ms; }
+
+
+/* ============================================================
+   Premium interaction/performance utilities
+   Requirements: 4.6, 12.1, 12.2, 12.3, 12.5
+   ============================================================ */
+
+@utility premium-interactive {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-duration: var(--duration-normal, 200ms);
+  transition-timing-function: var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
+  will-change: auto;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-accent-violet, #8B5CF6);
+    outline-offset: 3px;
+  }
+
+  &:hover,
+  &:focus-visible,
+  &:active {
+    will-change: transform, opacity;
+  }
+}
+
+@utility premium-touch {
+  min-height: 44px;
+}
+
+@utility premium-card {
+  border-radius: var(--radius-medium, 24px);
+  border-color: rgb(39 39 42 / 0.5);
+  box-shadow: var(--shadow-large);
+}
 
 /* ============================================================
    Glassmorphism Utility Classes
@@ -137,7 +176,7 @@
   border: 1px solid rgb(255 255 255 / 0.1);
 
   /* Fallback for browsers without backdrop-filter support */
-  @supports not (backdrop-filter: blur()) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background: rgb(24 24 27 / 0.95);
   }
 }
@@ -149,7 +188,7 @@
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgb(255 255 255 / 0.15);
 
-  @supports not (backdrop-filter: blur()) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background: rgb(24 24 27 / 0.98);
   }
 }
@@ -161,7 +200,7 @@
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgb(255 255 255 / 0.08);
 
-  @supports not (backdrop-filter: blur()) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background: rgb(24 24 27 / 0.85);
   }
 }
@@ -172,7 +211,7 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 
-  @supports not (backdrop-filter: blur()) {
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     background: rgb(0 0 0 / 0.85);
   }
 }

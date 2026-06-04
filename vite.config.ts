@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [...react(), ...tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -28,6 +28,6 @@ export default defineConfig(() => {
       },
     },
     // SPA fallback — serve index.html for all routes (e.g. /share/:id)
-    appType: 'spa',
+    appType: 'spa' as const,
   };
 });

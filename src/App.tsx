@@ -163,7 +163,7 @@ export default function App() {
   const isReviewing = Boolean(videoUrl);
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-violet-500/30">
       <div className="w-full max-w-3xl flex flex-col items-center gap-8">
 
         {/* Header */}
@@ -181,16 +181,18 @@ export default function App() {
           </div>
 
           <button
+            type="button"
             onClick={() => setSettingsOpen(true)}
-            className="mt-1 p-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-all duration-200 ease-out active:scale-[0.98] hover:scale-[1.02] border border-zinc-700"
+            className="mt-1 p-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white premium-interactive active:scale-[0.98] hover:scale-[1.02] border border-zinc-700 premium-touch"
             title="Réglages"
+            aria-label="Ouvrir les réglages"
           >
             <Settings className="w-5 h-5" />
           </button>
         </div>
 
         {/* Main Stage */}
-        <div className="w-full bg-zinc-900 border border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
+        <div className="w-full glass border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
 
           {cameraError ? (
             <div className="aspect-video bg-zinc-800/50 rounded-2xl flex items-center justify-center text-center p-6 border border-red-500/20">
@@ -228,7 +230,7 @@ export default function App() {
 
                 {/* Countdown overlay */}
                 {countdown !== null && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-md z-10">
                     <span className="text-8xl md:text-[150px] font-bold text-white drop-shadow-2xl animate-pulse">
                       {countdown}
                     </span>
@@ -237,7 +239,7 @@ export default function App() {
 
                 {/* REC indicator */}
                 {isRecording && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/30">
+                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-red-500/30 shadow-[0_0_12px_rgba(239,68,68,0.25)]">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                     <span className="text-red-500 text-sm font-medium tracking-wide uppercase">REC</span>
                   </div>
@@ -281,17 +283,19 @@ export default function App() {
             {!isReviewing ? (
               !isRecording ? (
                 <button
+                  type="button"
                   onClick={handleStart}
                   disabled={countdown !== null || !stream}
-                  className={`flex items-center gap-2 px-8 py-4 ${accent.bg} ${accent.bgHover} text-white font-semibold rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group ${accent.shadow}`}
+                  className={`flex items-center gap-2 px-8 py-4 premium-touch ${accent.bg} ${accent.bgHover} text-white font-semibold rounded-2xl premium-interactive hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group ${accent.shadow}`}
                 >
                   <Video className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Démarrer ({settings.duration / 1000}s)</span>
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={stopRecording}
-                  className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] group shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                  className="flex items-center gap-2 px-8 py-4 premium-touch bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl premium-interactive hover:scale-[1.02] active:scale-[0.98] group shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
                   <StopCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Arrêter l'enregistrement</span>
@@ -300,8 +304,9 @@ export default function App() {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium rounded-2xl transition-all duration-200 ease-out active:scale-[0.98] hover:scale-[1.02]"
+                  className="flex items-center gap-2 px-6 py-3 premium-touch bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium rounded-2xl premium-interactive active:scale-[0.98] hover:scale-[1.02]"
                 >
                   <RefreshCcw className="w-4 h-4" />
                   <span>Refaire</span>
@@ -309,7 +314,7 @@ export default function App() {
                 <a
                   href={videoUrl}
                   download="photobooth360.webm"
-                  className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${accent.shadow}`}
+                  className={`flex items-center gap-2 px-6 py-3 premium-touch ${accent.bg} ${accent.bgHover} text-white font-medium rounded-2xl premium-interactive hover:scale-[1.02] active:scale-[0.98] ${accent.shadow}`}
                 >
                   <Download className="w-4 h-4" />
                   <span>Télécharger</span>
@@ -322,7 +327,7 @@ export default function App() {
           {isReviewing && (
             <div className="mt-8 border-t border-zinc-800/50 pt-8">
               {/* Glassmorphism panel — Requirements: 3.1, 3.2, 3.3, 3.4, 3.5 */}
-              <div className="bg-zinc-900/80 backdrop-blur-lg border border-white/10 rounded-2xl p-5 flex flex-col items-center gap-4">
+              <div className="glass rounded-2xl p-5 flex flex-col items-center gap-4">
                 <div className="flex items-center gap-2 w-full">
                   <QrCode className={`w-4 h-4 ${accent.text}`} />
                   {/* text-white on zinc-900/80 dark background — contrast ≥ 4.5:1 (WCAG AA) */}
@@ -388,7 +393,7 @@ export default function App() {
                     )}
 
                     {uploadStatus === 'error' && (
-                      <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 w-full">
+                      <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-3 w-full">
                         <span>Upload échoué — partage local disponible ci-dessous.</span>
                       </div>
                     )}
@@ -452,16 +457,19 @@ export default function App() {
               {gallery.map((url, idx) => (
                 <button
                   key={idx}
+                  type="button"
+                  aria-label={`Revoir la vidéo ${idx + 1}`}
+                  aria-current={videoUrl === url ? "true" : undefined}
                   onClick={() => {
                     // Always silence mic during review — re-enabled on next record start
                     stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
                     setVideoUrl(url);
                     setShareId("");
                   }}
-                  className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900 rounded-xl overflow-hidden snap-start transition-all border ${
+                  className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900/80 backdrop-blur-lg rounded-2xl overflow-hidden snap-start premium-interactive hover:scale-105 border ${
                     videoUrl === url
-                      ? `${accent.border} scale-95 opacity-100`
-                      : "border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100"
+                      ? `${accent.border} opacity-100 shadow-[0_0_16px_rgba(139,92,246,0.25)]`
+                      : "border-zinc-800/50 hover:border-zinc-600 opacity-60 hover:opacity-100"
                   }`}
                 >
                   <video src={url} className="w-full h-full object-cover pointer-events-none" />

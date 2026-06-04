@@ -95,16 +95,16 @@ export default function SharePage() {
     : `photobooth360-${selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo'}.webm`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-4 py-8 font-sans">
+    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 flex flex-col items-center px-4 py-8 font-sans">
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
 
         {/* Header */}
         <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center p-2.5 bg-indigo-500/10 rounded-full mb-1">
-            <Camera className="w-6 h-6 text-indigo-400" />
+          <div className="inline-flex items-center justify-center p-2.5 bg-violet-500/10 rounded-full mb-1">
+            <Camera className="w-6 h-6 text-violet-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">
-            Photobooth <span className="text-indigo-400">360</span>
+            Photobooth <span className="text-violet-400">360</span>
           </h1>
           <p className="text-zinc-400 text-sm">Ta vidéo est prête 🎉</p>
           <div className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full mt-1 ${
@@ -122,7 +122,7 @@ export default function SharePage() {
         {/* ── LOADING ── */}
         {phase === 'loading' && (
           <div className="flex flex-col items-center gap-3 py-12 text-zinc-400">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+            <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
             <span className="text-sm">Chargement de ta vidéo…</span>
           </div>
         )}
@@ -157,7 +157,7 @@ export default function SharePage() {
             {/* Speed picker */}
             <div className="w-full space-y-3">
               <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-indigo-400" />
+                <Gauge className="w-4 h-4 text-violet-400" />
                 <span className="text-sm font-semibold">Choisis ton effet</span>
               </div>
 
@@ -165,12 +165,14 @@ export default function SharePage() {
                 {SPEEDS.map(({ value, emoji, label, sublabel }) => (
                   <button
                     key={value}
+                    type="button"
+                    aria-pressed={selectedSpeed === value}
                     onClick={() => setSelectedSpeed(value)}
                     disabled={phase === 'encoding'}
-                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl border text-left premium-touch premium-interactive hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 ${
                       selectedSpeed === value
-                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
-                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                        ? 'bg-violet-500/10 border-violet-500 text-white'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
                     }`}
                   >
                     <span className="text-2xl">{emoji}</span>
@@ -183,7 +185,7 @@ export default function SharePage() {
                       )}
                     </div>
                     {selectedSpeed === value && (
-                      <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
+                      <div className="w-2 h-2 rounded-full bg-violet-400 flex-shrink-0" />
                     )}
                   </button>
                 ))}
@@ -202,7 +204,7 @@ export default function SharePage() {
                 </div>
                 <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    className="h-full bg-violet-500 rounded-full transition-all duration-300"
                     style={{ width: `${status === 'loading' ? 3 : progress}%` }}
                   />
                 </div>
@@ -215,8 +217,9 @@ export default function SharePage() {
             {/* CTA */}
             {phase === 'choose' && (
               <button
+                type="button"
                 onClick={handleConfirm}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className="w-full flex items-center justify-center gap-2 py-4 premium-touch bg-violet-500 hover:bg-violet-600 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold rounded-2xl premium-interactive shadow-[0_0_20px_rgba(139,92,246,0.4)]"
               >
                 <Download className="w-5 h-5" />
                 Préparer le téléchargement
@@ -229,7 +232,7 @@ export default function SharePage() {
         {phase === 'ready' && (
           <>
             {/* Playback */}
-            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-indigo-500/30">
+            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-violet-500/30">
               <video
                 src={downloadUrl}
                 autoPlay
@@ -251,13 +254,14 @@ export default function SharePage() {
               <a
                 href={downloadUrl}
                 download={filename}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className="w-full flex items-center justify-center gap-2 py-4 premium-touch bg-violet-500 hover:bg-violet-600 hover:scale-[1.02] active:scale-[0.98] text-white font-semibold rounded-2xl premium-interactive shadow-[0_0_20px_rgba(139,92,246,0.4)]"
               >
                 <Download className="w-5 h-5" />
                 Télécharger sur mon téléphone
               </a>
 
               <button
+                type="button"
                 onClick={() => {
                   setPhase('choose');
                   setDownloadUrl('');

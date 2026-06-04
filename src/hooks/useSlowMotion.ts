@@ -16,7 +16,7 @@ interface UseSlowMotionReturn {
 
 // Singleton FFmpeg instance — reused across calls to avoid reloading WASM each time
 let ffmpegInstance: FFmpeg | null = null;
-let ffmpegLoadPromise: Promise<void> | null = null;
+let ffmpegLoadPromise: Promise<boolean> | null = null;
 
 async function getFFmpeg(onProgress: (p: number) => void): Promise<FFmpeg> {
   if (!ffmpegInstance) {
