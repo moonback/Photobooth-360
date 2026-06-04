@@ -27,5 +27,7 @@ export default defineConfig(() => {
         'Cross-Origin-Embedder-Policy': 'require-corp',
       },
     },
+    // SPA fallback — serve index.html for all routes (e.g. /share/:id)
+    appType: 'spa',
   };
 });

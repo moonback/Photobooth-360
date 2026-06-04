@@ -37,9 +37,9 @@ Adaptation aux contraintes réelles d'un événement.
 
 Permettre aux invités de recevoir leur vidéo instantanément sur leur téléphone.
 
-- [ ] **Upload automatique post-enregistrement** — intégration d'un backend de stockage (Supabase Storage, Firebase Storage ou AWS S3) avec barre de progression
-- [ ] **Lien de partage unique** — URL courte et sécurisée générée par vidéo, encodée dans le QR Code
-- [ ] **Page de récupération mobile** — landing page légère accessible depuis le QR Code, avec aperçu et bouton de téléchargement natif (iOS / Android)
+- [x] **Upload automatique post-enregistrement** — intégration d'un backend de stockage (Supabase Storage) avec barre de progression
+- [x] **Lien de partage unique** — URL courte et sécurisée générée par vidéo, encodée dans le QR Code
+- [x] **Page de récupération mobile** — landing page légère accessible depuis le QR Code, avec aperçu et bouton de téléchargement natif (iOS / Android)
 - [ ] **Expiration configurable des liens** — paramétrer la durée de vie des fichiers (24h, 7j, permanent) selon le forfait événement
 - [ ] **Mode hors-ligne avec sync différée** — stocker localement (`IndexedDB`) en cas de coupure réseau, puis uploader automatiquement dès reconnexion
 

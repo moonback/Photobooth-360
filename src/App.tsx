@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings } from "lucide-react";
+import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings, Loader2, CloudUpload, Wifi, WifiOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRecorder } from "./hooks/useRecorder";
 import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
-import SlowMotionPanel from "./components/SlowMotionPanel";
+import { saveVideo } from "./lib/videoStore";
+import { useUpload } from "./hooks/useUpload";
 
 const ACCENT: Record<AppSettings["accentColor"], {
   bg: string; bgHover: string; bgLight: string; border: string; text: string; ring: string; shadow: string;
@@ -47,25 +48,41 @@ export default function App() {
 
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>("");
-  // processedUrl holds a slow-motion version; falls back to videoUrl for display/download
-  const [processedUrl, setProcessedUrl] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
   const [showFlash, setShowFlash] = useState<boolean>(false);
   const [gallery, setGallery] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  // QR share: the IndexedDB video ID and the saving state
+  const [shareId, setShareId] = useState<string>("");
+  const [isSavingShare, setIsSavingShare] = useState(false);
+
+  // Cloud upload via Supabase
+  const { upload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled } = useUpload();
 
   const accent = ACCENT[settings.accentColor];
 
   const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
     onRecordingComplete: (url) => {
-      // Mute audio tracks while reviewing so the mic doesn't feed back into speakers
+      // Silence audio tracks during review to prevent mic feedback
       if (stream) {
         stream.getAudioTracks().forEach((t) => { t.enabled = false; });
       }
       setVideoUrl(url);
-      setProcessedUrl("");
+      setShareId("");
       setGallery((prev) => [url, ...prev]);
+
+      if (cloudEnabled) {
+        // Cloud path: upload to Supabase — share URL will be the public CDN link
+        upload(url); // status tracked via useUpload
+      } else {
+        // Local fallback: save to IndexedDB
+        setIsSavingShare(true);
+        saveVideo(url)
+          .then((id) => { setShareId(id); })
+          .catch(console.error)
+          .finally(() => setIsSavingShare(false));
+      }
     },
     onRecordingStart: () => {
       setShowFlash(true);
@@ -99,8 +116,11 @@ export default function App() {
 
       const newStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: mode, width: { ideal: width }, height: { ideal: height } },
-        audio: true,
+        audio: true, // always request audio permission; we control track.enabled separately
       });
+
+      // Apply the audio setting immediately — disabled by default
+      newStream.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
 
       setStream(newStream);
 
@@ -117,19 +137,23 @@ export default function App() {
 
   const handleStart = () => {
     if (!stream) return;
-    // Re-enable audio tracks before recording
-    stream.getAudioTracks().forEach((t) => { t.enabled = true; });
+    // Enable audio tracks only if the setting is on
+    stream.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
     startRecording(stream, settings.duration, settings.countdownSeconds);
   };
 
   const handleReset = () => {
-    // Re-enable mic for the next take
-    stream?.getAudioTracks().forEach((t) => { t.enabled = true; });
+    // Re-apply audio setting for the next take
+    stream?.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
     setVideoUrl("");
-    setProcessedUrl("");
+    setShareId("");
   };
 
   const handleSaveSettings = (next: AppSettings) => {
+    // If only the audio setting changed (no camera restart needed), apply immediately
+    if (!isReviewing && stream && next.recordAudio !== settings.recordAudio) {
+      stream.getAudioTracks().forEach((t) => { t.enabled = next.recordAudio; });
+    }
     setSettings(next);
   };
 
@@ -147,7 +171,7 @@ export default function App() {
               <Camera className={`w-8 h-8 ${accent.text}`} />
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
-              Photobooth <span className={accent.text}>360</span>
+              Neurobooth <span className={accent.text}>360</span>
             </h1>
             <p className="text-zinc-400 max-w-md mx-auto">
               Créez des souvenirs inoubliables. Enregistrez un message vidéo pour l'événement !
@@ -228,8 +252,8 @@ export default function App() {
               {isReviewing && (
                 <div className="relative rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10">
                   <video
-                    key={processedUrl || videoUrl}   /* force remount when URL changes */
-                    src={processedUrl || videoUrl}
+                    key={videoUrl}
+                    src={videoUrl}
                     controls
                     autoPlay
                     playsInline
@@ -281,46 +305,128 @@ export default function App() {
                   <span>Refaire</span>
                 </button>
                 <a
-                  href={processedUrl || videoUrl}
-                  download={processedUrl ? "photobooth360-slowmo.webm" : "photobooth360.webm"}
+                  href={videoUrl}
+                  download="photobooth360.webm"
                   className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-full transition-all active:scale-95 ${accent.shadow}`}
                 >
                   <Download className="w-4 h-4" />
-                  <span>Télécharger{processedUrl ? " (Slow-Mo)" : ""}</span>
+                  <span>Télécharger</span>
                 </a>
               </>
             )}
           </div>
 
-          {/* Slow-Motion Panel */}
-          {isReviewing && (
-            <SlowMotionPanel
-              originalUrl={videoUrl}
-              onProcessed={(url) => setProcessedUrl(url)}
-              accentBg={accent.bg}
-              accentBgHover={accent.bgHover}
-              accentText={accent.text}
-              accentShadow={accent.shadow}
-            />
-          )}
-
           {/* QR Code Share */}
           {isReviewing && (
-            <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center">
-              <div className="bg-white p-4 rounded-xl shadow-lg">
-                <QRCodeSVG
-                  value={videoUrl}
-                  size={120}
-                  bgColor={"#ffffff"}
-                  fgColor={"#000000"}
-                  level={"L"}
-                  includeMargin={false}
-                />
+            <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center gap-4">
+              <div className="flex items-center gap-2">
+                <QrCode className={`w-4 h-4 ${accent.text}`} />
+                <span className="text-sm font-semibold text-white">Récupérer sur ton téléphone</span>
+                {/* Cloud / local badge */}
+                <span className={`ml-auto flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                  cloudEnabled
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-zinc-800 text-zinc-500"
+                }`}>
+                  {cloudEnabled
+                    ? <><Wifi className="w-3 h-3" /> Cloud</>
+                    : <><WifiOff className="w-3 h-3" /> Local</>
+                  }
+                </span>
               </div>
-              <div className="mt-4 flex items-center gap-2 text-zinc-400">
-                <QrCode className="w-4 h-4" />
-                <span className="text-sm">Scannez pour récupérer sur votre mobile (Démo)</span>
-              </div>
+
+              {/* ── CLOUD MODE ── */}
+              {cloudEnabled && (
+                <>
+                  {uploadStatus === 'uploading' && (
+                    <div className="w-full space-y-2">
+                      <div className="flex items-center justify-between text-xs text-zinc-400">
+                        <span className="flex items-center gap-1.5">
+                          <CloudUpload className="w-3.5 h-3.5 animate-pulse" />
+                          Upload en cours…
+                        </span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${accent.bg} rounded-full transition-all duration-300`}
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-600 text-center">
+                        Envoi vers le cloud — le QR Code sera disponible dans quelques secondes
+                      </p>
+                    </div>
+                  )}
+
+                  {uploadStatus === 'done' && uploadedUrl && (
+                    <>
+                      <div className="bg-white p-4 rounded-2xl shadow-lg">
+                        <QRCodeSVG
+                          value={`${window.location.origin}/share/cloud?url=${btoa(encodeURIComponent(uploadedUrl))}`}
+                          size={160}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500 text-center max-w-xs">
+                        Scanne depuis n'importe quel téléphone. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                      </p>
+                      <code className="text-xs text-zinc-600 bg-zinc-800 px-3 py-1.5 rounded-lg break-all text-center max-w-full">
+                        {uploadedUrl}
+                      </code>
+                    </>
+                  )}
+
+                  {uploadStatus === 'error' && (
+                    <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                      <span>Upload échoué — partage local disponible ci-dessous.</span>
+                    </div>
+                  )}
+
+                  {uploadStatus === 'idle' && (
+                    <div className="flex items-center gap-2 text-zinc-400 py-4">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Préparation…</span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── LOCAL FALLBACK (IndexedDB) ── */}
+              {(!cloudEnabled || uploadStatus === 'error') && (
+                <>
+                  {isSavingShare ? (
+                    <div className="flex items-center gap-2 text-zinc-400 py-4">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Préparation du lien local…</span>
+                    </div>
+                  ) : shareId ? (
+                    <>
+                      <div className="bg-white p-4 rounded-2xl shadow-lg">
+                        <QRCodeSVG
+                          value={`${window.location.origin}/share/${shareId}`}
+                          size={160}
+                          bgColor="#ffffff"
+                          fgColor="#000000"
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+                      <p className="text-xs text-zinc-500 text-center max-w-xs">
+                        Scanne depuis le même réseau Wi-Fi. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                      </p>
+                      <p className="text-xs text-zinc-700 text-center">
+                        Pour un partage cross-réseau, configure Supabase dans le fichier <code className="text-zinc-500">.env</code>.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-zinc-600">Lien indisponible.</p>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -338,10 +444,10 @@ export default function App() {
                 <button
                   key={idx}
                   onClick={() => {
-                    // Mute mic again when selecting a past clip
+                    // Always silence mic during review — re-enabled on next record start
                     stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
                     setVideoUrl(url);
-                    setProcessedUrl("");
+                    setShareId("");
                   }}
                   className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900 rounded-xl overflow-hidden snap-start transition-all border ${
                     videoUrl === url

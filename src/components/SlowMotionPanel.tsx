@@ -1,59 +1,86 @@
-import { useState } from 'react';
-import { Gauge, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react';
+import { useEffect } from 'react';
+import { Gauge, Loader2, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import { useSlowMotion, SlowMotionSpeed } from '../hooks/useSlowMotion';
 
 interface SlowMotionPanelProps {
   originalUrl: string;
-  /** Called when the processed video is ready — replaces current preview */
-  onProcessed: (url: string) => void;
+  /** The playback speed already applied to the preview (via playbackRate) */
+  playbackSpeed: SlowMotionSpeed | 1;
+  onSpeedChange: (speed: SlowMotionSpeed | 1) => void;
+  /** Called when the FFmpeg-encoded export is ready */
+  onExportReady: (url: string) => void;
   accentBg: string;
   accentBgHover: string;
   accentText: string;
   accentShadow: string;
 }
 
-const SPEEDS: { value: SlowMotionSpeed; label: string; sublabel: string }[] = [
-  { value: 0.5,  label: '½×',  sublabel: 'Slow-Mo' },
-  { value: 0.25, label: '¼×',  sublabel: 'Ultra Slow' },
+const SPEEDS: { value: SlowMotionSpeed | 1; label: string; sublabel: string }[] = [
+  { value: 1,    label: '1×',  sublabel: 'Normal'      },
+  { value: 0.5,  label: '½×',  sublabel: 'Slow-Mo'     },
+  { value: 0.25, label: '¼×',  sublabel: 'Ultra Slow'  },
 ];
 
 export default function SlowMotionPanel({
   originalUrl,
-  onProcessed,
+  playbackSpeed,
+  onSpeedChange,
+  onExportReady,
   accentBg,
   accentBgHover,
   accentText,
   accentShadow,
 }: SlowMotionPanelProps) {
-  const [selectedSpeed, setSelectedSpeed] = useState<SlowMotionSpeed>(0.5);
-  const { processVideo, status, progress, errorMessage, cancel } = useSlowMotion();
+  const { processVideo, status, progress, errorMessage } = useSlowMotion();
 
-  const isProcessing = status === 'loading' || status === 'processing';
-  const isDone = status === 'done';
+  // Whenever a slow speed is selected, kick off the background FFmpeg export automatically
+  useEffect(() => {
+    if (playbackSpeed === 1) return;
 
-  const handleProcess = async () => {
-    const result = await processVideo(originalUrl, selectedSpeed);
-    if (result) onProcessed(result);
-  };
+    let cancelled = false;
+
+    (async () => {
+      const result = await processVideo(originalUrl, playbackSpeed as SlowMotionSpeed);
+      if (!cancelled && result) onExportReady(result);
+    })();
+
+    return () => { cancelled = true; };
+  // processVideo is stable (useCallback), originalUrl and playbackSpeed are the triggers
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originalUrl, playbackSpeed]);
+
+  const isEncoding = status === 'loading' || status === 'processing';
+  const exportReady = status === 'done';
 
   return (
-    <div className="mt-6 border-t border-zinc-800 pt-6">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="mt-6 border-t border-zinc-800 pt-6 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2">
         <Gauge className={`w-4 h-4 ${accentText}`} />
         <span className="text-sm font-semibold text-white">Slow-Motion</span>
-        <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full">FFmpeg WASM</span>
+        {isEncoding && (
+          <span className="flex items-center gap-1 text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded-full ml-auto">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Export en cours…
+          </span>
+        )}
+        {exportReady && playbackSpeed !== 1 && (
+          <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full ml-auto">
+            <CheckCircle className="w-3 h-3" />
+            Export prêt
+          </span>
+        )}
       </div>
 
-      {/* Speed selector */}
-      <div className="flex gap-3 mb-4">
+      {/* Speed selector — instant preview via playbackRate */}
+      <div className="flex gap-2">
         {SPEEDS.map(({ value, label, sublabel }) => (
           <button
             key={value}
-            onClick={() => !isProcessing && setSelectedSpeed(value)}
-            disabled={isProcessing}
-            className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all disabled:cursor-not-allowed ${
-              selectedSpeed === value
-                ? `${accentBg.replace('bg-', 'bg-').replace('-500', '-500/10')} border-current ${accentText}`
+            onClick={() => onSpeedChange(value)}
+            className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all ${
+              playbackSpeed === value
+                ? `bg-opacity-10 ${accentBg.replace('bg-', 'bg-').replace('-500', '-500/10')} border-current ${accentText}`
                 : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
             }`}
           >
@@ -63,59 +90,41 @@ export default function SlowMotionPanel({
         ))}
       </div>
 
-      {/* Progress bar */}
-      {isProcessing && (
-        <div className="mb-4 space-y-2">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span className="flex items-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              {status === 'loading' ? 'Chargement FFmpeg…' : `Traitement en cours… ${progress}%`}
-            </span>
-            <button
-              onClick={cancel}
-              className="flex items-center gap-1 text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-              Annuler
-            </button>
-          </div>
-          <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${accentBg} rounded-full transition-all duration-300`}
-              style={{ width: `${status === 'loading' ? 5 : progress}%` }}
-            />
-          </div>
-          <p className="text-xs text-zinc-600">
-            Le traitement s'effectue entièrement dans votre navigateur, aucune donnée n'est envoyée.
-          </p>
-        </div>
-      )}
+      {/* Background encoding progress — shown only when a slow speed is active */}
+      {playbackSpeed !== 1 && (
+        <div className="space-y-1.5">
+          {isEncoding && (
+            <>
+              <div className="flex justify-between text-xs text-zinc-500">
+                <span>{status === 'loading' ? 'Chargement FFmpeg…' : `Encodage fichier export… ${progress}%`}</span>
+                <span>{progress}%</span>
+              </div>
+              <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${accentBg} rounded-full transition-all duration-300`}
+                  style={{ width: `${status === 'loading' ? 3 : progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-zinc-600">
+                La prévisualisation est déjà active. L'encodage se fait en arrière-plan pour le téléchargement.
+              </p>
+            </>
+          )}
 
-      {/* Done notice */}
-      {isDone && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          Slow-motion appliqué — la prévisualisation a été mise à jour.
-        </div>
-      )}
+          {exportReady && (
+            <div className="flex items-center gap-2 text-xs text-emerald-400">
+              <Download className="w-3.5 h-3.5" />
+              Le fichier encodé est prêt — le bouton Télécharger utilise la version slow-motion.
+            </div>
+          )}
 
-      {/* Error notice */}
-      {status === 'error' && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {errorMessage}
+          {status === 'error' && (
+            <div className="flex items-center gap-2 text-xs text-red-400">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {errorMessage} — le téléchargement utilisera la vitesse normale.
+            </div>
+          )}
         </div>
-      )}
-
-      {/* CTA */}
-      {!isProcessing && (
-        <button
-          onClick={handleProcess}
-          className={`w-full flex items-center justify-center gap-2 py-3 ${accentBg} ${accentBgHover} text-white font-semibold rounded-xl transition-all active:scale-95 ${accentShadow}`}
-        >
-          <Gauge className="w-4 h-4" />
-          Appliquer le slow-motion {selectedSpeed === 0.5 ? '½×' : '¼×'}
-        </button>
       )}
     </div>
   );

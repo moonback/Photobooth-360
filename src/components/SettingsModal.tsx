@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Settings, Camera, Clock, Video, Type, Palette } from "lucide-react";
+import { X, Settings, Camera, Clock, Video, Type, Palette, Mic, MicOff } from "lucide-react";
 
 export interface AppSettings {
   eventName: string;
@@ -8,6 +8,7 @@ export interface AppSettings {
   resolution: "720p" | "1080p" | "480p";
   countdownSeconds: number;
   accentColor: "indigo" | "rose" | "amber" | "emerald" | "cyan";
+  recordAudio: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   resolution: "720p",
   countdownSeconds: 3,
   accentColor: "indigo",
+  recordAudio: false, // silent by default — avoids ambient noise at events
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; class: string }[] = [
@@ -189,6 +191,52 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 📷 Arrière
               </button>
             </div>
+          </section>
+
+          {/* Audio */}
+          <section className="space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-zinc-300">
+              {local.recordAudio ? (
+                <Mic className="w-4 h-4 text-zinc-500" />
+              ) : (
+                <MicOff className="w-4 h-4 text-zinc-500" />
+              )}
+              Son de la vidéo
+            </label>
+            <button
+              onClick={() => setLocal({ ...local, recordAudio: !local.recordAudio })}
+              className={`w-full flex items-center justify-between px-4 py-4 rounded-xl border transition-all ${
+                local.recordAudio
+                  ? "bg-indigo-500/10 border-indigo-500"
+                  : "bg-zinc-800 border-zinc-700"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {local.recordAudio ? (
+                  <Mic className="w-5 h-5 text-indigo-400" />
+                ) : (
+                  <MicOff className="w-5 h-5 text-zinc-500" />
+                )}
+                <div className="text-left">
+                  <div className={`text-sm font-medium ${local.recordAudio ? "text-white" : "text-zinc-400"}`}>
+                    {local.recordAudio ? "Son activé" : "Son désactivé"}
+                  </div>
+                  <div className="text-xs text-zinc-600 mt-0.5">
+                    {local.recordAudio
+                      ? "Le micro sera actif pendant l'enregistrement"
+                      : "Recommandé pour les événements bruyants"}
+                  </div>
+                </div>
+              </div>
+              {/* Toggle pill */}
+              <div className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
+                local.recordAudio ? "bg-indigo-500" : "bg-zinc-700"
+              }`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  local.recordAudio ? "translate-x-5" : "translate-x-0.5"
+                }`} />
+              </div>
+            </button>
           </section>
 
           {/* Resolution */}
