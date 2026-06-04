@@ -13,13 +13,14 @@ import {
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useUpload } from "./hooks/useUpload";
+import { useSettings } from "./hooks/useSettings";
 
 import CameraView from "./components/CameraView";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import ShareSection from "./components/ShareSection";
 import GalleryStrip from "./components/GalleryStrip";
-import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
+import SettingsModal, { AppSettings } from "./components/SettingsModal";
 
 import { saveVideo } from "./lib/videoStore";
 
@@ -37,7 +38,9 @@ const ACCENT: Record<
 
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [settings, setSettings]           = useState<AppSettings>(DEFAULT_SETTINGS);
+  // Settings — persisted to Supabase (falls back to localStorage)
+  const { settings, loadState, handleSave } = useSettings();
+
   const [settingsOpen, setSettingsOpen]   = useState(false);
   const [videoUrl, setVideoUrl]           = useState("");
   const [gallery, setGallery]             = useState<string[]>([]);
@@ -114,12 +117,24 @@ export default function App() {
     setShareOpen(false);
   };
 
-  const handleSaveSettings = (next: AppSettings) => {
+  const handleSaveSettings = async (next: AppSettings) => {
     if (!isReviewing && stream && next.recordAudio !== settings.recordAudio) {
       stream.getAudioTracks().forEach((t) => { t.enabled = next.recordAudio; });
     }
-    setSettings(next);
+    await handleSave(next);
   };
+
+  // ── Loading screen while settings are fetched ────────────────────────
+  if (loadState === 'loading') {
+    return (
+      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className={`w-10 h-10 rounded-full border-4 border-zinc-700 border-t-indigo-500 animate-spin`} />
+          <p className="text-zinc-500 text-sm">Chargement des réglages…</p>
+        </div>
+      </div>
+    );
+  }
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
