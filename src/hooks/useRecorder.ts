@@ -73,9 +73,14 @@ export function useRecorder({ onRecordingComplete, onRecordingStart }: UseRecord
     }
   }, [onRecordingComplete, stopRecording]);
 
-  const startRecording = useCallback((stream: MediaStream, durationMs: number = 15000) => {
-    setCountdown(3);
-    let counter = 3;
+  const startRecording = useCallback((stream: MediaStream, durationMs: number = 15000, countdownSec: number = 3) => {
+    if (countdownSec <= 0) {
+      beginRecording(stream, durationMs);
+      return;
+    }
+
+    setCountdown(countdownSec);
+    let counter = countdownSec;
 
     timerRef.current = setInterval(() => {
       counter--;

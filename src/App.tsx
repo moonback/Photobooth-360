@@ -1,17 +1,57 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, SwitchCamera, QrCode, Film } from "lucide-react";
+import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRecorder } from "./hooks/useRecorder";
+import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
+
+// Map accent color name → Tailwind classes used throughout the UI
+const ACCENT: Record<AppSettings["accentColor"], {
+  bg: string; bgHover: string; bgLight: string; border: string; text: string; ring: string; shadow: string;
+}> = {
+  indigo: {
+    bg: "bg-indigo-500", bgHover: "hover:bg-indigo-600", bgLight: "bg-indigo-500/10",
+    border: "border-indigo-500", text: "text-indigo-400", ring: "ring-indigo-500",
+    shadow: "shadow-[0_0_15px_rgba(99,102,241,0.3)]",
+  },
+  rose: {
+    bg: "bg-rose-500", bgHover: "hover:bg-rose-600", bgLight: "bg-rose-500/10",
+    border: "border-rose-500", text: "text-rose-400", ring: "ring-rose-500",
+    shadow: "shadow-[0_0_15px_rgba(244,63,94,0.3)]",
+  },
+  amber: {
+    bg: "bg-amber-500", bgHover: "hover:bg-amber-600", bgLight: "bg-amber-500/10",
+    border: "border-amber-500", text: "text-amber-400", ring: "ring-amber-500",
+    shadow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]",
+  },
+  emerald: {
+    bg: "bg-emerald-500", bgHover: "hover:bg-emerald-600", bgLight: "bg-emerald-500/10",
+    border: "border-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500",
+    shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
+  },
+  cyan: {
+    bg: "bg-cyan-500", bgHover: "hover:bg-cyan-600", bgLight: "bg-cyan-500/10",
+    border: "border-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500",
+    shadow: "shadow-[0_0_15px_rgba(6,182,212,0.3)]",
+  },
+};
+
+const RESOLUTION_MAP: Record<AppSettings["resolution"], { width: number; height: number }> = {
+  "480p": { width: 854, height: 480 },
+  "720p": { width: 1280, height: 720 },
+  "1080p": { width: 1920, height: 1080 },
+};
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [streamAction, setStreamAction] = useState<MediaStream | null>(null);
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
-  const [duration, setDuration] = useState<number>(15000);
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [showFlash, setShowFlash] = useState<boolean>(false);
   const [gallery, setGallery] = useState<string[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+
+  const accent = ACCENT[settings.accentColor];
 
   const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
     onRecordingComplete: (url) => {
@@ -24,20 +64,22 @@ export default function App() {
     },
   });
 
+  // Restart camera when resolution or facingMode changes
   useEffect(() => {
-    startCamera(facingMode);
+    startCamera(settings.facingMode, settings.resolution);
     return () => {
-      // Cleanup stream when component unmounts
       if (streamAction) {
         streamAction.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [facingMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.facingMode, settings.resolution]);
 
-  const startCamera = async (mode: "user" | "environment") => {
+  const startCamera = async (mode: "user" | "environment", res: AppSettings["resolution"]) => {
+    const { width, height } = RESOLUTION_MAP[res];
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: mode, width: { ideal: width }, height: { ideal: height } },
         audio: true,
       });
       setStreamAction(stream);
@@ -53,7 +95,7 @@ export default function App() {
 
   const handleStart = () => {
     if (streamAction) {
-      startRecording(streamAction, duration);
+      startRecording(streamAction, settings.duration, settings.countdownSeconds);
     }
   };
 
@@ -61,29 +103,47 @@ export default function App() {
     setVideoUrl("");
   };
 
-  const toggleCamera = () => {
-    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
+  const handleSaveSettings = (next: AppSettings) => {
+    const resolutionChanged = next.resolution !== settings.resolution;
+    const cameraChanged = next.facingMode !== settings.facingMode;
+    setSettings(next);
+    // Camera will restart via useEffect if facingMode or resolution changed
+    if (!resolutionChanged && !cameraChanged) {
+      // nothing else needed
+    }
   };
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-indigo-500/30">
       <div className="w-full max-w-3xl flex flex-col items-center gap-8">
+
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center p-3 bg-indigo-500/10 rounded-full mb-2">
-            <Camera className="w-8 h-8 text-indigo-400" />
+        <div className="w-full flex items-start justify-between">
+          <div className="flex-1 text-center space-y-2">
+            <div className={`inline-flex items-center justify-center p-3 ${accent.bgLight} rounded-full mb-2`}>
+              <Camera className={`w-8 h-8 ${accent.text}`} />
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+              Photobooth <span className={accent.text}>360</span>
+            </h1>
+            <p className="text-zinc-400 max-w-md mx-auto">
+              Créez des souvenirs inoubliables. Enregistrez un message vidéo pour l'événement !
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
-            Photobooth <span className="text-indigo-400">360</span>
-          </h1>
-          <p className="text-zinc-400 max-w-md mx-auto">
-            Créez des souvenirs inoubliables. Enregistrez un message vidéo pour l'événement !
-          </p>
+
+          {/* Settings button */}
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="mt-1 p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors border border-zinc-700"
+            title="Réglages"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Main Stage */}
         <div className="w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
-          
+
           {cameraError ? (
             <div className="aspect-video bg-zinc-800/50 rounded-2xl flex items-center justify-center text-center p-6 border border-red-500/20">
               <p className="text-red-400">{cameraError}</p>
@@ -99,13 +159,15 @@ export default function App() {
                   isRecording ? "opacity-100 ring-2 ring-red-500" : "opacity-90"
                 }`}
               />
-              
+
               {/* Watermark Overlay */}
               <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
                   <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
                 </div>
-                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">ÉVÉNEMENT 2026</span>
+                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
+                  {settings.eventName}
+                </span>
               </div>
 
               {/* Countdown Overlay */}
@@ -137,44 +199,20 @@ export default function App() {
                 controls
                 className="w-full h-full object-contain"
               />
-              
+
               {/* Watermark Overlay for recorded video */}
               <div className="absolute bottom-16 md:bottom-20 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
                   <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
                 </div>
-                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">ÉVÉNEMENT 2026</span>
+                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
+                  {settings.eventName}
+                </span>
               </div>
             </div>
           )}
 
-          {/* Duration Selector */}
-          {!videoUrl && !isRecording && countdown === null && (
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              {[15000, 30000, 60000].map((ms) => (
-                <button
-                  key={ms}
-                  onClick={() => setDuration(ms)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                    duration === ms
-                      ? "bg-indigo-500 text-white"
-                      : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white"
-                  }`}
-                >
-                  {ms / 1000}s
-                </button>
-              ))}
-              
-              <button
-                onClick={toggleCamera}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-all active:scale-95 ml-auto"
-                title="Changer de caméra"
-              >
-                <SwitchCamera className="w-4 h-4" />
-                <span className="hidden sm:inline">Caméra</span>
-              </button>
-            </div>
-          )}
+
 
           {/* Controls */}
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -186,7 +224,7 @@ export default function App() {
                   className="flex items-center gap-2 px-8 py-4 bg-white hover:bg-zinc-200 text-black font-semibold rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   <Video className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Démarrer ({duration / 1000}s)</span>
+                  <span>Démarrer ({settings.duration / 1000}s)</span>
                 </button>
               ) : (
                 <button
@@ -209,7 +247,7 @@ export default function App() {
                 <a
                   href={videoUrl}
                   download="photobooth360.webm"
-                  className="flex items-center gap-2 px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-full transition-all active:scale-95 shadow-[0_0_15px_rgba(99,102,241,0.3)]"
+                  className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-full transition-all active:scale-95 ${accent.shadow}`}
                 >
                   <Download className="w-4 h-4" />
                   <span>Télécharger</span>
@@ -218,12 +256,12 @@ export default function App() {
             )}
           </div>
 
-          {/* QR Code Share (Mockup for Event Distribution) */}
+          {/* QR Code Share */}
           {videoUrl && (
             <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center">
               <div className="bg-white p-4 rounded-xl shadow-lg">
                 <QRCodeSVG
-                  value={videoUrl} // In production, this would be a remote URL
+                  value={videoUrl}
                   size={120}
                   bgColor={"#ffffff"}
                   fgColor={"#000000"}
@@ -243,7 +281,7 @@ export default function App() {
         {gallery.length > 0 && (
           <div className="w-full max-w-3xl mt-4 animate-in slide-in-from-bottom-8 fade-in duration-500">
             <div className="flex items-center gap-2 mb-4 px-2">
-              <Film className="w-5 h-5 text-indigo-400" />
+              <Film className={`w-5 h-5 ${accent.text}`} />
               <h2 className="text-xl font-semibold text-white">Galerie de la session</h2>
               <span className="bg-zinc-800 text-zinc-300 text-xs py-1 px-2 rounded-full">{gallery.length}</span>
             </div>
@@ -253,7 +291,9 @@ export default function App() {
                   key={idx}
                   onClick={() => setVideoUrl(url)}
                   className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900 rounded-xl overflow-hidden snap-start transition-all border ${
-                    videoUrl === url ? "border-indigo-500 scale-95 opacity-100" : "border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100"
+                    videoUrl === url
+                      ? `${accent.border} scale-95 opacity-100`
+                      : "border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100"
                   }`}
                 >
                   <video src={url} className="w-full h-full object-cover pointer-events-none" />
@@ -264,6 +304,14 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
     </div>
   );
 }
