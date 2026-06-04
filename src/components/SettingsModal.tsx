@@ -137,6 +137,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [visible, setVisible]     = useState(false);
   const [logoUpload, setLogoUpload] = useState<LogoUploadState>('idle');
   const [logoProgress, setLogoProgress] = useState(0);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinModalData, setPinModalData] = useState({ oldPin: '', newPin: '', confirmPin: '', error: '' });
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +190,38 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     setVisible(false);
     // Wait for slide-down animation before unmounting
     setTimeout(onClose, 250);
+  };
+
+  const handlePinChange = () => {
+    setShowPinModal(true);
+    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
+  };
+
+  const handlePinSubmit = () => {
+    const { oldPin, newPin, confirmPin } = pinModalData;
+
+    // Validate old PIN
+    if (oldPin !== local.adminPin) {
+      setPinModalData({ ...pinModalData, error: 'Code PIN actuel incorrect' });
+      return;
+    }
+
+    // Validate new PIN
+    if (!newPin || newPin.length < 4) {
+      setPinModalData({ ...pinModalData, error: 'Le nouveau code doit contenir au moins 4 caractères' });
+      return;
+    }
+
+    // Validate confirmation
+    if (newPin !== confirmPin) {
+      setPinModalData({ ...pinModalData, error: 'Les codes ne correspondent pas' });
+      return;
+    }
+
+    // Update PIN
+    setLocal({ ...local, adminPin: newPin });
+    setShowPinModal(false);
+    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
   };
 
   return (
@@ -414,15 +448,22 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
           {/* ── Admin PIN (hidden) ──────────────────────────────────────── */}
           <Section icon={<Lock className="w-4 h-4" />} label="Code PIN admin" defaultOpen={false}>
-            <input
-              type="password"
-              value={local.adminPin}
-              onChange={(e) => setLocal({ ...local, adminPin: e.target.value })}
-              placeholder="1234"
-              className={`w-full px-4 py-3.5 rounded-2xl bg-zinc-900 border text-white placeholder-zinc-600
-                          focus:outline-none transition-colors text-sm
-                          ${local.adminPin ? `${a.activeBorder} focus:border-current` : "border-zinc-800 focus:border-zinc-600"}`}
-            />
+            <div className="space-y-3">
+              <p className="text-xs text-zinc-500">
+                Le code PIN protège l'accès aux réglages. Cliquez sur le bouton ci-dessous pour le modifier.
+              </p>
+              <button
+                type="button"
+                onClick={handlePinChange}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl border text-sm font-medium transition-all active:scale-[0.98] bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600`}
+              >
+                <Lock className="w-4 h-4" />
+                Modifier le code PIN
+              </button>
+              <p className="text-xs text-zinc-600">
+                Code actuel : {"•".repeat(local.adminPin.length)}
+              </p>
+            </div>
           </Section>
 
           {/* ── Couleur d'accent ──────────────────────────────────── */}
@@ -481,6 +522,105 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
           </button>
         </div>
       </div>
+
+      {/* PIN Change Modal */}
+      {showPinModal && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowPinModal(false);
+            setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
+          }}
+        >
+          <div 
+            className="bg-zinc-900 rounded-2xl border border-zinc-700 p-6 w-full max-w-md mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-indigo-400" />
+                <h3 className="text-lg font-semibold text-white">Modifier le code PIN</h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
+                }}
+                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Old PIN */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-2">Code PIN actuel</label>
+                <input
+                  type="password"
+                  value={pinModalData.oldPin}
+                  onChange={(e) => setPinModalData({ ...pinModalData, oldPin: e.target.value, error: '' })}
+                  placeholder="Entrez le code actuel"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              {/* New PIN */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-2">Nouveau code PIN</label>
+                <input
+                  type="password"
+                  value={pinModalData.newPin}
+                  onChange={(e) => setPinModalData({ ...pinModalData, newPin: e.target.value, error: '' })}
+                  placeholder="Au moins 4 caractères"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              {/* Confirm PIN */}
+              <div>
+                <label className="block text-xs text-zinc-400 mb-2">Confirmer le nouveau code</label>
+                <input
+                  type="password"
+                  value={pinModalData.confirmPin}
+                  onChange={(e) => setPinModalData({ ...pinModalData, confirmPin: e.target.value, error: '' })}
+                  onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
+                  placeholder="Retapez le nouveau code"
+                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+
+              {/* Error message */}
+              {pinModalData.error && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <span className="text-red-400 text-sm">{pinModalData.error}</span>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handlePinSubmit}
+                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
