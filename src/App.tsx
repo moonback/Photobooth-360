@@ -185,6 +185,24 @@ export default function App() {
     }
   }, [showSplash, cloudEnabled]);
 
+  // ── Fullscreen keyboard shortcuts ─────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC to exit fullscreen
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+      // F11 to toggle fullscreen (prevent default browser fullscreen)
+      if (e.key === 'F11') {
+        e.preventDefault();
+        setIsFullscreen(!isFullscreen);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
     if (!stream) return;
@@ -241,37 +259,51 @@ export default function App() {
         />
       ) : (
         <>
-          {/* ── TOP BAR ──────────────────────────────────────────────────── */}
-          <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0">
-            <div className="flex flex-col leading-tight">
-              <span className="text-white font-bold text-lg tracking-tight">
-                Neurobooth <span className={accent.text}>360</span>
-              </span>
-              <span className="text-zinc-500 text-xs">{settings.eventName}</span>
-            </div>
+          {/* ── TOP BAR (hidden in fullscreen) ──────────────────────────── */}
+          {!isFullscreen && (
+            <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0">
+              <div className="flex flex-col leading-tight">
+                <span className="text-white font-bold text-lg tracking-tight">
+                  Neurobooth <span className={accent.text}>360</span>
+                </span>
+                <span className="text-zinc-500 text-xs">{settings.eventName}</span>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/gallery')}
-                className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
-                aria-label="Galerie"
-                title="Voir toutes les vidéos"
-              >
-                <Image className="w-5 h-5" />
-              </button>
-              
-              <button
-                onClick={() => setShowPinModal(true)}
-                className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
-                aria-label="Réglages"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-            </div>
-          </header>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/gallery')}
+                  className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+                  aria-label="Galerie"
+                  title="Voir toutes les vidéos"
+                >
+                  <Image className="w-5 h-5" />
+                </button>
+                
+                <button
+                  onClick={() => setShowPinModal(true)}
+                  className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+                  aria-label="Réglages"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
+              </div>
+            </header>
+          )}
 
           {/* ── VIEWFINDER ───────────────────────────────────────────────── */}
-          <div className="relative flex-1 overflow-hidden bg-black">
+          <div className={`relative overflow-hidden bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'flex-1'}`}>
+            {/* Fullscreen toggle button */}
+            {!isReviewing && (
+              <button
+                onClick={() => setIsFullscreen(!isFullscreen)}
+                className="absolute top-5 right-5 z-30 p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
+                aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
+                title={isFullscreen ? "Quitter plein écran" : "Plein écran"}
+              >
+                {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </button>
+            )}
+
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8">
                 <AlertCircle className="w-10 h-10 text-red-400" />
@@ -294,6 +326,20 @@ export default function App() {
                   <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />
                 )}
               </>
+            )}
+
+            {/* ── FULLSCREEN RECORD BUTTON (centered) ── */}
+            {isFullscreen && !isReviewing && (
+              <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40">
+                <RecordButton
+                  isRecording={isRecording}
+                  isCountingDown={countdown !== null}
+                  hasStream={Boolean(stream)}
+                  durationSeconds={settings.duration / 1000}
+                  onStart={handleStart}
+                  onStop={stopRecording}
+                />
+              </div>
             )}
 
             {/* ── SHARE DRAWER (slides up from bottom of viewfinder) ── */}
@@ -333,8 +379,9 @@ export default function App() {
             )}
           </div>
 
-          {/* ── BOTTOM CONTROLS ──────────────────────────────────────────── */}
-          <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
+          {/* ── BOTTOM CONTROLS (hidden in fullscreen) ──────────────────── */}
+          {!isFullscreen && (
+            <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
 
             {/* Gallery strip */}
             {gallery.length > 0 && (
@@ -397,6 +444,7 @@ export default function App() {
               </div>
             </div>
           </div>
+          )}
         </>
       )}
 
