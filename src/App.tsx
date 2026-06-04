@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, Play } from "lucide-react";
+import { Camera, Download, RefreshCcw, StopCircle, Video, SwitchCamera, QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useRecorder } from "./hooks/useRecorder";
 
 export default function App() {
@@ -8,25 +9,31 @@ export default function App() {
   const [videoUrl, setVideoUrl] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
   const [duration, setDuration] = useState<number>(15000);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
+  const [showFlash, setShowFlash] = useState<boolean>(false);
 
   const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
     onRecordingComplete: (url) => setVideoUrl(url),
+    onRecordingStart: () => {
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 500);
+    },
   });
 
   useEffect(() => {
-    startCamera();
+    startCamera(facingMode);
     return () => {
       // Cleanup stream when component unmounts
       if (streamAction) {
         streamAction.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [facingMode]);
 
-  const startCamera = async () => {
+  const startCamera = async (mode: "user" | "environment") => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: mode, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: true,
       });
       setStreamAction(stream);
@@ -48,6 +55,10 @@ export default function App() {
 
   const handleReset = () => {
     setVideoUrl("");
+  };
+
+  const toggleCamera = () => {
+    setFacingMode((prev) => (prev === "user" ? "environment" : "user"));
   };
 
   return (
@@ -85,6 +96,14 @@ export default function App() {
                 }`}
               />
               
+              {/* Watermark Overlay */}
+              <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
+                  <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                </div>
+                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">ÉVÉNEMENT 2026</span>
+              </div>
+
               {/* Countdown Overlay */}
               {countdown !== null && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
@@ -101,6 +120,11 @@ export default function App() {
                   <span className="text-red-500 text-sm font-medium tracking-wide uppercase">REC</span>
                 </div>
               )}
+
+              {/* Flash Effect */}
+              {showFlash && (
+                <div className="absolute inset-0 bg-white z-50 animate-flash pointer-events-none" />
+              )}
             </div>
           ) : (
             <div className="relative rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10 group">
@@ -109,6 +133,14 @@ export default function App() {
                 controls
                 className="w-full h-full object-contain"
               />
+              
+              {/* Watermark Overlay for recorded video */}
+              <div className="absolute bottom-16 md:bottom-20 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
+                  <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                </div>
+                <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">ÉVÉNEMENT 2026</span>
+              </div>
             </div>
           )}
 
@@ -128,6 +160,15 @@ export default function App() {
                   {ms / 1000}s
                 </button>
               ))}
+              
+              <button
+                onClick={toggleCamera}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-medium rounded-full transition-all active:scale-95 ml-auto"
+                title="Changer de caméra"
+              >
+                <SwitchCamera className="w-4 h-4" />
+                <span className="hidden sm:inline">Caméra</span>
+              </button>
             </div>
           )}
 
@@ -172,6 +213,26 @@ export default function App() {
               </>
             )}
           </div>
+
+          {/* QR Code Share (Mockup for Event Distribution) */}
+          {videoUrl && (
+            <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center">
+              <div className="bg-white p-4 rounded-xl shadow-lg">
+                <QRCodeSVG
+                  value={"https://photobooth360.app/demo/share/12345"}
+                  size={120}
+                  bgColor={"#ffffff"}
+                  fgColor={"#000000"}
+                  level={"L"}
+                  includeMargin={false}
+                />
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-zinc-400">
+                <QrCode className="w-4 h-4" />
+                <span className="text-sm">Scannez pour récupérer sur votre mobile (Démo)</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

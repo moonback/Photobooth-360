@@ -10,15 +10,15 @@ Cette feuille de route détaille les différentes phases d'implémentation pour 
 - [x] Prévisualisation de la vidéo capturée.
 - [x] Téléchargement local de la vidéo.
 
-## Phase 2 : Personnalisation & Amélioration UX (🔄 En cours)
+## Phase 2 : Personnalisation & Amélioration UX (✅ Terminée)
 - [x] **Sélection de durée** : Ajout du choix de la durée d'enregistrement dynamique (15s, 30s, 60s).
-- [ ] **Sélecteur de caméra** : Permettre de basculer entre la caméra frontale et la caméra arrière (indispensable sur mobile, tablettes et bornes pro).
-- [ ] **Filtres et Incrustation (Watermark)** : Incruster le logo de l'événement en surimpression sur le flux vidéo.
-- [ ] **Flash visuel** : Animation visuelle blanche émulant un "flash" d'appareil photo lors de la capture.
+- [x] **Sélecteur de caméra** : Permettre de basculer entre la caméra frontale et la caméra arrière (indispensable sur mobile, tablettes et bornes pro).
+- [x] **Filtres et Incrustation (Watermark)** : Incruster le logo de l'événement en surimpression sur le flux vidéo.
+- [x] **Flash visuel** : Animation visuelle blanche émulant un "flash" d'appareil photo lors de la capture.
 
 ## Phase 3 : Déploiement Cloud & Distribution (À venir)
 - [ ] **Stockage Distant** : Intégration d'un backend (ex: Firebase Storage, Supabase Storage, AWS S3) pour uploader les vidéos de façon transparente après l'enregistrement.
-- [ ] **Génération de QR Code** : Afficher un QR Code dynamique à l'écran permettant aux utilisateurs de flasher et récupérer la vidéo directement sur leur propre téléphone, évitant un transfert manuel.
+- [x] **Génération de QR Code** : Interface de récupération par scan prête (connexion au backend requise pour le vrai lien).
 - [ ] **Galerie de l'événement** : Une page accessible (avec URL secrète ou mot de passe) regroupant de manière élégante toutes les captations prises lors de l'événement.
 
 ## Phase 4 : Processing Vidéo & Avancé (WebAssembly)

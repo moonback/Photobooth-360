@@ -2,9 +2,10 @@ import { useState, useRef, useCallback } from 'react';
 
 interface UseRecorderProps {
   onRecordingComplete: (url: string) => void;
+  onRecordingStart?: () => void;
 }
 
-export function useRecorder({ onRecordingComplete }: UseRecorderProps) {
+export function useRecorder({ onRecordingComplete, onRecordingStart }: UseRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -43,6 +44,7 @@ export function useRecorder({ onRecordingComplete }: UseRecorderProps) {
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+      onRecordingStart?.();
 
       maxDurationTimerRef.current = setTimeout(() => {
         stopRecording();
@@ -64,6 +66,7 @@ export function useRecorder({ onRecordingComplete }: UseRecorderProps) {
       recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
+      onRecordingStart?.();
       maxDurationTimerRef.current = setTimeout(() => {
         stopRecording();
       }, durationMs);
