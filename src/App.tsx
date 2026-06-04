@@ -9,10 +9,11 @@ import { useUpload } from "./hooks/useUpload";
 const ACCENT: Record<AppSettings["accentColor"], {
   bg: string; bgHover: string; bgLight: string; border: string; text: string; ring: string; shadow: string;
 }> = {
+  // "indigo" maps to electric violet (#8B5CF6 / violet-500) — Requirements: 1.3, 14.2, 14.5
   indigo: {
-    bg: "bg-indigo-500", bgHover: "hover:bg-indigo-600", bgLight: "bg-indigo-500/10",
-    border: "border-indigo-500", text: "text-indigo-400", ring: "ring-indigo-500",
-    shadow: "shadow-[0_0_15px_rgba(99,102,241,0.3)]",
+    bg: "bg-violet-500", bgHover: "hover:bg-violet-600", bgLight: "bg-violet-500/10",
+    border: "border-violet-500", text: "text-violet-400", ring: "ring-violet-500",
+    shadow: "shadow-[0_0_15px_rgba(139,92,246,0.3)]",
   },
   rose: {
     bg: "bg-rose-500", bgHover: "hover:bg-rose-600", bgLight: "bg-rose-500/10",
@@ -29,6 +30,7 @@ const ACCENT: Record<AppSettings["accentColor"], {
     border: "border-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500",
     shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
   },
+  // "cyan" stays as neon blue (#06B6D4 / cyan-500) — Requirements: 1.3, 14.2, 14.5
   cyan: {
     bg: "bg-cyan-500", bgHover: "hover:bg-cyan-600", bgLight: "bg-cyan-500/10",
     border: "border-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500",
@@ -161,7 +163,7 @@ export default function App() {
   const isReviewing = Boolean(videoUrl);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-indigo-500/30">
       <div className="w-full max-w-3xl flex flex-col items-center gap-8">
 
         {/* Header */}
@@ -180,7 +182,7 @@ export default function App() {
 
           <button
             onClick={() => setSettingsOpen(true)}
-            className="mt-1 p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors border border-zinc-700"
+            className="mt-1 p-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-all duration-200 ease-out active:scale-[0.98] hover:scale-[1.02] border border-zinc-700"
             title="Réglages"
           >
             <Settings className="w-5 h-5" />
@@ -188,7 +190,7 @@ export default function App() {
         </div>
 
         {/* Main Stage */}
-        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
+        <div className="w-full bg-zinc-900 border border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
 
           {cameraError ? (
             <div className="aspect-video bg-zinc-800/50 rounded-2xl flex items-center justify-center text-center p-6 border border-red-500/20">
@@ -216,7 +218,7 @@ export default function App() {
 
                 {/* Watermark */}
                 <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-lg flex items-center justify-center border border-white/40 shadow-lg">
                     <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
                   </div>
                   <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
@@ -262,7 +264,7 @@ export default function App() {
 
                   {/* Watermark */}
                   <div className="absolute bottom-16 md:bottom-20 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
+                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-lg flex items-center justify-center border border-white/40 shadow-lg">
                       <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
                     <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
@@ -281,7 +283,7 @@ export default function App() {
                 <button
                   onClick={handleStart}
                   disabled={countdown !== null || !stream}
-                  className="flex items-center gap-2 px-8 py-4 bg-white hover:bg-zinc-200 text-black font-semibold rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
+                  className={`flex items-center gap-2 px-8 py-4 ${accent.bg} ${accent.bgHover} text-white font-semibold rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed group ${accent.shadow}`}
                 >
                   <Video className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Démarrer ({settings.duration / 1000}s)</span>
@@ -289,7 +291,7 @@ export default function App() {
               ) : (
                 <button
                   onClick={stopRecording}
-                  className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-all active:scale-95 group shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                  className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] group shadow-[0_0_20px_rgba(239,68,68,0.4)]"
                 >
                   <StopCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
                   <span>Arrêter l'enregistrement</span>
@@ -299,7 +301,7 @@ export default function App() {
               <>
                 <button
                   onClick={handleReset}
-                  className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-full transition-all active:scale-95"
+                  className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white font-medium rounded-2xl transition-all duration-200 ease-out active:scale-[0.98] hover:scale-[1.02]"
                 >
                   <RefreshCcw className="w-4 h-4" />
                   <span>Refaire</span>
@@ -307,7 +309,7 @@ export default function App() {
                 <a
                   href={videoUrl}
                   download="photobooth360.webm"
-                  className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-full transition-all active:scale-95 ${accent.shadow}`}
+                  className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-2xl transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${accent.shadow}`}
                 >
                   <Download className="w-4 h-4" />
                   <span>Télécharger</span>
@@ -318,115 +320,122 @@ export default function App() {
 
           {/* QR Code Share */}
           {isReviewing && (
-            <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center gap-4">
-              <div className="flex items-center gap-2">
-                <QrCode className={`w-4 h-4 ${accent.text}`} />
-                <span className="text-sm font-semibold text-white">Récupérer sur ton téléphone</span>
-                {/* Cloud / local badge */}
-                <span className={`ml-auto flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                  cloudEnabled
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-zinc-800 text-zinc-500"
-                }`}>
-                  {cloudEnabled
-                    ? <><Wifi className="w-3 h-3" /> Cloud</>
-                    : <><WifiOff className="w-3 h-3" /> Local</>
-                  }
-                </span>
+            <div className="mt-8 border-t border-zinc-800/50 pt-8">
+              {/* Glassmorphism panel — Requirements: 3.1, 3.2, 3.3, 3.4, 3.5 */}
+              <div className="bg-zinc-900/80 backdrop-blur-lg border border-white/10 rounded-2xl p-5 flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2 w-full">
+                  <QrCode className={`w-4 h-4 ${accent.text}`} />
+                  {/* text-white on zinc-900/80 dark background — contrast ≥ 4.5:1 (WCAG AA) */}
+                  <span className="text-sm font-semibold text-white">Récupérer sur ton téléphone</span>
+                  {/* Cloud / local badge */}
+                  <span className={`ml-auto flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                    cloudEnabled
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-zinc-800 text-zinc-400"
+                  }`}>
+                    {cloudEnabled
+                      ? <><Wifi className="w-3 h-3" /> Cloud</>
+                      : <><WifiOff className="w-3 h-3" /> Local</>
+                    }
+                  </span>
+                </div>
+
+                {/* ── CLOUD MODE ── */}
+                {cloudEnabled && (
+                  <>
+                    {uploadStatus === 'uploading' && (
+                      <div className="w-full space-y-2">
+                        <div className="flex items-center justify-between text-xs text-zinc-300">
+                          <span className="flex items-center gap-1.5">
+                            <CloudUpload className="w-3.5 h-3.5 animate-pulse" />
+                            Upload en cours…
+                          </span>
+                          <span>{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${accent.bg} rounded-full transition-all duration-300`}
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        {/* text-zinc-400 on zinc-900/80 background — contrast ≥ 4.5:1 (WCAG AA) */}
+                        <p className="text-xs text-zinc-400 text-center">
+                          Envoi vers le cloud — le QR Code sera disponible dans quelques secondes
+                        </p>
+                      </div>
+                    )}
+
+                    {uploadStatus === 'done' && uploadedUrl && (
+                      <>
+                        <div className="bg-white p-4 rounded-2xl shadow-lg">
+                          <QRCodeSVG
+                            value={`${window.location.origin}/share/cloud?url=${btoa(encodeURIComponent(uploadedUrl))}`}
+                            size={160}
+                            bgColor="#ffffff"
+                            fgColor="#000000"
+                            level="M"
+                            includeMargin={false}
+                          />
+                        </div>
+                        {/* text-zinc-400 on zinc-900/80 background — contrast ≥ 4.5:1 (WCAG AA) */}
+                        <p className="text-xs text-zinc-400 text-center max-w-xs">
+                          Scanne depuis n'importe quel téléphone. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                        </p>
+                        <code className="text-xs text-zinc-300 bg-zinc-800/80 px-3 py-1.5 rounded-lg break-all text-center max-w-full">
+                          {uploadedUrl}
+                        </code>
+                      </>
+                    )}
+
+                    {uploadStatus === 'error' && (
+                      <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 w-full">
+                        <span>Upload échoué — partage local disponible ci-dessous.</span>
+                      </div>
+                    )}
+
+                    {uploadStatus === 'idle' && (
+                      <div className="flex items-center gap-2 text-zinc-300 py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Préparation…</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ── LOCAL FALLBACK (IndexedDB) ── */}
+                {(!cloudEnabled || uploadStatus === 'error') && (
+                  <>
+                    {isSavingShare ? (
+                      <div className="flex items-center gap-2 text-zinc-300 py-4">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Préparation du lien local…</span>
+                      </div>
+                    ) : shareId ? (
+                      <>
+                        <div className="bg-white p-4 rounded-2xl shadow-lg">
+                          <QRCodeSVG
+                            value={`${window.location.origin}/share/${shareId}`}
+                            size={160}
+                            bgColor="#ffffff"
+                            fgColor="#000000"
+                            level="M"
+                            includeMargin={false}
+                          />
+                        </div>
+                        {/* text-zinc-400 on zinc-900/80 background — contrast ≥ 4.5:1 (WCAG AA) */}
+                        <p className="text-xs text-zinc-400 text-center max-w-xs">
+                          Scanne depuis le même réseau Wi-Fi. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                        </p>
+                        <p className="text-xs text-zinc-400 text-center">
+                          Pour un partage cross-réseau, configure Supabase dans le fichier <code className="text-zinc-300">.env</code>.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-zinc-400">Lien indisponible.</p>
+                    )}
+                  </>
+                )}
               </div>
-
-              {/* ── CLOUD MODE ── */}
-              {cloudEnabled && (
-                <>
-                  {uploadStatus === 'uploading' && (
-                    <div className="w-full space-y-2">
-                      <div className="flex items-center justify-between text-xs text-zinc-400">
-                        <span className="flex items-center gap-1.5">
-                          <CloudUpload className="w-3.5 h-3.5 animate-pulse" />
-                          Upload en cours…
-                        </span>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${accent.bg} rounded-full transition-all duration-300`}
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-600 text-center">
-                        Envoi vers le cloud — le QR Code sera disponible dans quelques secondes
-                      </p>
-                    </div>
-                  )}
-
-                  {uploadStatus === 'done' && uploadedUrl && (
-                    <>
-                      <div className="bg-white p-4 rounded-2xl shadow-lg">
-                        <QRCodeSVG
-                          value={`${window.location.origin}/share/cloud?url=${btoa(encodeURIComponent(uploadedUrl))}`}
-                          size={160}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-500 text-center max-w-xs">
-                        Scanne depuis n'importe quel téléphone. Tu pourras choisir ton effet slow-motion avant de télécharger.
-                      </p>
-                      <code className="text-xs text-zinc-600 bg-zinc-800 px-3 py-1.5 rounded-lg break-all text-center max-w-full">
-                        {uploadedUrl}
-                      </code>
-                    </>
-                  )}
-
-                  {uploadStatus === 'error' && (
-                    <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-                      <span>Upload échoué — partage local disponible ci-dessous.</span>
-                    </div>
-                  )}
-
-                  {uploadStatus === 'idle' && (
-                    <div className="flex items-center gap-2 text-zinc-400 py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Préparation…</span>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* ── LOCAL FALLBACK (IndexedDB) ── */}
-              {(!cloudEnabled || uploadStatus === 'error') && (
-                <>
-                  {isSavingShare ? (
-                    <div className="flex items-center gap-2 text-zinc-400 py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Préparation du lien local…</span>
-                    </div>
-                  ) : shareId ? (
-                    <>
-                      <div className="bg-white p-4 rounded-2xl shadow-lg">
-                        <QRCodeSVG
-                          value={`${window.location.origin}/share/${shareId}`}
-                          size={160}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-500 text-center max-w-xs">
-                        Scanne depuis le même réseau Wi-Fi. Tu pourras choisir ton effet slow-motion avant de télécharger.
-                      </p>
-                      <p className="text-xs text-zinc-700 text-center">
-                        Pour un partage cross-réseau, configure Supabase dans le fichier <code className="text-zinc-500">.env</code>.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-zinc-600">Lien indisponible.</p>
-                  )}
-                </>
-              )}
             </div>
           )}
         </div>
