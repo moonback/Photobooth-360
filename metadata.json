@@ -1,0 +1,11 @@
+{
+  "name": "Photobooth 360",
+  "description": "A 360 photobooth application that allows users to record, preview, and download short videos.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

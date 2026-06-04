@@ -1,11 +1,38 @@
-<div align="center">
+# Photobooth 360 🎥
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Une application web moderne de type "Photomaton 360", permettant de capturer des vidéos directement depuis le navigateur. Conçue pour être utilisée lors d'événements, soirées et mariages sur une borne ou une tablette.
 
-  <h1>Built with AI Studio</h2>
+## Fonctionnalités 🚀
+- 🔴 **Enregistrement Vidéo** interactif et sans module complémentaire (via l'API `MediaRecorder` native).
+- ⏱ **Compte à rebours** visuel pour se préparer avant la capture.
+- ⏳ **Durée personnalisable** (15, 30 ou 60 secondes).
+- 📱 **Responsive & Mobile-first**, parfait pour des iPad ou terminaux tactiles, mode paysage ou portrait.
+- 📥 **Téléchargement immédiat** de la vidéo sur l'appareil au format universel WebM.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Stack Technique 🛠
+- **React 19** & **TypeScript**
+- **Vite** pour des performances de build et un démarrage instantané.
+- **Tailwind CSS 4** pour l'interface graphique moderne et le thème sombre immersif.
+- **Lucide React** pour des icônes légères et esthétiques.
+- **APIs Web Natives** : `navigator.mediaDevices.getUserMedia` & `MediaRecorder`.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Installation et Lancement Local 💻
 
-</div>
+1. **Installation des dépendances**
+   ```bash
+   npm install
+   ```
+2. **Démarrage du serveur de développement**
+   ```bash
+   npm run dev
+   ```
+3. Ouvrez votre navigateur à l'adresse indiquée (généralement `http://localhost:3000`).
+
+*Note importante : L'accès à la caméra (`getUserMedia`) requiert généralement un environnement sécurisé (HTTPS) ou un environnement de développement local (`localhost`).*
+
+## Structure du Projet 📂
+- `/src/components/` *(À venir selon roadmap)* : Composants d'interface (UI, Modals, Camera).
+- `/src/hooks/useRecorder.ts` : Hook React encapsulant toute la logique complexe de l'enregistrement média.
+- `/src/App.tsx` : Page principale de l'application et composition visuelle de la scène.
+
+Consultez le fichier `ROADMAP.md` pour suivre l'évolution des fonctionnalités à travers les différentes phases de développement.
