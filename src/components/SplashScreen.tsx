@@ -21,14 +21,6 @@ export default function SplashScreen({ settings, onEnter, onAdmin }: SplashScree
     requestAnimationFrame(() => setVisible(true));
   }, []);
 
-  // Auto-dismiss to main app after 8 seconds (not to settings)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onEnter();
-    }, 8000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const handlePinSubmit = () => {
     if (pinInput === settings.adminPin) {
       onAdmin(); // correct PIN → open settings
@@ -85,10 +77,16 @@ export default function SplashScreen({ settings, onEnter, onAdmin }: SplashScree
       {/* PIN overlay */}
       {showPin && (
         <div
-          className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={(e) => e.stopPropagation()}
+          className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Modal reste ouvert, ne se ferme pas au clic
+          }}
         >
-          <div className="bg-zinc-900/95 border border-zinc-700 rounded-2xl p-6 w-72 shadow-2xl">
+          <div 
+            className="bg-zinc-900/95 border border-zinc-700 rounded-2xl p-6 w-72 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-2 mb-4">
               <Lock className="w-5 h-5 text-indigo-400" />
               <h2 className="text-base font-semibold text-white">Accès administrateur</h2>

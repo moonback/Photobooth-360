@@ -43,8 +43,10 @@ export default function PinModal({ adminPin, onUnlock, onCancel }: PinModalProps
         <input
           type="password"
           value={pinInput}
-          onChange={(e) => setPinInput(e.target.value)}
-          className="w-full px-3 py-2 rounded bg-zinc-800 text-white focus:outline-none"
+          autoFocus
+          onChange={(e) => { setPinInput(e.target.value); setError(false); }}
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+          className="w-full px-3 py-2 rounded bg-zinc-800 text-white focus:outline-none focus:border-indigo-500 border border-zinc-700 transition-colors"
         />
         {error && <p className="text-red-400 mt-2 text-sm">PIN incorrect</p>}
         <div className="flex justify-end mt-4 space-x-2">

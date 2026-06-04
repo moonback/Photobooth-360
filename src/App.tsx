@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import SplashScreen from "./components/SplashScreen";
 import {
@@ -23,6 +23,7 @@ import RecordButton from "./components/RecordButton";
 import ShareSection from "./components/ShareSection";
 import GalleryStrip from "./components/GalleryStrip";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
+import PinModal from "./components/PinModal";
 
 import { saveVideo } from "./lib/videoStore";
 
@@ -46,6 +47,7 @@ export default function App() {
   const { settings, loadState, handleSave } = useSettings();
 
   const [settingsOpen, setSettingsOpen]   = useState(false);
+  const [showPinModal, setShowPinModal]   = useState(false);
   const [videoUrl, setVideoUrl]           = useState("");
   const [gallery, setGallery]             = useState<string[]>([]);
   const [shareId, setShareId]             = useState("");
@@ -53,6 +55,9 @@ export default function App() {
   const [showFlash, setShowFlash]         = useState(false);
   const [shareOpen, setShareOpen]         = useState(false);
   const [showSplash, setShowSplash]       = useState(true);
+  
+  // Inactivity timer ref
+  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const accent = ACCENT[settings.accentColor];
 
@@ -99,6 +104,56 @@ export default function App() {
   });
 
   const isReviewing = Boolean(videoUrl);
+
+  // ── Inactivity Management (5 minutes) ─────────────────────────────────────
+  const resetInactivityTimer = () => {
+    // Clear existing timer
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+    }
+    
+    // Set new timer for 5 minutes (300000 ms)
+    if (!showSplash) {
+      inactivityTimerRef.current = setTimeout(() => {
+        setShowSplash(true);
+        setVideoUrl("");
+        setShareId("");
+        setShareOpen(false);
+      }, 300000); // 5 minutes
+    }
+  };
+
+  // Setup activity listeners
+  useEffect(() => {
+    if (showSplash) {
+      // Clear timer when splash is shown
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+        inactivityTimerRef.current = null;
+      }
+      return;
+    }
+
+    // Start timer when leaving splash
+    resetInactivityTimer();
+
+    // Listen for user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    events.forEach(event => {
+      document.addEventListener(event, resetInactivityTimer);
+    });
+
+    // Cleanup
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, resetInactivityTimer);
+      });
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current);
+      }
+    };
+  }, [showSplash]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
@@ -175,7 +230,7 @@ export default function App() {
               </button>
               
               <button
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => setShowPinModal(true)}
                 className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
                 aria-label="Réglages"
               >
@@ -312,6 +367,18 @@ export default function App() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ── PIN MODAL ────────────────────────────────────────────────────── */}
+      {showPinModal && (
+        <PinModal
+          adminPin={settings.adminPin}
+          onUnlock={() => {
+            setShowPinModal(false);
+            setSettingsOpen(true);
+          }}
+          onCancel={() => setShowPinModal(false)}
+        />
       )}
 
       {/* ── SETTINGS MODAL ───────────────────────────────────────────────── */}
