@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { X, Settings, Camera, Clock, Video, Type, Palette, Mic, MicOff } from "lucide-react";
 
 export interface AppSettings {
@@ -120,6 +120,17 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [local, setLocal] = useState<AppSettings>(settings);
   const [eventNameFocused, setEventNameFocused] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   // Derive accent classes from the currently selected (local) accent color
@@ -135,27 +146,27 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   };
 
   // Sync local state when modal reopens
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4 py-6"
+      className="fixed inset-0 z-50 flex items-center justify-center glass-backdrop px-4 py-6"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800/50 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg glass-strong rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800/50 bg-zinc-900/80 backdrop-blur-lg">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-800/50 glass">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-2xl" style={{ backgroundColor: `${pillAccent.activeLightBg.replace('bg-', '')}` }}>
+            <div className={`p-2 rounded-2xl ${pillAccent.activeLightBg}`}>
               <Settings className={`w-5 h-5 ${pillAccent.activeText}`} />
             </div>
             <h2 className="text-lg font-semibold text-white">Réglages</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-2xl text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+            className="p-2 rounded-2xl text-zinc-300 hover:text-white hover:bg-zinc-800 premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98]" aria-label="Fermer les réglages"
           >
             <X className="w-5 h-5" />
           </button>
@@ -178,7 +189,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
               onBlur={() => setEventNameFocused(false)}
               maxLength={40}
               placeholder="Nom affiché sur la vidéo..."
-              className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border text-white placeholder-zinc-500 focus:outline-none transition-all duration-200 text-sm"
+              className="w-full px-4 py-3 rounded-2xl bg-zinc-800 border text-white placeholder-zinc-500 focus:outline-none focus:ring-1 premium-interactive text-sm premium-touch"
               style={{
                 borderColor: eventNameFocused ? pillAccent.focusBorderColor : "rgb(63,63,70)",
                 boxShadow: eventNameFocused
@@ -199,7 +210,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 <button
                   key={value}
                   onClick={() => setLocal({ ...local, duration: value })}
-                  className={`px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`px-4 py-2 rounded-2xl text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] ${
                     local.duration === value
                       ? `${pillAccent.activeBg} text-white ${pillAccent.activeShadow}`
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-zinc-700"
@@ -222,7 +233,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 <button
                   key={value}
                   onClick={() => setLocal({ ...local, countdownSeconds: value })}
-                  className={`px-4 py-2 rounded-2xl text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`px-4 py-2 rounded-2xl text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] ${
                     local.countdownSeconds === value
                       ? `${pillAccent.activeBg} text-white ${pillAccent.activeShadow}`
                       : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white border border-zinc-700"
@@ -243,7 +254,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
             <div className="flex gap-2">
               <button
                 onClick={() => setLocal({ ...local, facingMode: "user" })}
-                className={`flex-1 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] border ${
+                className={`flex-1 py-3 rounded-2xl text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] border ${
                   local.facingMode === "user"
                     ? `${pillAccent.activeLightBg} ${pillAccent.activeBorder} ${pillAccent.activeText} ${pillAccent.activeShadow}`
                     : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -253,7 +264,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
               </button>
               <button
                 onClick={() => setLocal({ ...local, facingMode: "environment" })}
-                className={`flex-1 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] border ${
+                className={`flex-1 py-3 rounded-2xl text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] border ${
                   local.facingMode === "environment"
                     ? `${pillAccent.activeLightBg} ${pillAccent.activeBorder} ${pillAccent.activeText} ${pillAccent.activeShadow}`
                     : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -276,7 +287,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
             </label>
             <button
               onClick={() => setLocal({ ...local, recordAudio: !local.recordAudio })}
-              className={`w-full flex items-center justify-between px-4 py-4 rounded-2xl border transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${
+              className={`w-full flex items-center justify-between px-4 py-4 rounded-2xl border premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] ${
                 local.recordAudio
                   ? `${pillAccent.activeLightBg} ${pillAccent.activeBorder} ${pillAccent.activeShadow}`
                   : "bg-zinc-800 border-zinc-700"
@@ -321,7 +332,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 <button
                   key={value}
                   onClick={() => setLocal({ ...local, resolution: value })}
-                  className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] border ${
+                  className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] border ${
                     local.resolution === value
                       ? `${pillAccent.activeLightBg} ${pillAccent.activeBorder} ${pillAccent.activeText} ${pillAccent.activeShadow}`
                       : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white"
@@ -346,7 +357,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   key={value}
                   onClick={() => setLocal({ ...local, accentColor: value })}
                   title={label}
-                  className={`w-9 h-9 rounded-full ${cls} transition-all ${
+                  className={`w-11 h-11 rounded-full ${cls} premium-interactive premium-touch ${
                     local.accentColor === value
                       ? "ring-2 ring-offset-2 ring-offset-zinc-900 ring-white scale-110"
                       : "opacity-50 hover:opacity-100"
@@ -358,7 +369,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-5 border-t border-zinc-800 bg-zinc-900/80">
+        <div className="flex items-center justify-between px-6 py-5 border-t border-zinc-800/50 glass">
           <button
             onClick={handleReset}
             className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
@@ -368,13 +379,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
           <div className="flex gap-3">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+              className="px-5 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-sm font-medium premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98]"
             >
               Annuler
             </button>
             <button
               onClick={handleSave}
-              className={`px-5 py-2.5 rounded-2xl ${pillAccent.activeBg} text-white text-sm font-semibold transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] ${pillAccent.activeShadow}`}
+              className={`px-5 py-2.5 rounded-2xl ${pillAccent.activeBg} text-white text-sm font-semibold premium-interactive premium-touch hover:scale-[1.02] active:scale-[0.98] ${pillAccent.activeShadow}`}
             >
               Enregistrer
             </button>

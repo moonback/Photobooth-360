@@ -53,7 +53,7 @@ export default function SlowMotionPanel({
   const exportReady = status === 'done';
 
   return (
-    <div className="mt-6 border-t border-zinc-800 pt-6 space-y-4">
+    <div className="mt-6 border-t border-zinc-800/50 pt-6 space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Gauge className={`w-4 h-4 ${accentText}`} />
@@ -78,10 +78,10 @@ export default function SlowMotionPanel({
           <button
             key={value}
             onClick={() => onSpeedChange(value)}
-            className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all ${
+            className={`flex-1 py-3 rounded-2xl border text-sm font-medium premium-interactive hover:scale-[1.02] active:scale-[0.98] ${
               playbackSpeed === value
                 ? `bg-opacity-10 ${accentBg.replace('bg-', 'bg-').replace('-500', '-500/10')} border-current ${accentText}`
-                : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:text-white'
             }`}
           >
             <div className="text-lg font-bold">{label}</div>
