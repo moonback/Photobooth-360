@@ -1,470 +1,277 @@
-import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings, Loader2, CloudUpload, Wifi, WifiOff } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { useState } from "react";
+import {
+  Settings,
+  RefreshCcw,
+  Download,
+  QrCode,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+} from "lucide-react";
+
+import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
-import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
-import { saveVideo } from "./lib/videoStore";
 import { useUpload } from "./hooks/useUpload";
 
-const ACCENT: Record<AppSettings["accentColor"], {
-  bg: string; bgHover: string; bgLight: string; border: string; text: string; ring: string; shadow: string;
-}> = {
-  indigo: {
-    bg: "bg-indigo-500", bgHover: "hover:bg-indigo-600", bgLight: "bg-indigo-500/10",
-    border: "border-indigo-500", text: "text-indigo-400", ring: "ring-indigo-500",
-    shadow: "shadow-[0_0_15px_rgba(99,102,241,0.3)]",
-  },
-  rose: {
-    bg: "bg-rose-500", bgHover: "hover:bg-rose-600", bgLight: "bg-rose-500/10",
-    border: "border-rose-500", text: "text-rose-400", ring: "ring-rose-500",
-    shadow: "shadow-[0_0_15px_rgba(244,63,94,0.3)]",
-  },
-  amber: {
-    bg: "bg-amber-500", bgHover: "hover:bg-amber-600", bgLight: "bg-amber-500/10",
-    border: "border-amber-500", text: "text-amber-400", ring: "ring-amber-500",
-    shadow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]",
-  },
-  emerald: {
-    bg: "bg-emerald-500", bgHover: "hover:bg-emerald-600", bgLight: "bg-emerald-500/10",
-    border: "border-emerald-500", text: "text-emerald-400", ring: "ring-emerald-500",
-    shadow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]",
-  },
-  cyan: {
-    bg: "bg-cyan-500", bgHover: "hover:bg-cyan-600", bgLight: "bg-cyan-500/10",
-    border: "border-cyan-500", text: "text-cyan-400", ring: "ring-cyan-500",
-    shadow: "shadow-[0_0_15px_rgba(6,182,212,0.3)]",
-  },
+import CameraView from "./components/CameraView";
+import PlaybackView from "./components/PlaybackView";
+import RecordButton from "./components/RecordButton";
+import ShareSection from "./components/ShareSection";
+import GalleryStrip from "./components/GalleryStrip";
+import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
+
+import { saveVideo } from "./lib/videoStore";
+
+// ─── Accent palette ────────────────────────────────────────────────────────────
+const ACCENT: Record<
+  AppSettings["accentColor"],
+  { bg: string; text: string; border: string; glow: string }
+> = {
+  indigo:  { bg: "bg-indigo-500",  text: "text-indigo-400",  border: "border-indigo-500",  glow: "shadow-[0_0_30px_rgba(99,102,241,0.5)]"  },
+  rose:    { bg: "bg-rose-500",    text: "text-rose-400",    border: "border-rose-500",    glow: "shadow-[0_0_30px_rgba(244,63,94,0.5)]"    },
+  amber:   { bg: "bg-amber-500",   text: "text-amber-400",   border: "border-amber-500",   glow: "shadow-[0_0_30px_rgba(245,158,11,0.5)]"   },
+  emerald: { bg: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-500", glow: "shadow-[0_0_30px_rgba(16,185,129,0.5)]"   },
+  cyan:    { bg: "bg-cyan-500",    text: "text-cyan-400",    border: "border-cyan-500",    glow: "shadow-[0_0_30px_rgba(6,182,212,0.5)]"    },
 };
 
-const RESOLUTION_MAP: Record<AppSettings["resolution"], { width: number; height: number }> = {
-  "480p":  { width: 854,  height: 480  },
-  "720p":  { width: 1280, height: 720  },
-  "1080p": { width: 1920, height: 1080 },
-};
-
+// ─── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
-  // Separate ref for the live webcam feed — never used for playback
-  const liveVideoRef = useRef<HTMLVideoElement>(null);
-
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [videoUrl, setVideoUrl] = useState<string>("");
-  const [cameraError, setCameraError] = useState<string>("");
-  const [showFlash, setShowFlash] = useState<boolean>(false);
-  const [gallery, setGallery] = useState<string[]>([]);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  // QR share: the IndexedDB video ID and the saving state
-  const [shareId, setShareId] = useState<string>("");
+  const [settings, setSettings]           = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settingsOpen, setSettingsOpen]   = useState(false);
+  const [videoUrl, setVideoUrl]           = useState("");
+  const [gallery, setGallery]             = useState<string[]>([]);
+  const [shareId, setShareId]             = useState("");
   const [isSavingShare, setIsSavingShare] = useState(false);
-
-  // Cloud upload via Supabase
-  const { upload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled } = useUpload();
+  const [showFlash, setShowFlash]         = useState(false);
+  const [shareOpen, setShareOpen]         = useState(false);
 
   const accent = ACCENT[settings.accentColor];
 
-  const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
-    onRecordingComplete: (url) => {
-      // Silence audio tracks during review to prevent mic feedback
-      if (stream) {
-        stream.getAudioTracks().forEach((t) => { t.enabled = false; });
-      }
-      setVideoUrl(url);
-      setShareId("");
-      setGallery((prev) => [url, ...prev]);
+  // Camera
+  const { liveVideoRef, stream, cameraError } = useCamera({
+    facingMode:  settings.facingMode,
+    resolution:  settings.resolution,
+    recordAudio: settings.recordAudio,
+  });
 
-      if (cloudEnabled) {
-        // Cloud path: upload to Supabase — share URL will be the public CDN link
-        upload(url); // status tracked via useUpload
-      } else {
-        // Local fallback: save to IndexedDB
-        setIsSavingShare(true);
-        saveVideo(url)
-          .then((id) => { setShareId(id); })
-          .catch(console.error)
-          .finally(() => setIsSavingShare(false));
-      }
-    },
+  // Cloud upload
+  const {
+    upload,
+    status:    uploadStatus,
+    progress:  uploadProgress,
+    publicUrl: uploadedUrl,
+    isConfigured: cloudEnabled,
+  } = useUpload();
+
+  // Recorder
+  const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
     onRecordingStart: () => {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
     },
+    onRecordingComplete: (url) => {
+      // Mute mic during review
+      stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
+      setVideoUrl(url);
+      setShareId("");
+      setShareOpen(true);
+      setGallery((prev) => [url, ...prev]);
+
+      if (cloudEnabled) {
+        upload(url);
+      } else {
+        setIsSavingShare(true);
+        saveVideo(url)
+          .then((id) => setShareId(id))
+          .catch(console.error)
+          .finally(() => setIsSavingShare(false));
+      }
+    },
   });
 
-  // Start/restart camera whenever facingMode or resolution setting changes
-  useEffect(() => {
-    startCamera(settings.facingMode, settings.resolution);
-    return () => stopStream(stream);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.facingMode, settings.resolution]);
+  const isReviewing = Boolean(videoUrl);
 
-  // Keep the live <video> element pointing at the stream whenever it changes
-  useEffect(() => {
-    if (liveVideoRef.current && stream) {
-      liveVideoRef.current.srcObject = stream;
-    }
-  }, [stream]);
-
-  function stopStream(s: MediaStream | null) {
-    s?.getTracks().forEach((t) => t.stop());
-  }
-
-  const startCamera = async (mode: "user" | "environment", res: AppSettings["resolution"]) => {
-    const { width, height } = RESOLUTION_MAP[res];
-    try {
-      // Stop any previous stream first
-      stopStream(stream);
-
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode, width: { ideal: width }, height: { ideal: height } },
-        audio: true, // always request audio permission; we control track.enabled separately
-      });
-
-      // Apply the audio setting immediately — disabled by default
-      newStream.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
-
-      setStream(newStream);
-
-      // Attach directly in case useEffect fires after this
-      if (liveVideoRef.current) {
-        liveVideoRef.current.srcObject = newStream;
-      }
-      setCameraError("");
-    } catch (err) {
-      console.error("Camera access denied or not available", err);
-      setCameraError("Impossible d'accéder à la caméra. Vérifiez les permissions.");
-    }
-  };
-
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
     if (!stream) return;
-    // Enable audio tracks only if the setting is on
     stream.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
     startRecording(stream, settings.duration, settings.countdownSeconds);
   };
 
   const handleReset = () => {
-    // Re-apply audio setting for the next take
     stream?.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
     setVideoUrl("");
     setShareId("");
+    setShareOpen(false);
+  };
+
+  const handleGallerySelect = (url: string) => {
+    stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
+    setVideoUrl(url);
+    setShareId("");
+    setShareOpen(false);
   };
 
   const handleSaveSettings = (next: AppSettings) => {
-    // If only the audio setting changed (no camera restart needed), apply immediately
     if (!isReviewing && stream && next.recordAudio !== settings.recordAudio) {
       stream.getAudioTracks().forEach((t) => { t.enabled = next.recordAudio; });
     }
     setSettings(next);
   };
 
-  // Viewing mode: true when a recorded video is selected for review
-  const isReviewing = Boolean(videoUrl);
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-indigo-500/30">
-      <div className="w-full max-w-3xl flex flex-col items-center gap-8">
+    // Full-screen mobile-first layout — no scroll, everything fits in 100dvh
+    <div className="fixed inset-0 bg-zinc-950 flex flex-col overflow-hidden font-sans select-none">
 
-        {/* Header */}
-        <div className="w-full flex items-start justify-between">
-          <div className="flex-1 text-center space-y-2">
-            <div className={`inline-flex items-center justify-center p-3 ${accent.bgLight} rounded-full mb-2`}>
-              <Camera className={`w-8 h-8 ${accent.text}`} />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
-              Neurobooth <span className={accent.text}>360</span>
-            </h1>
-            <p className="text-zinc-400 max-w-md mx-auto">
-              Créez des souvenirs inoubliables. Enregistrez un message vidéo pour l'événement !
-            </p>
-          </div>
-
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="mt-1 p-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors border border-zinc-700"
-            title="Réglages"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
+      {/* ── TOP BAR ─────────────────────────────────────────────────────── */}
+      <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0">
+        <div className="flex flex-col leading-tight">
+          <span className="text-white font-bold text-lg tracking-tight">
+            Neurobooth <span className={accent.text}>360</span>
+          </span>
+          <span className="text-zinc-500 text-xs">{settings.eventName}</span>
         </div>
 
-        {/* Main Stage */}
-        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+          aria-label="Réglages"
+        >
+          <Settings className="w-5 h-5" />
+        </button>
+      </header>
 
-          {cameraError ? (
-            <div className="aspect-video bg-zinc-800/50 rounded-2xl flex items-center justify-center text-center p-6 border border-red-500/20">
-              <p className="text-red-400">{cameraError}</p>
-            </div>
-          ) : (
-            <>
-              {/* ── LIVE WEBCAM ─────────────────────────────────────────
-                  Always mounted so the stream stays alive.
-                  Hidden (not unmounted) while reviewing a recorded clip. */}
-              <div
-                className={`relative rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10 ${
-                  isReviewing ? "hidden" : "block"
-                }`}
-              >
-                <video
-                  ref={liveVideoRef}
-                  autoPlay
-                  playsInline
-                  muted          /* mic audio must NEVER play back live — prevents feedback */
-                  className={`w-full h-full object-cover transition-opacity duration-300 ${
-                    isRecording ? "opacity-100 ring-2 ring-red-500" : "opacity-90"
-                  }`}
-                />
-
-                {/* Watermark */}
-                <div className="absolute bottom-4 md:bottom-8 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
-                    <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                  </div>
-                  <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
-                    {settings.eventName}
-                  </span>
-                </div>
-
-                {/* Countdown overlay */}
-                {countdown !== null && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
-                    <span className="text-8xl md:text-[150px] font-bold text-white drop-shadow-2xl animate-pulse">
-                      {countdown}
-                    </span>
-                  </div>
-                )}
-
-                {/* REC indicator */}
-                {isRecording && (
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/30">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-red-500 text-sm font-medium tracking-wide uppercase">REC</span>
-                  </div>
-                )}
-
-                {/* Flash */}
-                {showFlash && (
-                  <div className="absolute inset-0 bg-white z-50 animate-flash pointer-events-none" />
-                )}
-              </div>
-
-              {/* ── PLAYBACK ────────────────────────────────────────────
-                  Separate element — no srcObject, pure src URL playback. */}
-              {isReviewing && (
-                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10">
-                  <video
-                    key={videoUrl}
-                    src={videoUrl}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain"
-                  />
-
-                  {/* Watermark */}
-                  <div className="absolute bottom-16 md:bottom-20 left-4 md:left-8 pointer-events-none z-20 flex items-center gap-2 opacity-80 mix-blend-overlay">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-lg">
-                      <Camera className="w-4 h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-                    <span className="text-white font-bold tracking-widest text-lg md:text-2xl drop-shadow-lg">
-                      {settings.eventName}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Controls */}
-          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-            {!isReviewing ? (
-              !isRecording ? (
-                <button
-                  onClick={handleStart}
-                  disabled={countdown !== null || !stream}
-                  className="flex items-center gap-2 px-8 py-4 bg-white hover:bg-zinc-200 text-black font-semibold rounded-full transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
-                >
-                  <Video className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Démarrer ({settings.duration / 1000}s)</span>
-                </button>
-              ) : (
-                <button
-                  onClick={stopRecording}
-                  className="flex items-center gap-2 px-8 py-4 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-full transition-all active:scale-95 group shadow-[0_0_20px_rgba(239,68,68,0.4)]"
-                >
-                  <StopCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Arrêter l'enregistrement</span>
-                </button>
-              )
-            ) : (
-              <>
-                <button
-                  onClick={handleReset}
-                  className="flex items-center gap-2 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-medium rounded-full transition-all active:scale-95"
-                >
-                  <RefreshCcw className="w-4 h-4" />
-                  <span>Refaire</span>
-                </button>
-                <a
-                  href={videoUrl}
-                  download="photobooth360.webm"
-                  className={`flex items-center gap-2 px-6 py-3 ${accent.bg} ${accent.bgHover} text-white font-medium rounded-full transition-all active:scale-95 ${accent.shadow}`}
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Télécharger</span>
-                </a>
-              </>
-            )}
+      {/* ── VIEWFINDER ─────────────────────────────────────────────────── */}
+      {/* Takes all remaining space between header and controls */}
+      <div className="relative flex-1 overflow-hidden bg-black">
+        {cameraError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8">
+            <AlertCircle className="w-10 h-10 text-red-400" />
+            <p className="text-red-300 text-center text-sm leading-relaxed">{cameraError}</p>
           </div>
+        ) : (
+          <>
+            {/* Live feed — always mounted, hidden during review */}
+            <CameraView
+              liveVideoRef={liveVideoRef}
+              isRecording={isRecording}
+              countdown={countdown}
+              showFlash={showFlash}
+              eventName={settings.eventName}
+              hidden={isReviewing}
+            />
 
-          {/* QR Code Share */}
-          {isReviewing && (
-            <div className="mt-8 border-t border-zinc-800 pt-8 flex flex-col items-center gap-4">
+            {/* Playback — only when reviewing */}
+            {isReviewing && (
+              <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />
+            )}
+          </>
+        )}
+
+        {/* ── SHARE DRAWER (slides up from bottom of viewfinder) ── */}
+        {isReviewing && (
+          <div
+            className={`absolute bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 rounded-t-3xl z-30 transition-transform duration-300 ${
+              shareOpen ? "translate-y-0" : "translate-y-[calc(100%-3.5rem)]"
+            }`}
+          >
+            {/* Drawer handle / toggle */}
+            <button
+              onClick={() => setShareOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-5 py-3.5"
+            >
               <div className="flex items-center gap-2">
                 <QrCode className={`w-4 h-4 ${accent.text}`} />
-                <span className="text-sm font-semibold text-white">Récupérer sur ton téléphone</span>
-                {/* Cloud / local badge */}
-                <span className={`ml-auto flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                  cloudEnabled
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-zinc-800 text-zinc-500"
-                }`}>
-                  {cloudEnabled
-                    ? <><Wifi className="w-3 h-3" /> Cloud</>
-                    : <><WifiOff className="w-3 h-3" /> Local</>
-                  }
-                </span>
+                <span className="text-sm font-semibold text-white">Partager</span>
               </div>
-
-              {/* ── CLOUD MODE ── */}
-              {cloudEnabled && (
-                <>
-                  {uploadStatus === 'uploading' && (
-                    <div className="w-full space-y-2">
-                      <div className="flex items-center justify-between text-xs text-zinc-400">
-                        <span className="flex items-center gap-1.5">
-                          <CloudUpload className="w-3.5 h-3.5 animate-pulse" />
-                          Upload en cours…
-                        </span>
-                        <span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${accent.bg} rounded-full transition-all duration-300`}
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-600 text-center">
-                        Envoi vers le cloud — le QR Code sera disponible dans quelques secondes
-                      </p>
-                    </div>
-                  )}
-
-                  {uploadStatus === 'done' && uploadedUrl && (
-                    <>
-                      <div className="bg-white p-4 rounded-2xl shadow-lg">
-                        <QRCodeSVG
-                          value={`${window.location.origin}/share/cloud?url=${btoa(encodeURIComponent(uploadedUrl))}`}
-                          size={160}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-500 text-center max-w-xs">
-                        Scanne depuis n'importe quel téléphone. Tu pourras choisir ton effet slow-motion avant de télécharger.
-                      </p>
-                      <code className="text-xs text-zinc-600 bg-zinc-800 px-3 py-1.5 rounded-lg break-all text-center max-w-full">
-                        {uploadedUrl}
-                      </code>
-                    </>
-                  )}
-
-                  {uploadStatus === 'error' && (
-                    <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-                      <span>Upload échoué — partage local disponible ci-dessous.</span>
-                    </div>
-                  )}
-
-                  {uploadStatus === 'idle' && (
-                    <div className="flex items-center gap-2 text-zinc-400 py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Préparation…</span>
-                    </div>
-                  )}
-                </>
+              {shareOpen ? (
+                <ChevronDown className="w-4 h-4 text-zinc-500" />
+              ) : (
+                <ChevronUp className="w-4 h-4 text-zinc-500" />
               )}
+            </button>
 
-              {/* ── LOCAL FALLBACK (IndexedDB) ── */}
-              {(!cloudEnabled || uploadStatus === 'error') && (
-                <>
-                  {isSavingShare ? (
-                    <div className="flex items-center gap-2 text-zinc-400 py-4">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Préparation du lien local…</span>
-                    </div>
-                  ) : shareId ? (
-                    <>
-                      <div className="bg-white p-4 rounded-2xl shadow-lg">
-                        <QRCodeSVG
-                          value={`${window.location.origin}/share/${shareId}`}
-                          size={160}
-                          bgColor="#ffffff"
-                          fgColor="#000000"
-                          level="M"
-                          includeMargin={false}
-                        />
-                      </div>
-                      <p className="text-xs text-zinc-500 text-center max-w-xs">
-                        Scanne depuis le même réseau Wi-Fi. Tu pourras choisir ton effet slow-motion avant de télécharger.
-                      </p>
-                      <p className="text-xs text-zinc-700 text-center">
-                        Pour un partage cross-réseau, configure Supabase dans le fichier <code className="text-zinc-500">.env</code>.
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-zinc-600">Lien indisponible.</p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Local Session Gallery */}
-        {gallery.length > 0 && (
-          <div className="w-full max-w-3xl mt-4 animate-in slide-in-from-bottom-8 fade-in duration-500">
-            <div className="flex items-center gap-2 mb-4 px-2">
-              <Film className={`w-5 h-5 ${accent.text}`} />
-              <h2 className="text-xl font-semibold text-white">Galerie de la session</h2>
-              <span className="bg-zinc-800 text-zinc-300 text-xs py-1 px-2 rounded-full">{gallery.length}</span>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-4 snap-x px-2 scrollbar-none">
-              {gallery.map((url, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    // Always silence mic during review — re-enabled on next record start
-                    stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
-                    setVideoUrl(url);
-                    setShareId("");
-                  }}
-                  className={`relative flex-shrink-0 w-32 h-44 md:w-40 md:h-56 bg-zinc-900 rounded-xl overflow-hidden snap-start transition-all border ${
-                    videoUrl === url
-                      ? `${accent.border} scale-95 opacity-100`
-                      : "border-zinc-800 hover:border-zinc-600 opacity-60 hover:opacity-100"
-                  }`}
-                >
-                  <video src={url} className="w-full h-full object-cover pointer-events-none" />
-                  <div className="absolute inset-0 bg-black/10 hover:bg-transparent transition-colors" />
-                </button>
-              ))}
-            </div>
+            {/* Drawer content */}
+            <ShareSection
+              cloudEnabled={cloudEnabled}
+              uploadStatus={uploadStatus}
+              uploadProgress={uploadProgress}
+              uploadedUrl={uploadedUrl}
+              shareId={shareId}
+              isSavingShare={isSavingShare}
+              accent={accent}
+            />
           </div>
         )}
       </div>
 
-      {/* Settings Modal */}
+      {/* ── BOTTOM CONTROLS ────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
+
+        {/* Gallery strip */}
+        {gallery.length > 0 && (
+          <div className="pt-3">
+            <GalleryStrip
+              gallery={gallery}
+              activeUrl={videoUrl}
+              accentBorder={accent.border}
+              onSelect={handleGallerySelect}
+            />
+          </div>
+        )}
+
+        {/* Main action row */}
+        <div className="flex items-center justify-between px-8 py-5">
+
+          {/* Left — Redo / empty slot */}
+          <div className="w-14 flex justify-center">
+            {isReviewing && (
+              <button
+                onClick={handleReset}
+                className="flex flex-col items-center gap-1 group"
+                aria-label="Refaire"
+              >
+                <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center active:scale-95 transition-transform">
+                  <RefreshCcw className="w-5 h-5 text-zinc-300 group-active:scale-90 transition-transform" />
+                </div>
+                <span className="text-[10px] text-zinc-500">Refaire</span>
+              </button>
+            )}
+          </div>
+
+          {/* Center — Record / Stop */}
+          <RecordButton
+            isRecording={isRecording}
+            isCountingDown={countdown !== null}
+            hasStream={Boolean(stream)}
+            durationSeconds={settings.duration / 1000}
+            onStart={handleStart}
+            onStop={stopRecording}
+          />
+
+          {/* Right — Download / empty slot */}
+          <div className="w-14 flex justify-center">
+            {isReviewing && (
+              <a
+                href={videoUrl}
+                download="photobooth360.webm"
+                className="flex flex-col items-center gap-1 group"
+                aria-label="Télécharger"
+              >
+                <div
+                  className={`w-12 h-12 rounded-full ${accent.bg} ${accent.glow} flex items-center justify-center active:scale-95 transition-transform`}
+                >
+                  <Download className="w-5 h-5 text-white group-active:scale-90 transition-transform" />
+                </div>
+                <span className="text-[10px] text-zinc-500">Sauver</span>
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── SETTINGS MODAL ─────────────────────────────────────────────── */}
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
