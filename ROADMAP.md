@@ -1,7 +1,7 @@
-# Roadmap — Photobooth 360 Rotatif
+# Roadmap — NeuroBooth 360 Rotatif
 ### Solution vidéo événementielle professionnelle
 
-> **Vision produit :** Offrir une expérience photobooth 360° clé-en-main, déployable sur n'importe quel événement (mariage, gala, lancement de marque, festival, soirée d'entreprise) sans infrastructure lourde — uniquement un navigateur, une connexion et une borne tournante.
+> **Vision produit :** Offrir une expérience NeuroBooth 360° clé-en-main, déployable sur n'importe quel événement (mariage, gala, lancement de marque, festival, soirée d'entreprise) sans infrastructure lourde — uniquement un navigateur, une connexion et une borne tournante.
 
 ---
 
@@ -49,7 +49,7 @@ Permettre aux invités de recevoir leur vidéo instantanément sur leur téléph
 
 Traitement vidéo professionnel directement dans le navigateur, sans serveur de rendu.
 
-- [x] **Slow-Motion automatique** — relecturer à 0.5× ou 0.25× via `FFmpeg.wasm` pour l'effet signature des photobooth 360
+- [x] **Slow-Motion automatique** — relecturer à 0.5× ou 0.25× via `FFmpeg.wasm` pour l'effet signature des NeuroBooth 360
 - [ ] **Effet Boomerang** — boucle aller-retour de la séquence (style Instagram)
 - [ ] **Incrustation de logo HD** — logo vectoriel ou image PNG de l'événement composité sur la vidéo finale (pas seulement en overlay CSS)
 - [ ] **Intro / Outro animés** — jingle vidéo de marque ajouté automatiquement en pré et post-roll
@@ -89,13 +89,13 @@ Données exploitables pour les organisateurs et les équipes marketing.
 
 ## 🔌 Phase 7 — Intégrations Matérielles & API Partenaires *(Long terme)*
 
-Connecter l'app à l'écosystème physique du photobooth 360.
+Connecter l'app à l'écosystème physique du NeuroBooth 360.
 
 - [ ] **Contrôle motorisé du plateau tournant** — API WebSerial / WebUSB pour piloter le moteur de rotation (vitesse, sens, nombre de tours) directement depuis l'interface
 - [ ] **Synchronisation déclenchement / rotation** — lancer l'enregistrement exactement en phase avec le départ du plateau pour une capture 360° parfaite
 - [ ] **Impression instantanée** — intégration avec des imprimantes photo (DNP, HiTi) via API d'impression navigateur ou backend léger
 - [ ] **Affichage miroir** — mode "mirror display" sur un second écran (HDMI) pour que le sujet se voit en direct pendant la rotation
-- [ ] **API publique** — endpoints REST pour intégrer le photobooth dans des plateformes tierces (gestionnaires d'événements, plateformes SaaS)
+- [ ] **API publique** — endpoints REST pour intégrer le NeuroBooth dans des plateformes tierces (gestionnaires d'événements, plateformes SaaS)
 
 ---
 

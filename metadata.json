@@ -1,6 +1,6 @@
 {
-  "name": "Photobooth 360",
-  "description": "A 360 photobooth application that allows users to record, preview, and download short videos.",
+  "name": "NeuroBooth 360",
+  "description": "A 360 NeuroBooth application that allows users to record, preview, and download short videos.",
   "requestFramePermissions": [
     "camera",
     "microphone"

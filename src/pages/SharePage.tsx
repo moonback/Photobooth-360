@@ -104,7 +104,7 @@ export default function SharePage() {
             <Camera className="w-6 h-6 text-indigo-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">
-            Photobooth <span className="text-indigo-400">360</span>
+            NeuroBooth <span className="text-indigo-400">360</span>
           </h1>
           <p className="text-zinc-400 text-sm">Ta vidéo est prête 🎉</p>
           <div className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full mt-1 ${
@@ -271,7 +271,7 @@ export default function SharePage() {
         )}
 
         <p className="text-xs text-zinc-700 text-center mt-2">
-          Photobooth 360 · {source === 'cloud' ? 'Vidéo hébergée sur Supabase Storage' : 'Vidéo stockée localement sur cet appareil'}
+          NeuroBooth 360 · {source === 'cloud' ? 'Vidéo hébergée sur Supabase Storage' : 'Vidéo stockée localement sur cet appareil'}
         </p>
       </div>
     </div>
