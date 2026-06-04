@@ -25,17 +25,24 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
   const startCamera = useCallback(
     async (mode: "user" | "environment", res: AppSettings["resolution"]) => {
       const { width, height } = RESOLUTION_MAP[res];
+      console.log("Starting camera with:", { mode, resolution: res, width, height, recordAudio });
       try {
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: mode, width: { ideal: width }, height: { ideal: height } },
-          audio: true,
+          audio: recordAudio,
         });
-        newStream.getAudioTracks().forEach((t) => { t.enabled = recordAudio; });
+        console.log("Camera stream obtained:", {
+          videoTracks: newStream.getVideoTracks().length,
+          audioTracks: newStream.getAudioTracks().length,
+        });
         setStream((prev) => { stopStream(prev); return newStream; });
-        if (liveVideoRef.current) liveVideoRef.current.srcObject = newStream;
+        if (liveVideoRef.current) {
+          liveVideoRef.current.srcObject = newStream;
+          console.log("Video element srcObject set");
+        }
         setCameraError("");
       } catch (err) {
-        console.error("Camera access denied", err);
+        console.error("Camera access error:", err);
         setCameraError("Impossible d'accéder à la caméra. Vérifiez les permissions.");
       }
     },
@@ -49,12 +56,38 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode, resolution]);
 
-  // Keep the <video> element in sync
+  // Keep the <video> element in sync - runs when stream changes OR when video element mounts
   useEffect(() => {
-    if (liveVideoRef.current && stream) {
-      liveVideoRef.current.srcObject = stream;
+    const videoElement = liveVideoRef.current;
+    if (videoElement && stream) {
+      console.log("Syncing video element with stream");
+      videoElement.srcObject = stream;
+      
+      // Force play in case autoPlay fails
+      const playPromise = videoElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("Video autoplay failed:", err);
+        });
+      }
     }
   }, [stream]);
+
+  // Additional effect to handle late mounting of video element
+  useEffect(() => {
+    const videoElement = liveVideoRef.current;
+    if (videoElement && stream && !videoElement.srcObject) {
+      console.log("Late mounting detected - assigning stream to video element");
+      videoElement.srcObject = stream;
+      
+      const playPromise = videoElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("Video autoplay failed on late mount:", err);
+        });
+      }
+    }
+  });
 
   return { liveVideoRef, stream, cameraError, stopStream };
 }

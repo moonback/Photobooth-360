@@ -66,7 +66,7 @@ Traitement vidéo professionnel directement dans le navigateur, sans serveur de 
 Transformer l'app en un produit opérable sans technicien sur site.
 
 - [ ] **Mode Kiosque** — application plein écran verrouillée, sans accès au navigateur ni aux paramètres système
-- [ ] **Écran d'accueil personnalisable** — splash screen avec logo, nom et thème de l'événement configurable depuis reglage et je veut un code pin pour acces reglage
+- [x] **Écran d'accueil personnalisable** — splash screen avec logo, nom et thème de l'événement configurable depuis reglage et je veut un code pin pour acces reglage
 - [ ] **Idle screen** — écran d'attente animé avec compteur "dernière prise il y a X min" pour attirer les invités
 - [ ] **Flux de capture guidé** — séquence d'étapes animées (approche → positionnement → compte à rebours → prise → récupération) pour une utilisation 100% autonome
 - [ ] **Panneau opérateur sécurisé** — accès via code PIN pour modifier les réglages sans quitter le mode kiosque
