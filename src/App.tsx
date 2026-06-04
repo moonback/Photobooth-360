@@ -178,12 +178,17 @@ export default function App() {
     ready: "bg-emerald-400",
   }[cameraStatusTone];
   const workflowStatusLabel = isRecording ? "Enregistrement" : isReviewing ? "Relecture" : "Accueil studio";
+  const accueilSteps = [
+    { icon: Camera, title: "Cadrez", description: "Placez-vous face à la caméra et vérifiez le filigrane." },
+    { icon: Video, title: "Enregistrez", description: `Lancez une prise guidée de ${settings.duration / 1000}s.` },
+    { icon: QrCode, title: "Partagez", description: cloudEnabled ? "Récupération cloud par QR Code." : "QR Code local sur le même Wi‑Fi." },
+  ];
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-8 px-4 md:px-8 font-sans selection:bg-violet-500/30">
       <div className={`pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full ${accent.bgLight} blur-3xl`} />
       <div className="pointer-events-none absolute left-[-12rem] top-32 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[-14rem] right-[-10rem] h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
+      <div className={`pointer-events-none absolute bottom-[-14rem] right-[-10rem] h-96 w-96 rounded-full ${accent.bgLight} blur-3xl`} />
       <div className="w-full max-w-3xl flex flex-col items-center gap-8 relative z-10">
 
         {/* Header / Accueil */}
@@ -239,11 +244,41 @@ export default function App() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <a
+                href="#camera-stage"
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 premium-touch ${accent.bg} ${accent.bgHover} text-sm font-semibold text-white premium-interactive hover:scale-[1.02] active:scale-[0.98] ${accent.shadow}`}
+              >
+                <Camera className="h-4 w-4" />
+                Aller à la caméra
+              </a>
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-zinc-900/80 px-5 py-3 premium-touch text-sm font-medium text-zinc-300 premium-interactive hover:scale-[1.02] hover:bg-zinc-800 hover:text-white active:scale-[0.98]"
+              >
+                <Settings className="h-4 w-4" />
+                Ajuster l'accueil
+              </button>
+            </div>
           </div>
         </header>
 
+        <section className="grid w-full grid-cols-1 gap-3 md:grid-cols-3" aria-label="Guide rapide de l'accueil">
+          {accueilSteps.map(({ icon: StepIcon, title, description }) => (
+            <article key={title} className="glass-subtle rounded-3xl p-4 shadow-lg">
+              <div className={`mb-3 inline-flex rounded-2xl ${accent.bgLight} p-2 ${accent.text}`}>
+                <StepIcon className="h-5 w-5" />
+              </div>
+              <h2 className="text-sm font-semibold text-white">{title}</h2>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-400">{description}</p>
+            </article>
+          ))}
+        </section>
+
         {/* Main Stage */}
-        <div className="w-full glass border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
+        <div id="camera-stage" className="w-full glass border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden scroll-mt-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Accueil caméra</p>
