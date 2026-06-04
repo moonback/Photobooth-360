@@ -23,7 +23,6 @@ import CameraView from "./components/CameraView";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import ShareSection from "./components/ShareSection";
-import GalleryStrip from "./components/GalleryStrip";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import PinModal from "./components/PinModal";
 
@@ -218,13 +217,6 @@ export default function App() {
     setIsFullscreen(false); // Exit fullscreen on reset
   };
 
-  const handleGallerySelect = (url: string) => {
-    stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
-    setVideoUrl(url);
-    setShareId("");
-    setShareOpen(false);
-  };
-
   const handleSaveSettings = async (next: AppSettings) => {
     if (!isReviewing && stream && next.recordAudio !== settings.recordAudio) {
       stream.getAudioTracks().forEach((t) => { t.enabled = next.recordAudio; });
@@ -382,21 +374,8 @@ export default function App() {
           {/* ── BOTTOM CONTROLS (hidden in fullscreen) ──────────────────── */}
           {!isFullscreen && (
             <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
-
-            {/* Gallery strip */}
-            {gallery.length > 0 && (
-              <div className="pt-3">
-                <GalleryStrip
-                  gallery={gallery}
-                  activeUrl={videoUrl}
-                  accentBorder={accent.border}
-                  onSelect={handleGallerySelect}
-                />
-              </div>
-            )}
-
-            {/* Main action row */}
-            <div className="flex items-center justify-between px-8 py-5">
+              {/* Main action row */}
+              <div className="flex items-center justify-between px-8 py-5">
 
               {/* Left — Redo */}
               <div className="w-14 flex justify-center">
