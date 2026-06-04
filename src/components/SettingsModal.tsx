@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X, Camera, Clock, Video, Type, Palette, Mic, MicOff,
-  ChevronDown, RotateCcw, Check,
+  ChevronDown, RotateCcw, Check, Lock, Upload, Image,
 } from "lucide-react";
+import { uploadLogo } from "../lib/uploadLogo";
+import { SUPABASE_CONFIGURED } from "../lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface AppSettings {
@@ -13,7 +15,12 @@ export interface AppSettings {
   countdownSeconds: number;
   accentColor: "indigo" | "rose" | "amber" | "emerald" | "cyan";
   recordAudio: boolean;
+  /** Admin PIN for protected settings access */
+  adminPin: string;
+  /** URL of the splash screen logo */
+  logoUrl?: string;
 }
+
 
 export const DEFAULT_SETTINGS: AppSettings = {
   eventName: "ÉVÉNEMENT 2026",
@@ -23,7 +30,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   countdownSeconds: 3,
   accentColor: "indigo",
   recordAudio: false,
+  adminPin: "1234",
+  logoUrl: "",
 };
+
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string; ring: string }[] = [
@@ -120,9 +130,38 @@ interface SettingsModalProps {
   onSave: (settings: AppSettings) => void;
 }
 
+type LogoUploadState = 'idle' | 'uploading' | 'done' | 'error';
+
 export default function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
-  const [local, setLocal]     = useState<AppSettings>(settings);
-  const [visible, setVisible] = useState(false);
+  const [local, setLocal]         = useState<AppSettings>(settings);
+  const [visible, setVisible]     = useState(false);
+  const [logoUpload, setLogoUpload] = useState<LogoUploadState>('idle');
+  const [logoProgress, setLogoProgress] = useState(0);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!SUPABASE_CONFIGURED) {
+      // No cloud — use object URL as local preview
+      const url = URL.createObjectURL(file);
+      setLocal((l) => ({ ...l, logoUrl: url }));
+      return;
+    }
+    setLogoUpload('uploading');
+    setLogoProgress(0);
+    try {
+      const result = await uploadLogo(file, setLogoProgress);
+      if (result) {
+        setLocal((l) => ({ ...l, logoUrl: result.publicUrl }));
+        setLogoUpload('done');
+      } else {
+        setLogoUpload('error');
+      }
+    } catch {
+      setLogoUpload('error');
+    }
+  };
 
   // Sync local copy every time the sheet opens + trigger enter animation
   useEffect(() => {
@@ -318,6 +357,72 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 );
               })}
             </div>
+          </Section>
+
+          {/* ── Logo ──────────────────────────────────────────────────── */}
+          <Section icon={<Image className="w-4 h-4" />} label="Logo de l'écran d'accueil" defaultOpen={false}>
+            {/* Preview */}
+            {local.logoUrl && (
+              <img
+                src={local.logoUrl}
+                alt="Logo preview"
+                className="mb-3 h-16 rounded-xl object-contain bg-zinc-900 w-full"
+              />
+            )}
+
+            {/* Upload button */}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleLogoFile}
+            />
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              disabled={logoUpload === 'uploading'}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl border text-sm font-medium transition-all active:scale-[0.98] ${
+                logoUpload === 'uploading'
+                  ? 'bg-zinc-900 border-zinc-700 text-zinc-500 cursor-not-allowed'
+                  : `bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600`
+              }`}
+            >
+              <Upload className="w-4 h-4" />
+              {logoUpload === 'uploading'
+                ? `Envoi… ${logoProgress}%`
+                : logoUpload === 'done'
+                ? 'Logo envoyé ✓'
+                : 'Choisir un fichier'}
+            </button>
+
+            {logoUpload === 'error' && (
+              <p className="mt-2 text-xs text-red-400">Échec de l'envoi. Vérifiez la connexion.</p>
+            )}
+
+            {/* Manual URL fallback */}
+            <input
+              type="text"
+              value={local.logoUrl ?? ""}
+              onChange={(e) => setLocal({ ...local, logoUrl: e.target.value })}
+              placeholder="Ou collez une URL d'image…"
+              className={`mt-2 w-full px-4 py-3 rounded-2xl bg-zinc-900 border text-white placeholder-zinc-600
+                          focus:outline-none transition-colors text-sm
+                          ${local.logoUrl ? `${a.activeBorder} focus:border-current` : "border-zinc-800 focus:border-zinc-600"}`}
+            />
+          </Section>
+
+          {/* ── Admin PIN (hidden) ──────────────────────────────────────── */}
+          <Section icon={<Lock className="w-4 h-4" />} label="Code PIN admin" defaultOpen={false}>
+            <input
+              type="password"
+              value={local.adminPin}
+              onChange={(e) => setLocal({ ...local, adminPin: e.target.value })}
+              placeholder="1234"
+              className={`w-full px-4 py-3.5 rounded-2xl bg-zinc-900 border text-white placeholder-zinc-600
+                          focus:outline-none transition-colors text-sm
+                          ${local.adminPin ? `${a.activeBorder} focus:border-current` : "border-zinc-800 focus:border-zinc-600"}`}
+            />
           </Section>
 
           {/* ── Couleur d'accent ──────────────────────────────────── */}

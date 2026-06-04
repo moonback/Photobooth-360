@@ -10,4 +10,5 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export const supabase = url && key ? createClient(url, key) : null;
 
 export const BUCKET = 'photobooth-videos';
+export const LOGO_BUCKET = 'photobooth-logos';
 export const SUPABASE_CONFIGURED = Boolean(supabase);
