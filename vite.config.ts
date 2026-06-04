@@ -24,10 +24,12 @@ export default defineConfig(() => {
       // Required for FFmpeg WASM (SharedArrayBuffer needs cross-origin isolation)
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
+        // 'credentialless' allows cross-origin images/media (e.g. Supabase logo bucket)
+        // while still enabling SharedArrayBuffer needed for FFmpeg WASM
+        'Cross-Origin-Embedder-Policy': 'credentialless',
       },
     },
     // SPA fallback — serve index.html for all routes (e.g. /share/:id)
-    appType: 'spa',
+    appType: 'spa' as const,
   };
 });

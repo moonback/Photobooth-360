@@ -1,4 +1,4 @@
-# Photobooth 360 🎥
+# Neurobooth 360 🎥
 
 Une application web moderne de type "Photomaton 360", permettant de capturer des vidéos directement depuis le navigateur. Conçue pour être utilisée lors d'événements, soirées et mariages sur une borne ou une tablette.
 

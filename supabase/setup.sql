@@ -102,6 +102,12 @@ CREATE POLICY "Public read — event_settings"
   ON event_settings FOR SELECT
   USING (true);
 
+-- Les utilisateurs anonymes peuvent insérer (nécessaire pour l'upsert initial)
+CREATE POLICY "Anon insert — event_settings"
+  ON event_settings FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
 -- Les utilisateurs anonymes peuvent mettre à jour (config mono-ligne)
 CREATE POLICY "Anon update — event_settings"
   ON event_settings FOR UPDATE
