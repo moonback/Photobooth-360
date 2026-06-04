@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import { uploadVideo, UploadStatus } from '../lib/uploadVideo';
+import { uploadVideo, UploadStatus, listVideosFromBucket } from '../lib/uploadVideo';
 import { SUPABASE_CONFIGURED } from '../lib/supabase';
 
 export interface UseUploadReturn {
   upload: (blobUrl: string) => Promise<string | null>;
+  listVideos: () => Promise<string[]>;
   status: UploadStatus;
   progress: number;
   publicUrl: string;
@@ -42,5 +43,18 @@ export function useUpload(): UseUploadReturn {
     }
   }, []);
 
-  return { upload, status, progress, publicUrl, storagePath, isConfigured: SUPABASE_CONFIGURED };
+  const listVideos = useCallback(async (): Promise<string[]> => {
+    if (!SUPABASE_CONFIGURED) return [];
+    return await listVideosFromBucket();
+  }, []);
+
+  return { 
+    upload, 
+    listVideos, 
+    status, 
+    progress, 
+    publicUrl, 
+    storagePath, 
+    isConfigured: SUPABASE_CONFIGURED 
+  };
 }

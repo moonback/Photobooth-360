@@ -10,6 +10,8 @@ import {
   ChevronUp,
   AlertCircle,
   Image,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 
 import { useCamera } from "./hooks/useCamera";
@@ -55,6 +57,7 @@ export default function App() {
   const [showFlash, setShowFlash]         = useState(false);
   const [shareOpen, setShareOpen]         = useState(false);
   const [showSplash, setShowSplash]       = useState(true);
+  const [isFullscreen, setIsFullscreen]   = useState(false);
   
   // Inactivity timer ref
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,6 +74,7 @@ export default function App() {
   // Cloud upload
   const {
     upload,
+    listVideos,
     status:    uploadStatus,
     progress:  uploadProgress,
     publicUrl: uploadedUrl,
@@ -92,7 +96,12 @@ export default function App() {
       setGallery((prev) => [url, ...prev]);
 
       if (cloudEnabled) {
-        upload(url);
+        upload(url).then((publicUrl) => {
+          if (publicUrl) {
+            // Replace local blob URL with public URL in gallery
+            setGallery((prev) => prev.map(u => u === url ? publicUrl : u));
+          }
+        });
       } else {
         setIsSavingShare(true);
         saveVideo(url)
@@ -155,6 +164,27 @@ export default function App() {
     };
   }, [showSplash]);
 
+  // ── Load videos from Supabase bucket on mount ─────────────────────────────
+  useEffect(() => {
+    const loadGallery = async () => {
+      if (cloudEnabled) {
+        // Load from Supabase bucket
+        const { listVideosFromBucket } = await import('./lib/uploadVideo');
+        const videos = await listVideosFromBucket();
+        setGallery(videos);
+      } else {
+        // Load from IndexedDB
+        const { getAllVideos } = await import('./lib/videoStore');
+        const localVideos = await getAllVideos();
+        setGallery(localVideos.map(v => v.url));
+      }
+    };
+
+    if (!showSplash) {
+      loadGallery();
+    }
+  }, [showSplash, cloudEnabled]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
     if (!stream) return;
@@ -167,6 +197,7 @@ export default function App() {
     setVideoUrl("");
     setShareId("");
     setShareOpen(false);
+    setIsFullscreen(false); // Exit fullscreen on reset
   };
 
   const handleGallerySelect = (url: string) => {

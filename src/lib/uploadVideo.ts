@@ -10,6 +10,61 @@ export interface UploadResult {
 }
 
 /**
+ * List all videos from Supabase Storage bucket
+ */
+export async function listVideosFromBucket(): Promise<string[]> {
+  if (!SUPABASE_CONFIGURED || !supabase) {
+    console.log('[listVideosFromBucket] Supabase not configured');
+    return [];
+  }
+
+  try {
+    console.log('[listVideosFromBucket] Fetching from bucket:', BUCKET);
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list('videos', {
+        limit: 1000, // Increase limit to get more videos
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+
+    if (error) {
+      console.error('[listVideosFromBucket] Error:', error);
+      return [];
+    }
+
+    if (!data) {
+      console.log('[listVideosFromBucket] No data returned');
+      return [];
+    }
+
+    console.log('[listVideosFromBucket] Found', data.length, 'files');
+
+    // Convert to public URLs
+    const publicUrls = data
+      .filter(file => {
+        const isWebm = file.name.endsWith('.webm');
+        if (!isWebm) {
+          console.log('[listVideosFromBucket] Skipping non-webm file:', file.name);
+        }
+        return isWebm;
+      })
+      .map(file => {
+        const { data: urlData } = supabase.storage
+          .from(BUCKET)
+          .getPublicUrl(`videos/${file.name}`);
+        console.log('[listVideosFromBucket] Public URL for', file.name, ':', urlData.publicUrl);
+        return urlData.publicUrl;
+      });
+
+    console.log('[listVideosFromBucket] Returning', publicUrls.length, 'video URLs');
+    return publicUrls;
+  } catch (err) {
+    console.error('[listVideosFromBucket] Error:', err);
+    return [];
+  }
+}
+
+/**
  * Upload a video blob URL to Supabase Storage.
  * Reports progress via `onProgress(0–100)`.
  * Returns null if Supabase is not configured (env vars missing).
