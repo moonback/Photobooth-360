@@ -1,4 +1,7 @@
 # Neurobooth 360 🎥
+<p align="center">
+  <img src="public/header-bg.png" alt="Shop ia" width="100%" />
+</p>
 
 Une application web moderne de type "Photomaton 360" professionnelle, permettant de capturer et partager des vidéos directement depuis le navigateur. Conçue pour être utilisée lors d'événements, soirées et mariages sur une borne interactive ou une tablette.
 
