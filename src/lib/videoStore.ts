@@ -65,3 +65,47 @@ export async function deleteVideo(id: string): Promise<void> {
     tx.onerror = () => reject(tx.error);
   });
 }
+
+/** Get all stored videos with their IDs. */
+export async function getAllVideos(): Promise<Array<{ id: string; url: string }>> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAllKeys();
+    
+    req.onsuccess = () => {
+      const keys = req.result as string[];
+      const videos: Array<{ id: string; url: string }> = [];
+      let pending = keys.length;
+      
+      if (pending === 0) {
+        resolve([]);
+        return;
+      }
+      
+      keys.forEach((key) => {
+        const getReq = store.get(key);
+        getReq.onsuccess = () => {
+          if (getReq.result instanceof Blob) {
+            videos.push({
+              id: key as string,
+              url: URL.createObjectURL(getReq.result),
+            });
+          }
+          pending--;
+          if (pending === 0) {
+            resolve(videos);
+          }
+        };
+        getReq.onerror = () => {
+          pending--;
+          if (pending === 0) {
+            resolve(videos);
+          }
+        };
+      });
+    };
+    req.onerror = () => reject(req.error);
+  });
+}

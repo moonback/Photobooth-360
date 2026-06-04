@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SplashScreen from "./components/SplashScreen";
 import {
   Settings,
@@ -8,6 +9,7 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
+  Image,
 } from "lucide-react";
 
 import { useCamera } from "./hooks/useCamera";
@@ -38,6 +40,8 @@ const ACCENT: Record<
 
 // ─── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  const navigate = useNavigate();
+  
   // Settings — persisted to Supabase (falls back to localStorage)
   const { settings, loadState, handleSave } = useSettings();
 
@@ -160,13 +164,24 @@ export default function App() {
               <span className="text-zinc-500 text-xs">{settings.eventName}</span>
             </div>
 
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
-              aria-label="Réglages"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/gallery')}
+                className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+                aria-label="Galerie"
+                title="Voir toutes les vidéos"
+              >
+                <Image className="w-5 h-5" />
+              </button>
+              
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
+                aria-label="Réglages"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
           </header>
 
           {/* ── VIEWFINDER ───────────────────────────────────────────────── */}
