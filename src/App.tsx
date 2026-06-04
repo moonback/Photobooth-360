@@ -253,7 +253,7 @@ export default function App() {
         <>
           {/* ── TOP BAR (hidden in fullscreen) ──────────────────────────── */}
           {!isFullscreen && (
-            <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0">
+            <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0 md:flex hidden">
               <div className="flex flex-col leading-tight">
                 <span className="text-white font-bold text-lg tracking-tight">
                   Neurobooth <span className={accent.text}>360</span>
@@ -283,7 +283,7 @@ export default function App() {
           )}
 
           {/* ── VIEWFINDER ───────────────────────────────────────────────── */}
-          <div className={`relative overflow-hidden bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'flex-1'}`}>
+          <div className={`relative overflow-hidden bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'flex-1 md:flex-1'} ${!isFullscreen ? 'min-h-screen md:min-h-0' : ''}`}>
             {/* Fullscreen toggle button */}
             {!isReviewing && (
               <button
@@ -294,6 +294,37 @@ export default function App() {
               >
                 {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
               </button>
+            )}
+
+            {/* Mobile header overlay - shown on mobile only */}
+            {!isFullscreen && (
+              <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 md:hidden bg-gradient-to-b from-black/60 to-transparent">
+                <div className="flex flex-col leading-tight">
+                  <span className="text-white font-bold text-lg tracking-tight drop-shadow-lg">
+                    Neurobooth <span className={accent.text}>360</span>
+                  </span>
+                  <span className="text-zinc-300 text-xs drop-shadow">{settings.eventName}</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate('/gallery')}
+                    className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
+                    aria-label="Galerie"
+                    title="Voir toutes les vidéos"
+                  >
+                    <Image className="w-5 h-5" />
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowPinModal(true)}
+                    className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
+                    aria-label="Réglages"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             )}
 
             {cameraError ? (
@@ -323,6 +354,20 @@ export default function App() {
             {/* ── FULLSCREEN RECORD BUTTON (centered) ── */}
             {isFullscreen && !isReviewing && (
               <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40">
+                <RecordButton
+                  isRecording={isRecording}
+                  isCountingDown={countdown !== null}
+                  hasStream={Boolean(stream)}
+                  durationSeconds={settings.duration / 1000}
+                  onStart={handleStart}
+                  onStop={stopRecording}
+                />
+              </div>
+            )}
+
+            {/* ── MOBILE RECORD BUTTON (over video, bottom center) ── */}
+            {!isFullscreen && !isReviewing && (
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 md:hidden">
                 <RecordButton
                   isRecording={isRecording}
                   isCountingDown={countdown !== null}
@@ -371,11 +416,11 @@ export default function App() {
             )}
           </div>
 
-          {/* ── BOTTOM CONTROLS (hidden in fullscreen) ──────────────────── */}
+          {/* ── BOTTOM CONTROLS (hidden in fullscreen and on mobile) ──────────────────── */}
           {!isFullscreen && (
-            <div className="flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
+            <div className="hidden md:flex flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
               {/* Main action row */}
-              <div className="flex items-center justify-between px-8 py-5">
+              <div className="flex items-center justify-between px-8 py-5 w-full">
 
               {/* Left — Redo */}
               <div className="w-14 flex justify-center">
