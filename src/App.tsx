@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings, Loader2, CloudUpload, Wifi, WifiOff } from "lucide-react";
+import { Camera, Download, RefreshCcw, StopCircle, Video, QrCode, Film, Settings, Loader2, CloudUpload, Wifi, WifiOff, Sparkles, Timer, Mic, MicOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useRecorder } from "./hooks/useRecorder";
 import SettingsModal, { AppSettings, DEFAULT_SETTINGS } from "./components/SettingsModal";
@@ -161,42 +161,113 @@ export default function App() {
 
   // Viewing mode: true when a recorded video is selected for review
   const isReviewing = Boolean(videoUrl);
+  const cameraStatusTone = cameraError ? "error" : stream ? "ready" : "loading";
+  const cameraStatusLabel = cameraStatusTone === "error"
+    ? "Caméra indisponible"
+    : cameraStatusTone === "ready"
+      ? "Caméra prête"
+      : "Initialisation caméra";
+  const cameraStatusClass = {
+    error: "border-red-500/30 bg-red-500/10 text-red-300",
+    loading: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    ready: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  }[cameraStatusTone];
+  const cameraStatusDotClass = {
+    error: "bg-red-400",
+    loading: "bg-amber-400",
+    ready: "bg-emerald-400",
+  }[cameraStatusTone];
+  const workflowStatusLabel = isRecording ? "Enregistrement" : isReviewing ? "Relecture" : "Accueil studio";
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-10 px-4 md:px-8 font-sans selection:bg-violet-500/30">
-      <div className="w-full max-w-3xl flex flex-col items-center gap-8">
+    <div className="relative min-h-screen overflow-hidden bg-[#0F0F0F] text-zinc-100 flex flex-col items-center py-8 px-4 md:px-8 font-sans selection:bg-violet-500/30">
+      <div className={`pointer-events-none absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full ${accent.bgLight} blur-3xl`} />
+      <div className="pointer-events-none absolute left-[-12rem] top-32 h-80 w-80 rounded-full bg-cyan-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-[-14rem] right-[-10rem] h-96 w-96 rounded-full bg-violet-500/10 blur-3xl" />
+      <div className="w-full max-w-3xl flex flex-col items-center gap-8 relative z-10">
 
-        {/* Header */}
-        <div className="w-full flex items-start justify-between">
-          <div className="flex-1 text-center space-y-2">
-            <div className={`inline-flex items-center justify-center p-3 ${accent.bgLight} rounded-full mb-2`}>
-              <Camera className={`w-8 h-8 ${accent.text}`} />
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
-              Neurobooth <span className={accent.text}>360</span>
-            </h1>
-            <p className="text-zinc-400 max-w-md mx-auto">
-              Créez des souvenirs inoubliables. Enregistrez un message vidéo pour l'événement !
-            </p>
-          </div>
-
+        {/* Header / Accueil */}
+        <header className="w-full relative overflow-hidden rounded-[2rem] border border-white/10 bg-zinc-950/70 px-5 py-7 md:px-8 md:py-10 shadow-2xl">
+          <div className={`pointer-events-none absolute inset-x-10 -top-24 h-48 ${accent.bgLight} blur-3xl`} />
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            className="mt-1 p-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white premium-interactive active:scale-[0.98] hover:scale-[1.02] border border-zinc-700 premium-touch"
+            className="absolute right-4 top-4 z-10 p-2.5 rounded-2xl bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white premium-interactive active:scale-[0.98] hover:scale-[1.02] border border-white/10 premium-touch backdrop-blur-lg"
             title="Réglages"
             aria-label="Ouvrir les réglages"
           >
             <Settings className="w-5 h-5" />
           </button>
-        </div>
+
+          <div className="relative flex flex-col items-center text-center">
+            <div className={`mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 ${accent.bgLight} px-3 py-1 text-xs font-medium ${accent.text}`}>
+              <Sparkles className="h-3.5 w-3.5" />
+              Expérience vidéo premium
+            </div>
+            <div className={`inline-flex items-center justify-center p-4 ${accent.bgLight} rounded-3xl mb-4 ring-1 ring-white/10 ${accent.shadow}`}>
+              <Camera className={`w-9 h-9 ${accent.text}`} />
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
+              Neurobooth <span className={accent.text}>360</span>
+            </h1>
+            <p className="mt-3 text-zinc-400 max-w-xl mx-auto leading-relaxed">
+              Accueil studio prêt pour vos invités : cadrage instantané, enregistrement guidé et partage par QR Code.
+            </p>
+
+            <div className="mt-6 grid w-full grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Résumé des réglages d'accueil">
+              <div className="glass-subtle rounded-2xl px-4 py-3 text-left">
+                <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                  <Timer className="h-3.5 w-3.5" /> Durée
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">{settings.duration / 1000}s</div>
+              </div>
+              <div className="glass-subtle rounded-2xl px-4 py-3 text-left">
+                <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                  <Sparkles className="h-3.5 w-3.5" /> Décompte
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  {settings.countdownSeconds > 0 ? `${settings.countdownSeconds}s` : "Aucun"}
+                </div>
+              </div>
+              <div className="glass-subtle rounded-2xl px-4 py-3 text-left">
+                <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                  {settings.recordAudio ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5" />}
+                  Audio
+                </div>
+                <div className="mt-1 text-lg font-semibold text-white">
+                  {settings.recordAudio ? "Activé" : "Silencieux"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
 
         {/* Main Stage */}
         <div className="w-full glass border-zinc-800/50 rounded-3xl p-4 md:p-6 shadow-2xl relative overflow-hidden">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">Accueil caméra</p>
+              <h2 className="text-lg font-semibold text-white">{workflowStatusLabel}</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${cameraStatusClass}`}>
+                <span className={`h-2 w-2 rounded-full ${cameraStatusDotClass}`} />
+                {cameraStatusLabel}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-zinc-900/70 px-3 py-1 text-xs font-medium text-zinc-300">
+                {cloudEnabled ? <Wifi className="h-3 w-3 text-emerald-400" /> : <WifiOff className="h-3 w-3 text-zinc-500" />}
+                {cloudEnabled ? "Cloud" : "Local"}
+              </span>
+            </div>
+          </div>
 
           {cameraError ? (
-            <div className="aspect-video bg-zinc-800/50 rounded-2xl flex items-center justify-center text-center p-6 border border-red-500/20">
-              <p className="text-red-400">{cameraError}</p>
+            <div className="aspect-video glass-subtle rounded-2xl flex flex-col items-center justify-center text-center p-6 border border-red-500/20">
+              <div className="mb-3 rounded-2xl bg-red-500/10 p-3 text-red-300 ring-1 ring-red-500/20">
+                <Camera className="h-6 w-6" />
+              </div>
+              <p className="max-w-sm text-sm text-red-300">{cameraError}</p>
+              <p className="mt-2 text-xs text-zinc-500">Autorisez l'accès caméra dans le navigateur pour lancer l'accueil vidéo.</p>
             </div>
           ) : (
             <>
