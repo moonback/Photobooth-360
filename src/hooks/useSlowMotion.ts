@@ -3,11 +3,12 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 export type SlowMotionSpeed = 0.5 | 0.25;
+export type ExportFormat = '16:9' | '9:16' | '1:1';
 
 export type ProcessingStatus = 'idle' | 'loading' | 'processing' | 'done' | 'error';
 
 interface UseSlowMotionReturn {
-  processVideo: (inputUrl: string, speed: SlowMotionSpeed) => Promise<string | null>;
+  processVideo: (inputUrl: string, speed: 1 | SlowMotionSpeed, format?: ExportFormat) => Promise<string | null>;
   status: ProcessingStatus;
   progress: number; // 0–100
   errorMessage: string;
@@ -17,6 +18,20 @@ interface UseSlowMotionReturn {
 // Singleton FFmpeg instance — reused across calls to avoid reloading WASM each time
 let ffmpegInstance: FFmpeg | null = null;
 let ffmpegLoadPromise: Promise<void> | null = null;
+
+
+const FORMAT_RATIOS: Record<ExportFormat, string> = {
+  '16:9': '16/9',
+  '9:16': '9/16',
+  '1:1': '1/1',
+};
+
+function buildCropFilter(format: ExportFormat): string {
+  const ratio = FORMAT_RATIOS[format];
+  const width = `if(gte(iw/ih,${ratio}),floor(ih*${ratio}/2)*2,iw)`;
+  const height = `if(gte(iw/ih,${ratio}),ih,floor(iw/${ratio}/2)*2)`;
+  return `crop=${width}:${height}:(iw-ow)/2:(ih-oh)/2`;
+}
 
 async function getFFmpeg(onProgress: (p: number) => void): Promise<FFmpeg> {
   if (!ffmpegInstance) {
@@ -49,11 +64,17 @@ export function useSlowMotion(): UseSlowMotionReturn {
   const [errorMessage, setErrorMessage] = useState('');
   const cancelledRef = useRef(false);
 
-  const processVideo = useCallback(async (inputUrl: string, speed: SlowMotionSpeed): Promise<string | null> => {
+  const processVideo = useCallback(async (inputUrl: string, speed: 1 | SlowMotionSpeed, format?: ExportFormat): Promise<string | null> => {
     cancelledRef.current = false;
     setStatus('loading');
     setProgress(0);
     setErrorMessage('');
+
+    if (speed === 1 && !format) {
+      setProgress(100);
+      setStatus('done');
+      return inputUrl;
+    }
 
     try {
       const ff = await getFFmpeg((p) => {
@@ -75,28 +96,38 @@ export function useSlowMotion(): UseSlowMotionReturn {
         return null;
       }
 
-      // -filter:v setpts — slows down video frames
-      // speed 0.5x  → setpts=2.0*PTS  (each frame displayed 2× longer)
-      // speed 0.25x → setpts=4.0*PTS
-      const ptsMultiplier = (1 / speed).toFixed(1);
+      const videoFilters = [
+        ...(format ? [buildCropFilter(format)] : []),
+        ...(speed === 1 ? [] : [`setpts=${(1 / speed).toFixed(1)}*PTS`]),
+      ];
+      const videoFilter = videoFilters.join(',');
 
       // -filter:a atempo — slows down audio (atempo range: 0.5–2.0 per pass)
       // For 0.25× we need two passes: atempo=0.5,atempo=0.5
-      const atempoFilter = speed === 0.25
-        ? 'atempo=0.5,atempo=0.5'
-        : `atempo=${speed}`;
+      const outputArgs = speed === 1
+        ? [
+            '-i', 'input.webm',
+            '-vf', videoFilter,
+            '-map', '0:v:0',
+            '-map', '0:a?',
+            '-c:v', 'libvpx',
+            '-b:v', '2M',
+            '-c:a', 'libvorbis',
+            'output.webm',
+          ]
+        : [
+            '-i', 'input.webm',
+            '-filter_complex',
+            `[0:v]${videoFilter}[v];[0:a]${speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`}[a]`,
+            '-map', '[v]',
+            '-map', '[a]',
+            '-c:v', 'libvpx',
+            '-b:v', '2M',
+            '-c:a', 'libvorbis',
+            'output.webm',
+          ];
 
-      await ff.exec([
-        '-i', 'input.webm',
-        '-filter_complex',
-        `[0:v]setpts=${ptsMultiplier}*PTS[v];[0:a]${atempoFilter}[a]`,
-        '-map', '[v]',
-        '-map', '[a]',
-        '-c:v', 'libvpx',
-        '-b:v', '2M',
-        '-c:a', 'libvorbis',
-        'output.webm',
-      ]);
+      await ff.exec(outputArgs);
 
       if (cancelledRef.current) {
         setStatus('idle');
