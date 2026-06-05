@@ -1,15 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff } from 'lucide-react';
+import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, Crop, Music2 } from 'lucide-react';
 import { loadVideo } from '../lib/videoStore';
-import { useSlowMotion, SlowMotionSpeed } from '../hooks/useSlowMotion';
+import { ExportFormat, ExportSpeed, MusicTrackId, useSlowMotion } from '../hooks/useSlowMotion';
 
-type Speed = 1 | SlowMotionSpeed;
+type Speed = ExportSpeed;
 
 const SPEEDS: { value: Speed; emoji: string; label: string; sublabel: string }[] = [
   { value: 1,    emoji: '▶️',  label: '1×',  sublabel: 'Vitesse normale'  },
   { value: 0.5,  emoji: '🐢',  label: '½×',  sublabel: 'Slow-Mo'          },
   { value: 0.25, emoji: '✨',  label: '¼×',  sublabel: 'Ultra Slow'       },
+];
+
+const EXPORT_FORMATS: { value: ExportFormat; emoji: string; label: string; sublabel: string; className: string }[] = [
+  { value: '16:9', emoji: '🖥️', label: '16:9', sublabel: 'Projection / écrans', className: 'aspect-video' },
+  { value: '9:16', emoji: '📱', label: '9:16', sublabel: 'Reels, TikTok, Stories', className: 'aspect-[9/16]' },
+  { value: '1:1', emoji: '⬛', label: '1:1', sublabel: 'Feed Instagram / borne', className: 'aspect-square' },
+];
+
+const MUSIC_TRACKS: { value: MusicTrackId; emoji: string; label: string; sublabel: string }[] = [
+  { value: 'none', emoji: '🔇', label: 'Sans musique', sublabel: 'Audio original uniquement' },
+  { value: 'neon-pulse', emoji: '🟣', label: 'Neon Pulse', sublabel: 'Beat électronique discret' },
+  { value: 'soft-glow', emoji: '✨', label: 'Soft Glow', sublabel: 'Ambiance élégante' },
+  { value: 'party-pop', emoji: '🎉', label: 'Party Pop', sublabel: 'Énergie événementielle' },
 ];
 
 type Phase = 'loading' | 'choose' | 'encoding' | 'ready' | 'error';
@@ -23,10 +36,12 @@ export default function SharePage() {
   const [source, setSource] = useState<Source>('local');
   const [originalUrl, setOriginalUrl] = useState('');
   const [selectedSpeed, setSelectedSpeed] = useState<Speed>(1);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('9:16');
+  const [selectedMusic, setSelectedMusic] = useState<MusicTrackId>('none');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { processVideo, status, progress } = useSlowMotion();
+  const { exportVideo, status, progress } = useSlowMotion();
 
   useEffect(() => {
     if (!id) {
@@ -74,25 +89,31 @@ export default function SharePage() {
   }, [selectedSpeed]);
 
   const handleConfirm = async () => {
-    if (selectedSpeed === 1) {
-      setDownloadUrl(originalUrl);
-      setPhase('ready');
-      return;
-    }
     setPhase('encoding');
-    const result = await processVideo(originalUrl, selectedSpeed as SlowMotionSpeed);
+    const result = await exportVideo(originalUrl, {
+      speed: selectedSpeed,
+      format: selectedFormat,
+      musicTrack: selectedMusic,
+    });
+
     if (result) {
       setDownloadUrl(result);
       setPhase('ready');
     } else {
-      setErrorMsg("L'encodage a échoué. Réessayez ou choisissez la vitesse normale.");
+      setErrorMsg("L'encodage a échoué. Réessayez avec la vitesse normale ou sans musique.");
       setPhase('choose');
     }
   };
 
-  const filename = selectedSpeed === 1
-    ? 'photobooth360.webm'
-    : `photobooth360-${selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo'}.webm`;
+  const filenameParts = [
+    'photobooth360',
+    selectedFormat.replace(':', 'x'),
+    selectedSpeed === 1 ? 'normal' : selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo',
+    selectedMusic === 'none' ? null : selectedMusic,
+  ].filter(Boolean);
+  const filename = `${filenameParts.join('-')}.webm`;
+  const selectedFormatMeta = EXPORT_FORMATS.find((format) => format.value === selectedFormat) ?? EXPORT_FORMATS[0];
+  const needsEncoding = selectedFormat !== '16:9' || selectedSpeed !== 1 || selectedMusic !== 'none';
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-4 py-8 font-sans">
@@ -138,11 +159,11 @@ export default function SharePage() {
           </div>
         )}
 
-        {/* ── CHOOSE SPEED ── */}
+        {/* ── CHOOSE EXPORT ── */}
         {(phase === 'choose' || phase === 'encoding') && originalUrl && (
           <>
             {/* Preview player */}
-            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10">
+            <div className={`w-full rounded-2xl overflow-hidden bg-black ${selectedFormatMeta.className} ring-1 ring-white/10 transition-all`}>
               <video
                 ref={videoRef}
                 src={originalUrl}
@@ -150,15 +171,42 @@ export default function SharePage() {
                 loop
                 playsInline
                 muted={false}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
+            </div>
+
+            {/* Format picker */}
+            <div className="w-full space-y-3">
+              <div className="flex items-center gap-2">
+                <Crop className="w-4 h-4 text-indigo-400" />
+                <span className="text-sm font-semibold">Format d'export</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                {EXPORT_FORMATS.map(({ value, emoji, label, sublabel }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedFormat(value)}
+                    disabled={phase === 'encoding'}
+                    className={`px-2 py-3 rounded-2xl border text-center transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      selectedFormat === value
+                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-xl">{emoji}</div>
+                    <div className="font-semibold text-sm">{label}</div>
+                    <div className="text-[10px] opacity-60 leading-tight">{sublabel}</div>
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Speed picker */}
             <div className="w-full space-y-3">
               <div className="flex items-center gap-2">
                 <Gauge className="w-4 h-4 text-indigo-400" />
-                <span className="text-sm font-semibold">Choisis ton effet</span>
+                <span className="text-sm font-semibold">Effet slow-motion</span>
               </div>
 
               <div className="flex flex-col gap-2">
@@ -178,11 +226,43 @@ export default function SharePage() {
                       <div className="font-semibold">{label} — {sublabel}</div>
                       {value !== 1 && (
                         <div className="text-xs opacity-60 mt-0.5">
-                          Aperçu en direct · export encodé au téléchargement
+                          Aperçu en direct · audio ajusté à l'export
                         </div>
                       )}
                     </div>
                     {selectedSpeed === value && (
+                      <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Music picker */}
+            <div className="w-full space-y-3">
+              <div className="flex items-center gap-2">
+                <Music2 className="w-4 h-4 text-indigo-400" />
+                <span className="text-sm font-semibold">Musique de fond</span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {MUSIC_TRACKS.map(({ value, emoji, label, sublabel }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedMusic(value)}
+                    disabled={phase === 'encoding'}
+                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      selectedMusic === value
+                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-2xl">{emoji}</span>
+                    <div className="flex-1">
+                      <div className="font-semibold">{label}</div>
+                      <div className="text-xs opacity-60 mt-0.5">{sublabel}</div>
+                    </div>
+                    {selectedMusic === value && (
                       <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
                     )}
                   </button>
@@ -196,7 +276,7 @@ export default function SharePage() {
                 <div className="flex items-center justify-between text-xs text-zinc-400">
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {status === 'loading' ? 'Chargement FFmpeg…' : `Encodage… ${progress}%`}
+                    {status === 'loading' ? 'Chargement FFmpeg…' : `Recadrage + muxing… ${progress}%`}
                   </span>
                   <span>{progress}%</span>
                 </div>
@@ -207,7 +287,7 @@ export default function SharePage() {
                   />
                 </div>
                 <p className="text-xs text-zinc-600 text-center">
-                  Traitement 100% local — aucune donnée envoyée
+                  Traitement 100% local avec FFmpeg.wasm — recadrage automatique et muxing audio
                 </p>
               </div>
             )}
@@ -219,7 +299,7 @@ export default function SharePage() {
                 className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
               >
                 <Download className="w-5 h-5" />
-                Préparer le téléchargement
+                {needsEncoding ? 'Préparer mon export' : 'Préparer le téléchargement'}
               </button>
             )}
           </>
@@ -229,23 +309,23 @@ export default function SharePage() {
         {phase === 'ready' && (
           <>
             {/* Playback */}
-            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-indigo-500/30">
+            <div className={`w-full rounded-2xl overflow-hidden bg-black ${selectedFormatMeta.className} ring-1 ring-indigo-500/30`}>
               <video
                 src={downloadUrl}
                 autoPlay
                 loop
                 playsInline
                 controls
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
 
             <div className="w-full flex flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-emerald-400">
-                <CheckCircle className="w-4 h-4" />
-                {selectedSpeed === 1
-                  ? 'Vidéo originale prête'
-                  : `Slow-motion ${selectedSpeed === 0.5 ? '½×' : '¼×'} encodé`}
+              <div className="flex items-center gap-2 text-sm text-emerald-400 text-center">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                Export {selectedFormat} prêt
+                {selectedSpeed !== 1 ? ` · ${selectedSpeed === 0.5 ? 'slow-motion ½×' : 'ultra slow ¼×'}` : ''}
+                {selectedMusic !== 'none' ? ' · musique muxée' : ''}
               </div>
 
               <a
@@ -264,7 +344,7 @@ export default function SharePage() {
                 }}
                 className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
               >
-                Changer l'effet
+                Changer l'export
               </button>
             </div>
           </>

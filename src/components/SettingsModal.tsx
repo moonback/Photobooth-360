@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { X, Settings, Camera, Clock, Video, Type, Palette, Mic, MicOff } from "lucide-react";
 
 export interface AppSettings {
@@ -135,7 +135,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   };
 
   // Sync local state when modal reopens
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) onClose();
   };
 

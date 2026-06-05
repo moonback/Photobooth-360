@@ -53,11 +53,11 @@ Traitement vidéo professionnel directement dans le navigateur, sans serveur de 
 - [ ] **Effet Boomerang** — boucle aller-retour de la séquence (style Instagram)
 - [ ] **Incrustation de logo HD** — logo vectoriel ou image PNG de l'événement composité sur la vidéo finale (pas seulement en overlay CSS)
 - [ ] **Intro / Outro animés** — jingle vidéo de marque ajouté automatiquement en pré et post-roll
-- [ ] **Formats d'export multiples** — recadrage automatique en :
+- [x] **Formats d'export multiples** — recadrage automatique en :
   - `16:9` — projection et écrans d'ambiance
   - `9:16` — Instagram Reels, TikTok, Stories
-  - `1:1` — feed Instagram, affichage bornes
-- [ ] **Musique de fond** — bibliothèque de pistes audio mixées sur la vidéo finale (muxing `FFmpeg.wasm`)
+  - `1:1` — feed Instagram, affichage bornes, accessible via le QR Code
+- [x] **Musique de fond** — bibliothèque de pistes audio mixées sur la vidéo finale (muxing `FFmpeg.wasm`)
 
 ---
 

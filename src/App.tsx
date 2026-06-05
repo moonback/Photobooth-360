@@ -379,7 +379,7 @@ export default function App() {
                         </div>
                         {/* text-zinc-400 on zinc-900/80 background — contrast ≥ 4.5:1 (WCAG AA) */}
                         <p className="text-xs text-zinc-400 text-center max-w-xs">
-                          Scanne depuis n'importe quel téléphone. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                          Scanne depuis n'importe quel téléphone. Tu pourras choisir le format (16:9, 9:16 ou 1:1), le slow-motion et la musique avant de télécharger.
                         </p>
                         <code className="text-xs text-zinc-300 bg-zinc-800/80 px-3 py-1.5 rounded-lg break-all text-center max-w-full">
                           {uploadedUrl}
@@ -424,7 +424,7 @@ export default function App() {
                         </div>
                         {/* text-zinc-400 on zinc-900/80 background — contrast ≥ 4.5:1 (WCAG AA) */}
                         <p className="text-xs text-zinc-400 text-center max-w-xs">
-                          Scanne depuis le même réseau Wi-Fi. Tu pourras choisir ton effet slow-motion avant de télécharger.
+                          Scanne depuis le même réseau Wi-Fi. Tu pourras choisir le format (16:9, 9:16 ou 1:1), le slow-motion et la musique avant de télécharger.
                         </p>
                         <p className="text-xs text-zinc-400 text-center">
                           Pour un partage cross-réseau, configure Supabase dans le fichier <code className="text-zinc-300">.env</code>.
