@@ -1,105 +1,70 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertCircle, Camera, Download, GalleryHorizontal, Maximize2, Minimize2, RefreshCcw, Settings } from "lucide-react";
+import { motion } from "motion/react";
+
 import SplashScreen from "./components/SplashScreen";
-import {
-  Settings,
-  RefreshCcw,
-  Download,
-  QrCode,
-  ChevronDown,
-  ChevronUp,
-  AlertCircle,
-  Image,
-  Maximize2,
-  Minimize2,
-} from "lucide-react";
-
-import { useCamera } from "./hooks/useCamera";
-import { useRecorder } from "./hooks/useRecorder";
-import { useUpload } from "./hooks/useUpload";
-import { useSettings } from "./hooks/useSettings";
-
 import CameraView from "./components/CameraView";
+import GalleryStrip from "./components/GalleryStrip";
+import PinModal from "./components/PinModal";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
-import ShareSection from "./components/ShareSection";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
-import PinModal from "./components/PinModal";
-
+import ShareSection from "./components/ShareSection";
+import { useCamera } from "./hooks/useCamera";
+import { useRecorder } from "./hooks/useRecorder";
+import { useSettings } from "./hooks/useSettings";
+import { useUpload } from "./hooks/useUpload";
 import { saveVideo } from "./lib/videoStore";
 
-// ─── Accent palette ────────────────────────────────────────────────────────────
-const ACCENT: Record<
-  AppSettings["accentColor"],
-  { bg: string; text: string; border: string; glow: string }
-> = {
-  indigo:  { bg: "bg-indigo-500",  text: "text-indigo-400",  border: "border-indigo-500",  glow: "shadow-[0_0_30px_rgba(99,102,241,0.5)]"  },
-  rose:    { bg: "bg-rose-500",    text: "text-rose-400",    border: "border-rose-500",    glow: "shadow-[0_0_30px_rgba(244,63,94,0.5)]"    },
-  amber:   { bg: "bg-amber-500",   text: "text-amber-400",   border: "border-amber-500",   glow: "shadow-[0_0_30px_rgba(245,158,11,0.5)]"   },
-  emerald: { bg: "bg-emerald-500", text: "text-emerald-400", border: "border-emerald-500", glow: "shadow-[0_0_30px_rgba(16,185,129,0.5)]"   },
-  cyan:    { bg: "bg-cyan-500",    text: "text-cyan-400",    border: "border-cyan-500",    glow: "shadow-[0_0_30px_rgba(6,182,212,0.5)]"    },
+const ACCENT: Record<AppSettings["accentColor"], { bg: string; text: string; border: string; glow: string }> = {
+  indigo: { bg: "bg-indigo-500", text: "text-indigo-300", border: "border-indigo-500", glow: "shadow-[0_0_30px_rgba(99,102,241,0.5)]" },
+  rose: { bg: "bg-rose-500", text: "text-rose-300", border: "border-rose-500", glow: "shadow-[0_0_30px_rgba(244,63,94,0.5)]" },
+  amber: { bg: "bg-amber-500", text: "text-amber-300", border: "border-amber-500", glow: "shadow-[0_0_30px_rgba(245,158,11,0.5)]" },
+  emerald: { bg: "bg-emerald-500", text: "text-emerald-300", border: "border-emerald-500", glow: "shadow-[0_0_30px_rgba(16,185,129,0.5)]" },
+  cyan: { bg: "bg-cyan-500", text: "text-cyan-300", border: "border-cyan-500", glow: "shadow-[0_0_30px_rgba(6,182,212,0.5)]" },
 };
 
-// ─── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const navigate = useNavigate();
-  
-  // Settings — persisted to Supabase (falls back to localStorage)
   const { settings, loadState, handleSave } = useSettings();
 
-  const [settingsOpen, setSettingsOpen]   = useState(false);
-  const [showPinModal, setShowPinModal]   = useState(false);
-  const [videoUrl, setVideoUrl]           = useState("");
-  const [gallery, setGallery]             = useState<string[]>([]);
-  const [shareId, setShareId]             = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [gallery, setGallery] = useState<string[]>([]);
+  const [shareId, setShareId] = useState("");
   const [isSavingShare, setIsSavingShare] = useState(false);
-  const [showFlash, setShowFlash]         = useState(false);
-  const [shareOpen, setShareOpen]         = useState(false);
-  const [showSplash, setShowSplash]       = useState(true);
-  const [isFullscreen, setIsFullscreen]   = useState(false);
-  
-  // Inactivity timer ref
+  const [showFlash, setShowFlash] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const accent = ACCENT[settings.accentColor];
+  const isReviewing = Boolean(videoUrl);
 
-  // Camera
   const { liveVideoRef, stream, cameraError } = useCamera({
-    facingMode:  settings.facingMode,
-    resolution:  settings.resolution,
+    facingMode: settings.facingMode,
+    resolution: settings.resolution,
     recordAudio: settings.recordAudio,
   });
 
-  // Cloud upload
-  const {
-    upload,
-    listVideos,
-    status:    uploadStatus,
-    progress:  uploadProgress,
-    publicUrl: uploadedUrl,
-    isConfigured: cloudEnabled,
-  } = useUpload();
+  const { upload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled } = useUpload();
 
-  // Recorder
   const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
     onRecordingStart: () => {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
     },
     onRecordingComplete: (url) => {
-      // Mute mic during review
-      stream?.getAudioTracks().forEach((t) => { t.enabled = false; });
+      stream?.getAudioTracks().forEach((track) => { track.enabled = false; });
       setVideoUrl(url);
       setShareId("");
-      setShareOpen(true);
-      setGallery((prev) => [url, ...prev]);
+      setGallery((prev) => [url, ...prev.filter((item) => item !== url)]);
 
       if (cloudEnabled) {
         upload(url).then((publicUrl) => {
-          if (publicUrl) {
-            // Replace local blob URL with public URL in gallery
-            setGallery((prev) => prev.map(u => u === url ? publicUrl : u));
-          }
+          if (publicUrl) setGallery((prev) => prev.map((item) => (item === url ? publicUrl : item)));
         });
       } else {
         setIsSavingShare(true);
@@ -111,135 +76,94 @@ export default function App() {
     },
   });
 
-  const isReviewing = Boolean(videoUrl);
-
-  // ── Inactivity Management (5 minutes) ─────────────────────────────────────
   const resetInactivityTimer = () => {
-    // Clear existing timer
-    if (inactivityTimerRef.current) {
-      clearTimeout(inactivityTimerRef.current);
-    }
-    
-    // Set new timer for 5 minutes (300000 ms)
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     if (!showSplash) {
       inactivityTimerRef.current = setTimeout(() => {
         setShowSplash(true);
         setVideoUrl("");
         setShareId("");
-        setShareOpen(false);
-      }, 300000); // 5 minutes
+      }, 300000);
     }
   };
 
-  // Setup activity listeners
   useEffect(() => {
     if (showSplash) {
-      // Clear timer when splash is shown
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-        inactivityTimerRef.current = null;
-      }
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
       return;
     }
 
-    // Start timer when leaving splash
     resetInactivityTimer();
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart", "click"];
+    events.forEach((event) => document.addEventListener(event, resetInactivityTimer));
 
-    // Listen for user activity
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    
-    events.forEach(event => {
-      document.addEventListener(event, resetInactivityTimer);
-    });
-
-    // Cleanup
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, resetInactivityTimer);
-      });
-      if (inactivityTimerRef.current) {
-        clearTimeout(inactivityTimerRef.current);
-      }
+      events.forEach((event) => document.removeEventListener(event, resetInactivityTimer));
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
   }, [showSplash]);
 
-  // ── Load videos from Supabase bucket on mount ─────────────────────────────
   useEffect(() => {
     const loadGallery = async () => {
       if (cloudEnabled) {
-        // Load from Supabase bucket
-        const { listVideosFromBucket } = await import('./lib/uploadVideo');
-        const videos = await listVideosFromBucket();
-        setGallery(videos);
+        const { listVideosFromBucket } = await import("./lib/uploadVideo");
+        setGallery(await listVideosFromBucket());
       } else {
-        // Load from IndexedDB
-        const { getAllVideos } = await import('./lib/videoStore');
+        const { getAllVideos } = await import("./lib/videoStore");
         const localVideos = await getAllVideos();
-        setGallery(localVideos.map(v => v.url));
+        setGallery(localVideos.map((video) => video.url));
       }
     };
 
-    if (!showSplash) {
-      loadGallery();
-    }
+    if (!showSplash) loadGallery();
   }, [showSplash, cloudEnabled]);
 
-  // ── Fullscreen keyboard shortcuts ─────────────────────────────────────────
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // ESC to exit fullscreen
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
-      // F11 to toggle fullscreen (prevent default browser fullscreen)
-      if (e.key === 'F11') {
-        e.preventDefault();
-        setIsFullscreen(!isFullscreen);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isFullscreen) setIsFullscreen(false);
+      if (event.key === "F11") {
+        event.preventDefault();
+        setIsFullscreen((value) => !value);
       }
     };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isFullscreen]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleStart = () => {
     if (!stream) return;
-    stream.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
+    stream.getAudioTracks().forEach((track) => { track.enabled = settings.recordAudio; });
     startRecording(stream, settings.duration, settings.countdownSeconds);
   };
 
   const handleReset = () => {
-    stream?.getAudioTracks().forEach((t) => { t.enabled = settings.recordAudio; });
+    stream?.getAudioTracks().forEach((track) => { track.enabled = settings.recordAudio; });
     setVideoUrl("");
     setShareId("");
-    setShareOpen(false);
-    setIsFullscreen(false); // Exit fullscreen on reset
+    setIsFullscreen(false);
   };
 
   const handleSaveSettings = async (next: AppSettings) => {
     if (!isReviewing && stream && next.recordAudio !== settings.recordAudio) {
-      stream.getAudioTracks().forEach((t) => { t.enabled = next.recordAudio; });
+      stream.getAudioTracks().forEach((track) => { track.enabled = next.recordAudio; });
     }
     await handleSave(next);
   };
 
-  // ── Loading screen while settings are fetched ────────────────────────
-  if (loadState === 'loading') {
+  if (loadState === "loading") {
     return (
-      <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center">
+      <div className="fixed inset-0 grid place-items-center bg-neuro-bg text-neuro-muted">
         <div className="flex flex-col items-center gap-4">
-          <div className={`w-10 h-10 rounded-full border-4 border-zinc-700 border-t-indigo-500 animate-spin`} />
-          <p className="text-zinc-500 text-sm">Chargement des réglages…</p>
+          <div className="h-11 w-11 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
+          <p className="text-caption font-semibold uppercase tracking-[0.18em]">Chargement des réglages</p>
         </div>
       </div>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex flex-col overflow-hidden font-sans select-none">
-
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none">
       {showSplash ? (
         <SplashScreen
           settings={settings}
@@ -251,246 +175,73 @@ export default function App() {
         />
       ) : (
         <>
-          {/* ── TOP BAR (hidden in fullscreen) ──────────────────────────── */}
-          {!isFullscreen && (
-            <header className="relative z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 flex-shrink-0 md:flex hidden">
-              <div className="flex flex-col leading-tight">
-                <span className="text-white font-bold text-lg tracking-tight">
-                  Neurobooth <span className={accent.text}>360</span>
-                </span>
-                <span className="text-zinc-500 text-xs">{settings.eventName}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate('/gallery')}
-                  className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
-                  aria-label="Galerie"
-                  title="Voir toutes les vidéos"
-                >
-                  <Image className="w-5 h-5" />
-                </button>
-                
-                <button
-                  onClick={() => setShowPinModal(true)}
-                  className="p-2.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition-all"
-                  aria-label="Réglages"
-                >
-                  <Settings className="w-5 h-5" />
-                </button>
-              </div>
-            </header>
-          )}
-
-          {/* ── VIEWFINDER ───────────────────────────────────────────────── */}
-          <div className={`relative overflow-hidden bg-black ${isFullscreen ? 'fixed inset-0 z-50' : 'flex-1 md:flex-1'} ${!isFullscreen ? 'min-h-screen md:min-h-0' : ''}`}>
-            {/* Fullscreen toggle button */}
+          <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {!isReviewing && (
               <button
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="absolute top-5 right-5 z-30 p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
-                aria-label={isFullscreen ? "Quitter plein écran" : "Plein écran"}
-                title={isFullscreen ? "Quitter plein écran" : "Plein écran"}
+                type="button"
+                onClick={() => setIsFullscreen((value) => !value)}
+                className="glass-panel absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] z-30 grid min-h-12 min-w-12 place-items-center rounded-full text-white transition-all hover:bg-white/10 active:scale-95 sm:right-6"
+                aria-label={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
               >
-                {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
               </button>
             )}
 
-            {/* Mobile header overlay - shown on mobile only */}
-            {!isFullscreen && (
-              <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-5 pt-safe-top pt-4 pb-3 md:hidden bg-gradient-to-b from-black/60 to-transparent">
-                <div className="flex flex-col leading-tight">
-                  <span className="text-white font-bold text-lg tracking-tight drop-shadow-lg">
-                    Neurobooth <span className={accent.text}>360</span>
-                  </span>
-                  <span className="text-zinc-300 text-xs drop-shadow">{settings.eventName}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => navigate('/gallery')}
-                    className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
-                    aria-label="Galerie"
-                    title="Voir toutes les vidéos"
-                  >
-                    <Image className="w-5 h-5" />
-                  </button>
-                  
-                  <button
-                    onClick={() => setShowPinModal(true)}
-                    className="p-2.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-700/50 text-white hover:bg-black/80 active:scale-95 transition-all"
-                    aria-label="Réglages"
-                  >
-                    <Settings className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
             {cameraError ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8">
-                <AlertCircle className="w-10 h-10 text-red-400" />
-                <p className="text-red-300 text-center text-sm leading-relaxed">{cameraError}</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
+                <AlertCircle className="h-11 w-11 text-neuro-error" />
+                <p className="max-w-sm text-body text-red-200">{cameraError}</p>
               </div>
             ) : (
               <>
-                {/* Live feed — always mounted, hidden during review */}
-                <CameraView
-                  liveVideoRef={liveVideoRef}
-                  isRecording={isRecording}
-                  countdown={countdown}
-                  showFlash={showFlash}
-                  eventName={settings.eventName}
-                  hidden={isReviewing}
-                />
-
-                {/* Playback — only when reviewing */}
-                {isReviewing && (
-                  <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />
-                )}
+                <CameraView liveVideoRef={liveVideoRef} isRecording={isRecording} countdown={countdown} showFlash={showFlash} eventName={settings.eventName} hidden={isReviewing} />
+                {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
               </>
             )}
 
-            {/* ── FULLSCREEN RECORD BUTTON (centered) ── */}
-            {isFullscreen && !isReviewing && (
-              <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-40">
-                <RecordButton
-                  isRecording={isRecording}
-                  isCountingDown={countdown !== null}
-                  hasStream={Boolean(stream)}
-                  durationSeconds={settings.duration / 1000}
-                  onStart={handleStart}
-                  onStop={stopRecording}
-                />
+            {!isReviewing && (
+              <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] left-1/2 z-40 -translate-x-1/2 md:bottom-8">
+                <RecordButton isRecording={isRecording} isCountingDown={countdown !== null} hasStream={Boolean(stream)} durationSeconds={settings.duration / 1000} onStart={handleStart} onStop={stopRecording} />
               </div>
             )}
 
-            {/* ── MOBILE RECORD BUTTON (over video, bottom center) ── */}
-            {!isFullscreen && !isReviewing && (
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 md:hidden">
-                <RecordButton
-                  isRecording={isRecording}
-                  isCountingDown={countdown !== null}
-                  hasStream={Boolean(stream)}
-                  durationSeconds={settings.duration / 1000}
-                  onStart={handleStart}
-                  onStop={stopRecording}
-                />
-              </div>
-            )}
-
-            {/* ── SHARE DRAWER (slides up from bottom of viewfinder) ── */}
             {isReviewing && (
-              <div
-                className={`absolute bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-xl border-t border-zinc-800 rounded-t-3xl z-30 transition-transform duration-300 ${
-                  shareOpen ? "translate-y-0" : "translate-y-[calc(100%-3.5rem)]"
-                }`}
-              >
-                {/* Drawer handle / toggle */}
-                <button
-                  onClick={() => setShareOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-5 py-3.5"
-                >
-                  <div className="flex items-center gap-2">
-                    <QrCode className={`w-4 h-4 ${accent.text}`} />
-                    <span className="text-sm font-semibold text-white">Partager</span>
-                  </div>
-                  {shareOpen ? (
-                    <ChevronDown className="w-4 h-4 text-zinc-500" />
-                  ) : (
-                    <ChevronUp className="w-4 h-4 text-zinc-500" />
-                  )}
-                </button>
-
-                {/* Drawer content */}
-                <ShareSection
-                  cloudEnabled={cloudEnabled}
-                  uploadStatus={uploadStatus}
-                  uploadProgress={uploadProgress}
-                  uploadedUrl={uploadedUrl}
-                  shareId={shareId}
-                  isSavingShare={isSavingShare}
-                  accent={accent}
-                />
+              <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] z-30 md:bottom-0">
+                {gallery.length > 1 && <GalleryStrip gallery={gallery.slice(0, 12)} activeUrl={videoUrl} accentBorder={accent.border} onSelect={setVideoUrl} />}
+                <ShareSection cloudEnabled={cloudEnabled} uploadStatus={uploadStatus} uploadProgress={uploadProgress} uploadedUrl={uploadedUrl} shareId={shareId} isSavingShare={isSavingShare} accent={accent} />
               </div>
             )}
-          </div>
 
-          {/* ── BOTTOM CONTROLS (hidden in fullscreen and on mobile) ──────────────────── */}
+            {isReviewing && (
+              <div className="absolute left-4 top-[calc(env(safe-area-inset-top)+1rem)] z-30 flex gap-2 sm:left-6">
+                <motion.button type="button" onClick={handleReset} className="glass-panel flex min-h-12 items-center gap-2 rounded-full px-4 text-caption font-bold text-white" whileTap={{ scale: 0.95 }} aria-label="Refaire une capture">
+                  <RefreshCcw className="h-4 w-4" /> Refaire
+                </motion.button>
+                <motion.a href={videoUrl} download="neurobooth360.webm" className={`flex min-h-12 items-center gap-2 rounded-full px-4 text-caption font-bold text-white ${accent.bg} ${accent.glow}`} whileTap={{ scale: 0.95 }} aria-label="Télécharger la vidéo">
+                  <Download className="h-4 w-4" /> Sauver
+                </motion.a>
+              </div>
+            )}
+          </main>
+
           {!isFullscreen && (
-            <div className="hidden md:flex flex-shrink-0 bg-zinc-950 border-t border-zinc-900 pb-safe-bottom">
-              {/* Main action row */}
-              <div className="flex items-center justify-between px-8 py-5 w-full">
-
-              {/* Left — Redo */}
-              <div className="w-14 flex justify-center">
-                {isReviewing && (
-                  <button
-                    onClick={handleReset}
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="Refaire"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center active:scale-95 transition-transform">
-                      <RefreshCcw className="w-5 h-5 text-zinc-300 group-active:scale-90 transition-transform" />
-                    </div>
-                    <span className="text-[10px] text-zinc-500">Refaire</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Center — Record / Stop */}
-              <RecordButton
-                isRecording={isRecording}
-                isCountingDown={countdown !== null}
-                hasStream={Boolean(stream)}
-                durationSeconds={settings.duration / 1000}
-                onStart={handleStart}
-                onStop={stopRecording}
-              />
-
-              {/* Right — Download */}
-              <div className="w-14 flex justify-center">
-                {isReviewing && (
-                  <a
-                    href={videoUrl}
-                    download="photobooth360.webm"
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="Télécharger"
-                  >
-                    <div
-                      className={`w-12 h-12 rounded-full ${accent.bg} ${accent.glow} flex items-center justify-center active:scale-95 transition-transform`}
-                    >
-                      <Download className="w-5 h-5 text-white group-active:scale-90 transition-transform" />
-                    </div>
-                    <span className="text-[10px] text-zinc-500">Sauver</span>
-                  </a>
-                )}
-              </div>
-            </div>
-          </div>
+            <nav className="glass-panel fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-50 grid min-h-16 grid-cols-3 rounded-[1.5rem] p-1.5 md:left-1/2 md:max-w-sm md:-translate-x-1/2" aria-label="Navigation principale">
+              <button type="button" onClick={isReviewing ? handleReset : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-caption font-bold transition-all active:scale-95 ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} aria-label="Capture">
+                <Camera className="h-5 w-5" /> Capture
+              </button>
+              <button type="button" onClick={() => navigate("/gallery")} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-caption font-bold text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Galerie">
+                <GalleryHorizontal className="h-5 w-5" /> Galerie
+              </button>
+              <button type="button" onClick={() => setShowPinModal(true)} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-[1.15rem] text-caption font-bold text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Réglages">
+                <Settings className="h-5 w-5" /> Réglages
+              </button>
+            </nav>
           )}
         </>
       )}
 
-      {/* ── PIN MODAL ────────────────────────────────────────────────────── */}
-      {showPinModal && (
-        <PinModal
-          adminPin={settings.adminPin}
-          onUnlock={() => {
-            setShowPinModal(false);
-            setSettingsOpen(true);
-          }}
-          onCancel={() => setShowPinModal(false)}
-        />
-      )}
-
-      {/* ── SETTINGS MODAL ───────────────────────────────────────────────── */}
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        settings={settings}
-        onSave={handleSaveSettings}
-      />
+      {showPinModal && <PinModal adminPin={settings.adminPin} onUnlock={() => { setShowPinModal(false); setSettingsOpen(true); }} onCancel={() => setShowPinModal(false)} />}
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
     </div>
   );
 }

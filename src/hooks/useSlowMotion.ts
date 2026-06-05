@@ -36,7 +36,7 @@ async function getFFmpeg(onProgress: (p: number) => void): Promise<FFmpeg> {
     ffmpegLoadPromise = ff.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
       wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
+    }).then(() => undefined);
   }
 
   await ffmpegLoadPromise;

@@ -1,4 +1,5 @@
-import { Video, StopCircle } from "lucide-react";
+import { StopCircle, Video } from "lucide-react";
+import { motion } from "motion/react";
 
 interface RecordButtonProps {
   isRecording: boolean;
@@ -17,36 +18,28 @@ export default function RecordButton({
   onStart,
   onStop,
 }: RecordButtonProps) {
-  if (isRecording) {
-    return (
-      <button
-        onClick={onStop}
-        className="flex flex-col items-center gap-1 group"
-        aria-label="Arrêter l'enregistrement"
-      >
-        <div className="w-20 h-20 rounded-full bg-red-500 shadow-[0_0_30px_rgba(239,68,68,0.6)] flex items-center justify-center active:scale-95 transition-transform">
-          <StopCircle className="w-9 h-9 text-white group-active:scale-95 transition-transform" />
-        </div>
-        <span className="text-xs text-red-400 font-medium tracking-wide">Stop</span>
-      </button>
-    );
-  }
+  const disabled = isCountingDown || !hasStream;
 
   return (
-    <button
-      onClick={onStart}
-      disabled={isCountingDown || !hasStream}
-      className="flex flex-col items-center gap-1 group disabled:opacity-40 disabled:cursor-not-allowed"
-      aria-label={`Enregistrer ${durationSeconds}s`}
+    <motion.button
+      type="button"
+      onClick={isRecording ? onStop : onStart}
+      disabled={disabled && !isRecording}
+      className="group flex min-h-[112px] min-w-[112px] flex-col items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
+      aria-label={isRecording ? "Arrêter l'enregistrement" : `Lancer une capture vidéo de ${durationSeconds} secondes`}
+      whileTap={{ scale: 0.94 }}
     >
-      {/* Outer ring */}
-      <div className="relative w-20 h-20">
-        <div className="absolute inset-0 rounded-full border-4 border-white/30" />
-        <div className="absolute inset-1.5 rounded-full bg-white flex items-center justify-center shadow-[0_0_25px_rgba(255,255,255,0.3)] active:scale-95 transition-transform group-active:scale-95">
-          <Video className="w-8 h-8 text-zinc-900" />
-        </div>
-      </div>
-      <span className="text-xs text-white/70 font-medium tracking-wide">{durationSeconds}s</span>
-    </button>
+      <span className="relative grid h-24 w-24 place-items-center sm:h-28 sm:w-28">
+        <span className={`absolute inset-0 rounded-full border ${isRecording ? "border-red-400/50" : "border-white/20"} bg-white/5 backdrop-blur-xl`} />
+        <span className={`absolute inset-1 rounded-full border-2 ${isRecording ? "border-red-400/80 animate-record-ring" : "border-white/55 animate-breathe"}`} />
+        <span className={`absolute inset-3 rounded-full ${isRecording ? "bg-red-500 shadow-[0_0_44px_rgba(239,68,68,0.78)]" : "bg-white shadow-[0_0_42px_rgba(255,255,255,0.36)]"} transition-all duration-300 group-hover:scale-105`} />
+        <span className="relative z-10 grid h-16 w-16 place-items-center rounded-full">
+          {isRecording ? <StopCircle className="h-9 w-9 text-white" /> : <Video className="h-8 w-8 text-black" />}
+        </span>
+      </span>
+      <span className={`rounded-full px-3 py-1 text-caption font-bold uppercase tracking-[0.18em] ${isRecording ? "bg-red-500/15 text-red-200" : "bg-white/10 text-white/80"}`}>
+        {isRecording ? "Stop" : `${durationSeconds}s`}
+      </span>
+    </motion.button>
   );
 }
