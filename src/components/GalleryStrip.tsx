@@ -1,3 +1,5 @@
+import { Play } from "lucide-react";
+
 interface GalleryStripProps {
   gallery: string[];
   activeUrl: string;
@@ -5,34 +7,25 @@ interface GalleryStripProps {
   onSelect: (url: string) => void;
 }
 
-export default function GalleryStrip({
-  gallery,
-  activeUrl,
-  accentBorder,
-  onSelect,
-}: GalleryStripProps) {
+export default function GalleryStrip({ gallery, activeUrl, accentBorder, onSelect }: GalleryStripProps) {
   if (gallery.length === 0) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-1 px-5 scrollbar-none snap-x">
+    <div className="flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-none snap-x" aria-label="Vidéos récentes">
       {gallery.map((url, idx) => (
         <button
-          key={idx}
+          key={`${url}-${idx}`}
+          type="button"
           onClick={() => onSelect(url)}
-          className={`relative flex-shrink-0 w-16 h-24 rounded-xl overflow-hidden snap-start transition-all border-2 ${
-            activeUrl === url
-              ? `${accentBorder} scale-95 opacity-100`
-              : "border-transparent opacity-50 hover:opacity-80"
+          className={`group relative h-20 w-14 flex-shrink-0 overflow-hidden rounded-2xl border snap-start transition-all hover:scale-[1.03] active:scale-95 ${
+            activeUrl === url ? `${accentBorder} opacity-100 shadow-[0_0_18px_rgba(99,102,241,0.28)]` : "border-white/10 opacity-60 hover:opacity-100"
           }`}
+          aria-label={`Ouvrir la vidéo ${idx + 1}`}
         >
-          <video
-            src={url}
-            className="w-full h-full object-cover pointer-events-none"
-            muted
-          />
-          {/* Overlay number */}
-          <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center">
-            <span className="text-[9px] text-white font-bold">{idx + 1}</span>
+          <video src={url} className="h-full w-full object-cover pointer-events-none" muted preload="metadata" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+          <div className="absolute bottom-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/15 backdrop-blur-xl">
+            <Play className="h-2.5 w-2.5 fill-white text-white" />
           </div>
         </button>
       ))}

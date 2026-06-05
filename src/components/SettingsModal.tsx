@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  X, Camera, Clock, Video, Type, Palette, Mic, MicOff,
-  ChevronDown, RotateCcw, Check, Lock, Upload, Image,
-} from "lucide-react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { Camera, Check, Clock, Image, Lock, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 export interface AppSettings {
   eventName: string;
   duration: number;
@@ -21,7 +18,6 @@ export interface AppSettings {
   logoUrl?: string;
 }
 
-
 export const DEFAULT_SETTINGS: AppSettings = {
   eventName: "ÉVÉNEMENT 2026",
   duration: 15000,
@@ -34,95 +30,68 @@ export const DEFAULT_SETTINGS: AppSettings = {
   logoUrl: "",
 };
 
-
-// ─── Static data ──────────────────────────────────────────────────────────────
-const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string; ring: string }[] = [
-  { value: "indigo",  label: "Indigo",   bg: "bg-indigo-500",  ring: "ring-indigo-400"  },
-  { value: "rose",    label: "Rose",     bg: "bg-rose-500",    ring: "ring-rose-400"    },
-  { value: "amber",   label: "Ambre",    bg: "bg-amber-500",   ring: "ring-amber-400"   },
-  { value: "emerald", label: "Émeraude", bg: "bg-emerald-500", ring: "ring-emerald-400" },
-  { value: "cyan",    label: "Cyan",     bg: "bg-cyan-500",    ring: "ring-cyan-400"    },
+const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
+  { value: "indigo", label: "Indigo", bg: "bg-indigo-500" },
+  { value: "rose", label: "Rose", bg: "bg-rose-500" },
+  { value: "amber", label: "Ambre", bg: "bg-amber-500" },
+  { value: "emerald", label: "Émeraude", bg: "bg-emerald-500" },
+  { value: "cyan", label: "Cyan", bg: "bg-cyan-500" },
 ];
 
-const ACCENT_STYLES: Record<AppSettings["accentColor"], { activeBg: string; activeBorder: string; activeText: string; glow: string }> = {
-  indigo:  { activeBg: "bg-indigo-500/15",  activeBorder: "border-indigo-500",  activeText: "text-indigo-300",  glow: "shadow-[0_0_14px_rgba(99,102,241,0.45)]"  },
-  rose:    { activeBg: "bg-rose-500/15",    activeBorder: "border-rose-500",    activeText: "text-rose-300",    glow: "shadow-[0_0_14px_rgba(244,63,94,0.45)]"    },
-  amber:   { activeBg: "bg-amber-500/15",   activeBorder: "border-amber-500",   activeText: "text-amber-300",   glow: "shadow-[0_0_14px_rgba(245,158,11,0.45)]"   },
-  emerald: { activeBg: "bg-emerald-500/15", activeBorder: "border-emerald-500", activeText: "text-emerald-300", glow: "shadow-[0_0_14px_rgba(16,185,129,0.45)]"   },
-  cyan:    { activeBg: "bg-cyan-500/15",    activeBorder: "border-cyan-500",    activeText: "text-cyan-300",    glow: "shadow-[0_0_14px_rgba(6,182,212,0.45)]"    },
-};
-
-const ACCENT_SOLID: Record<AppSettings["accentColor"], string> = {
-  indigo:  "bg-indigo-500 hover:bg-indigo-600",
-  rose:    "bg-rose-500 hover:bg-rose-600",
-  amber:   "bg-amber-500 hover:bg-amber-600",
-  emerald: "bg-emerald-500 hover:bg-emerald-600",
-  cyan:    "bg-cyan-500 hover:bg-cyan-600",
-};
-
-const DURATIONS   = [10000, 15000, 30000, 60000, 120000];
-const COUNTDOWNS  = [0, 3, 5, 10];
+const DURATIONS = [10000, 15000, 30000, 60000, 120000];
+const COUNTDOWNS = [0, 3, 5, 10];
 const RESOLUTIONS: { value: AppSettings["resolution"]; label: string; sub: string }[] = [
-  { value: "480p",  label: "480p",  sub: "SD · 854×480"   },
-  { value: "720p",  label: "720p",  sub: "HD · 1280×720"  },
-  { value: "1080p", label: "1080p", sub: "FHD · 1920×1080" },
+  { value: "480p", label: "480p", sub: "SD" },
+  { value: "720p", label: "720p", sub: "HD" },
+  { value: "1080p", label: "1080p", sub: "Full HD" },
 ];
 
 function fmtDuration(ms: number) {
-  return ms >= 60000 ? `${ms / 60000}min` : `${ms / 1000}s`;
+  return ms >= 60000 ? `${ms / 60000} min` : `${ms / 1000}s`;
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-/** Collapsible section used throughout the sheet */
-function Section({
-  icon, label, children, defaultOpen = true,
-}: { icon: React.ReactNode; label: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
+function Card({ icon, title, description, children }: { icon: ReactNode; title: string; description?: string; children: ReactNode }) {
   return (
-    <div className="border-b border-zinc-800/60 last:border-b-0">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between py-4 px-5 text-left"
-      >
-        <span className="flex items-center gap-2.5 text-sm font-medium text-zinc-300">
-          <span className="text-zinc-500">{icon}</span>
-          {label}
-        </span>
-        <ChevronDown
-          className={`w-4 h-4 text-zinc-600 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && <div className="px-5 pb-5">{children}</div>}
-    </div>
+    <section className="glass-panel rounded-[1.35rem] p-3.5">
+      <div className="mb-3 flex items-start gap-2.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/5 text-neuro-accent">{icon}</div>
+        <div>
+          <h3 className="text-[15px] font-bold text-white">{title}</h3>
+          {description && <p className="mt-0.5 text-[12px] leading-5 text-neuro-muted">{description}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }
 
-/** Pill button used for durations / countdowns */
-function PillButton({
-  active,
-  accent,
-  onClick,
-  children,
-}: { active: boolean; accent: AppSettings["accentColor"]; onClick: () => void; children: React.ReactNode; key?: React.Key }) {
-  const s = ACCENT_STYLES[accent];
+function Segment<T extends string | number>({ value, selected, label, sub, onClick }: { value: T; selected: boolean; label: string; sub?: string; onClick: (value: T) => void }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`px-4 py-2 rounded-full text-sm font-medium transition-all active:scale-95 border ${
-        active
-          ? `${s.activeBg} ${s.activeBorder} ${s.activeText} ${s.glow}`
-          : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-700"
+      onClick={() => onClick(value)}
+      className={`min-h-10 rounded-xl border px-3 py-2 text-left transition-all active:scale-[0.98] ${
+        selected ? "border-neuro-accent bg-neuro-accent/15 text-white shadow-[0_0_20px_rgba(99,102,241,0.22)]" : "border-white/10 bg-white/5 text-neuro-muted hover:bg-white/10 hover:text-white"
       }`}
+      aria-pressed={selected}
     >
-      {children}
+      <span className="block text-[13px] font-bold">{label}</span>
+      {sub && <span className="block text-[11px] opacity-70">{sub}</span>}
     </button>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <button type="button" onClick={onChange} className="flex min-h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition-all hover:bg-white/10 active:scale-[0.98]" aria-pressed={checked}>
+      <span className="text-sm font-semibold text-white">{label}</span>
+      <span className={`relative h-7 w-12 rounded-full transition-colors ${checked ? "bg-neuro-accent" : "bg-zinc-700"}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-lg transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
+      </span>
+    </button>
+  );
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -130,497 +99,148 @@ interface SettingsModalProps {
   onSave: (settings: AppSettings) => void;
 }
 
-type LogoUploadState = 'idle' | 'uploading' | 'done' | 'error';
+type LogoUploadState = "idle" | "uploading" | "done" | "error";
 
 export default function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
-  const [local, setLocal]         = useState<AppSettings>(settings);
-  const [visible, setVisible]     = useState(false);
-  const [logoUpload, setLogoUpload] = useState<LogoUploadState>('idle');
-  const [logoProgress, setLogoProgress] = useState(0);
-  const [showPinModal, setShowPinModal] = useState(false);
-  const [pinModalData, setPinModalData] = useState({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-  const logoInputRef = useRef<HTMLInputElement>(null);
+  const [draft, setDraft] = useState<AppSettings>(settings);
+  const [logoState, setLogoState] = useState<LogoUploadState>("idle");
+  const [logoError, setLogoError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!SUPABASE_CONFIGURED) {
-      // No cloud — use object URL as local preview
-      const url = URL.createObjectURL(file);
-      setLocal((l) => ({ ...l, logoUrl: url }));
-      return;
+  useEffect(() => {
+    if (isOpen) {
+      setDraft(settings);
+      setLogoState("idle");
+      setLogoError("");
     }
-    setLogoUpload('uploading');
-    setLogoProgress(0);
+  }, [isOpen, settings]);
+
+  const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleLogo = async (file?: File) => {
+    if (!file) return;
+    setLogoState("uploading");
+    setLogoError("");
     try {
-      const result = await uploadLogo(file, setLogoProgress);
-      if (result) {
-        setLocal((l) => ({ ...l, logoUrl: result.publicUrl }));
-        setLogoUpload('done');
-      } else {
-        setLogoUpload('error');
-      }
-    } catch {
-      setLogoUpload('error');
+      const result = await uploadLogo(file, () => undefined);
+      if (!result) throw new Error("Supabase logo upload is not configured");
+      update("logoUrl", result.publicUrl);
+      setLogoState("done");
+    } catch (error) {
+      console.error(error);
+      setLogoState("error");
+      setLogoError("Impossible d'importer le logo. Vérifiez Supabase ou réessayez.");
     }
   };
 
-  // Sync local copy every time the sheet opens + trigger enter animation
-  useEffect(() => {
-    if (isOpen) {
-      setLocal(settings);
-      // Small delay so the translate transition plays after mount
-      requestAnimationFrame(() => setVisible(true));
-    } else {
-      setVisible(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const a = ACCENT_STYLES[local.accentColor];
-
   const handleSave = () => {
-    onSave(local);
+    onSave(draft);
     onClose();
   };
 
-  const handleClose = () => {
-    setVisible(false);
-    // Wait for slide-down animation before unmounting
-    setTimeout(onClose, 250);
-  };
-
-  const handlePinChange = () => {
-    setShowPinModal(true);
-    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-  };
-
-  const handlePinSubmit = () => {
-    const { oldPin, newPin, confirmPin } = pinModalData;
-
-    // Validate old PIN
-    if (oldPin !== local.adminPin) {
-      setPinModalData({ ...pinModalData, error: 'Code PIN actuel incorrect' });
-      return;
-    }
-
-    // Validate new PIN
-    if (!newPin || newPin.length < 4) {
-      setPinModalData({ ...pinModalData, error: 'Le nouveau code doit contenir au moins 4 caractères' });
-      return;
-    }
-
-    // Validate confirmation
-    if (newPin !== confirmPin) {
-      setPinModalData({ ...pinModalData, error: 'Les codes ne correspondent pas' });
-      return;
-    }
-
-    // Update PIN
-    setLocal({ ...local, adminPin: newPin });
-    setShowPinModal(false);
-    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-  };
-
   return (
-    // Backdrop
-    <div
-      className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-250 ${
-        visible ? "opacity-100" : "opacity-0"
-      }`}
-      onClick={handleClose}
-    >
-      {/* Bottom sheet */}
-      <div
-        className={`absolute bottom-0 left-0 right-0 bg-zinc-950 rounded-t-[2rem] flex flex-col
-                    shadow-[0_-8px_40px_rgba(0,0,0,0.6)] border-t border-zinc-800
-                    transition-transform duration-300 ease-out max-h-[92dvh]
-                    ${visible ? "translate-y-0" : "translate-y-full"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-          <div className="w-10 h-1 rounded-full bg-zinc-700" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pb-4 pt-2 flex-shrink-0">
-          <h2 className="text-base font-bold text-white tracking-tight">Réglages</h2>
-          <button
-            onClick={handleClose}
-            className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:text-white active:scale-90 transition-all"
-            aria-label="Fermer"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-0 backdrop-blur-xl sm:items-center sm:p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.div
+            className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-neuro-bg shadow-2xl sm:rounded-[1.5rem]"
+            initial={{ y: 40, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 24, opacity: 0, scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 overscroll-contain">
-
-          {/* ── Event name ────────────────────────────────────────── */}
-          <Section icon={<Type className="w-4 h-4" />} label="Nom de l'événement">
-            <input
-              type="text"
-              value={local.eventName}
-              onChange={(e) => setLocal({ ...local, eventName: e.target.value })}
-              maxLength={40}
-              placeholder="Affiché en filigrane sur la vidéo…"
-              className={`w-full px-4 py-3.5 rounded-2xl bg-zinc-900 border text-white placeholder-zinc-600
-                          focus:outline-none transition-colors text-sm
-                          ${local.eventName ? `${a.activeBorder} focus:border-current` : "border-zinc-800 focus:border-zinc-600"}`}
-            />
-          </Section>
-
-          {/* ── Durée ─────────────────────────────────────────────── */}
-          <Section icon={<Clock className="w-4 h-4" />} label="Durée d'enregistrement">
-            <div className="flex flex-wrap gap-2">
-              {DURATIONS.map((v) => (
-                <PillButton
-                  key={v} active={local.duration === v}
-                  accent={local.accentColor}
-                  onClick={() => setLocal({ ...local, duration: v })}
-                >
-                  {fmtDuration(v)}
-                </PillButton>
-              ))}
-            </div>
-          </Section>
-
-          {/* ── Countdown ─────────────────────────────────────────── */}
-          <Section icon={<Clock className="w-4 h-4" />} label="Compte à rebours" defaultOpen={false}>
-            <div className="flex flex-wrap gap-2">
-              {COUNTDOWNS.map((v) => (
-                <PillButton
-                  key={v} active={local.countdownSeconds === v}
-                  accent={local.accentColor}
-                  onClick={() => setLocal({ ...local, countdownSeconds: v })}
-                >
-                  {v === 0 ? "Aucun" : `${v}s`}
-                </PillButton>
-              ))}
-            </div>
-          </Section>
-
-          {/* ── Caméra ────────────────────────────────────────────── */}
-          <Section icon={<Camera className="w-4 h-4" />} label="Caméra" defaultOpen={false}>
-            <div className="grid grid-cols-2 gap-2">
-              {(["user", "environment"] as const).map((mode) => {
-                const active = local.facingMode === mode;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setLocal({ ...local, facingMode: mode })}
-                    className={`flex flex-col items-center gap-2 py-4 rounded-2xl border text-sm font-medium transition-all active:scale-95 ${
-                      active
-                        ? `${a.activeBg} ${a.activeBorder} ${a.activeText}`
-                        : "bg-zinc-900 border-zinc-800 text-zinc-400"
-                    }`}
-                  >
-                    <span className="text-2xl">{mode === "user" ? "🤳" : "📷"}</span>
-                    <span>{mode === "user" ? "Frontale" : "Arrière"}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </Section>
-
-          {/* ── Audio ─────────────────────────────────────────────── */}
-          <Section icon={local.recordAudio ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />} label="Microphone" defaultOpen={false}>
-            <button
-              type="button"
-              onClick={() => setLocal({ ...local, recordAudio: !local.recordAudio })}
-              className={`w-full flex items-center justify-between px-4 py-4 rounded-2xl border transition-all active:scale-[0.98] ${
-                local.recordAudio
-                  ? `${a.activeBg} ${a.activeBorder}`
-                  : "bg-zinc-900 border-zinc-800"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {local.recordAudio
-                  ? <Mic className={`w-5 h-5 ${a.activeText}`} />
-                  : <MicOff className="w-5 h-5 text-zinc-600" />
-                }
-                <div className="text-left">
-                  <p className={`text-sm font-medium ${local.recordAudio ? "text-white" : "text-zinc-400"}`}>
-                    {local.recordAudio ? "Son activé" : "Son désactivé"}
-                  </p>
-                  <p className="text-xs text-zinc-600 mt-0.5">
-                    {local.recordAudio
-                      ? "Micro actif pendant l'enregistrement"
-                      : "Recommandé en environnement bruyant"}
-                  </p>
+            <header className="sticky top-0 z-10 border-b border-white/10 bg-neuro-bg/90 px-4 py-3 backdrop-blur-xl safe-top">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-caption font-bold uppercase tracking-[0.2em] text-neuro-accent">Settings</p>
+                  <h2 className="text-[22px] font-black text-white">Configuration borne</h2>
                 </div>
-              </div>
-              {/* Toggle pill */}
-              <div className={`relative w-12 h-6.5 h-7 rounded-full flex-shrink-0 transition-colors duration-200 ${
-                local.recordAudio ? ACCENT_SOLID[local.accentColor].split(" ")[0] : "bg-zinc-700"
-              }`}>
-                <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                  local.recordAudio ? "translate-x-6" : "translate-x-1"
-                }`} />
-              </div>
-            </button>
-          </Section>
-
-          {/* ── Résolution ────────────────────────────────────────── */}
-          <Section icon={<Video className="w-4 h-4" />} label="Résolution" defaultOpen={false}>
-            <div className="flex flex-col gap-2">
-              {RESOLUTIONS.map(({ value, label, sub }) => {
-                const active = local.resolution === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setLocal({ ...local, resolution: value })}
-                    className={`flex items-center justify-between px-4 py-3.5 rounded-2xl border text-sm transition-all active:scale-[0.98] ${
-                      active
-                        ? `${a.activeBg} ${a.activeBorder}`
-                        : "bg-zinc-900 border-zinc-800 text-zinc-400"
-                    }`}
-                  >
-                    <span className={`font-semibold ${active ? a.activeText : ""}`}>{label}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-zinc-500">{sub}</span>
-                      {active && <Check className={`w-4 h-4 ${a.activeText}`} />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </Section>
-
-          {/* ── Logo ──────────────────────────────────────────────────── */}
-          <Section icon={<Image className="w-4 h-4" />} label="Logo de l'écran d'accueil" defaultOpen={false}>
-            {/* Preview */}
-            {local.logoUrl && (
-              <img
-                src={local.logoUrl}
-                alt="Logo preview"
-                className="mb-3 h-16 rounded-xl object-contain bg-zinc-900 w-full"
-              />
-            )}
-
-            {/* Upload button */}
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleLogoFile}
-            />
-            <button
-              type="button"
-              onClick={() => logoInputRef.current?.click()}
-              disabled={logoUpload === 'uploading'}
-              className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl border text-sm font-medium transition-all active:scale-[0.98] ${
-                logoUpload === 'uploading'
-                  ? 'bg-zinc-900 border-zinc-700 text-zinc-500 cursor-not-allowed'
-                  : `bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600`
-              }`}
-            >
-              <Upload className="w-4 h-4" />
-              {logoUpload === 'uploading'
-                ? `Envoi… ${logoProgress}%`
-                : logoUpload === 'done'
-                ? 'Logo envoyé ✓'
-                : 'Choisir un fichier'}
-            </button>
-
-            {logoUpload === 'error' && (
-              <p className="mt-2 text-xs text-red-400">Échec de l'envoi. Vérifiez la connexion.</p>
-            )}
-
-            {/* Manual URL fallback */}
-            <input
-              type="text"
-              value={local.logoUrl ?? ""}
-              onChange={(e) => setLocal({ ...local, logoUrl: e.target.value })}
-              placeholder="Ou collez une URL d'image…"
-              className={`mt-2 w-full px-4 py-3 rounded-2xl bg-zinc-900 border text-white placeholder-zinc-600
-                          focus:outline-none transition-colors text-sm
-                          ${local.logoUrl ? `${a.activeBorder} focus:border-current` : "border-zinc-800 focus:border-zinc-600"}`}
-            />
-          </Section>
-
-          {/* ── Admin PIN (hidden) ──────────────────────────────────────── */}
-          <Section icon={<Lock className="w-4 h-4" />} label="Code PIN admin" defaultOpen={false}>
-            <div className="space-y-3">
-              <p className="text-xs text-zinc-500">
-                Le code PIN protège l'accès aux réglages. Cliquez sur le bouton ci-dessous pour le modifier.
-              </p>
-              <button
-                type="button"
-                onClick={handlePinChange}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl border text-sm font-medium transition-all active:scale-[0.98] bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-600`}
-              >
-                <Lock className="w-4 h-4" />
-                Modifier le code PIN
-              </button>
-              <p className="text-xs text-zinc-600">
-                Code actuel : {"•".repeat(local.adminPin.length)}
-              </p>
-            </div>
-          </Section>
-
-          {/* ── Couleur d'accent ──────────────────────────────────── */}
-          <Section icon={<Palette className="w-4 h-4" />} label="Couleur d'accentuation" defaultOpen={false}>
-            <div className="flex justify-between px-2">
-              {ACCENT_COLORS.map(({ value, label, bg, ring }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setLocal({ ...local, accentColor: value })}
-                  title={label}
-                  className={`relative w-10 h-10 rounded-full ${bg} transition-all active:scale-90 ${
-                    local.accentColor === value
-                      ? `ring-2 ring-offset-2 ring-offset-zinc-950 ${ring} scale-110`
-                      : "opacity-40 hover:opacity-80"
-                  }`}
-                >
-                  {local.accentColor === value && (
-                    <Check className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow" />
-                  )}
+                <button type="button" onClick={onClose} className="grid min-h-10 min-w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Fermer les réglages">
+                  <X className="h-5 w-5" />
                 </button>
-              ))}
-            </div>
-          </Section>
-
-          {/* Bottom spacing for safe area */}
-          <div className="h-4" />
-        </div>
-
-        {/* Footer — sticky */}
-        <div className="flex-shrink-0 flex items-center gap-3 px-5 py-4 border-t border-zinc-800/60 pb-safe-bottom">
-          <button
-            type="button"
-            onClick={() => setLocal(DEFAULT_SETTINGS)}
-            className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-zinc-300 active:scale-90 transition-all"
-            title="Réinitialiser"
-            aria-label="Réinitialiser les réglages"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleClose}
-            className="flex-1 py-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm font-medium active:scale-95 transition-all"
-          >
-            Annuler
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSave}
-            className={`flex-1 py-3.5 rounded-2xl text-white text-sm font-semibold active:scale-95 transition-all ${ACCENT_SOLID[local.accentColor]} ${a.glow}`}
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
-
-      {/* PIN Change Modal */}
-      {showPinModal && (
-        <div 
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowPinModal(false);
-            setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-          }}
-        >
-          <div 
-            className="bg-zinc-900 rounded-2xl border border-zinc-700 p-6 w-full max-w-md mx-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <Lock className="w-5 h-5 text-indigo-400" />
-                <h3 className="text-lg font-semibold text-white">Modifier le code PIN</h3>
               </div>
-              <button
-                onClick={() => {
-                  setShowPinModal(false);
-                  setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-                }}
-                className="p-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            </header>
 
-            <div className="space-y-4">
-              {/* Old PIN */}
-              <div>
-                <label className="block text-xs text-zinc-400 mb-2">Code PIN actuel</label>
-                <input
-                  type="password"
-                  value={pinModalData.oldPin}
-                  onChange={(e) => setPinModalData({ ...pinModalData, oldPin: e.target.value, error: '' })}
-                  placeholder="Entrez le code actuel"
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                  autoFocus
-                />
-              </div>
-
-              {/* New PIN */}
-              <div>
-                <label className="block text-xs text-zinc-400 mb-2">Nouveau code PIN</label>
-                <input
-                  type="password"
-                  value={pinModalData.newPin}
-                  onChange={(e) => setPinModalData({ ...pinModalData, newPin: e.target.value, error: '' })}
-                  placeholder="Au moins 4 caractères"
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-
-              {/* Confirm PIN */}
-              <div>
-                <label className="block text-xs text-zinc-400 mb-2">Confirmer le nouveau code</label>
-                <input
-                  type="password"
-                  value={pinModalData.confirmPin}
-                  onChange={(e) => setPinModalData({ ...pinModalData, confirmPin: e.target.value, error: '' })}
-                  onKeyDown={(e) => e.key === 'Enter' && handlePinSubmit()}
-                  placeholder="Retapez le nouveau code"
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-
-              {/* Error message */}
-              {pinModalData.error && (
-                <div className="flex items-start gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <span className="text-red-400 text-sm">{pinModalData.error}</span>
+            <div className="space-y-3 overflow-y-auto p-4 pb-24 sm:grid sm:grid-cols-2 sm:gap-3 sm:space-y-0 sm:p-5 sm:pb-5">
+              <Card icon={<Type className="h-5 w-5" />} title="Identité événement" description="Nom et logo affichés sur le splash et l'overlay caméra.">
+                <label className="mb-2 block text-caption font-semibold text-neuro-muted" htmlFor="event-name">Nom de l'événement</label>
+                <input id="event-name" value={draft.eventName} onChange={(event) => update("eventName", event.target.value)} className="mb-3 min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-body text-white placeholder:text-zinc-600" placeholder="Nom de l'événement" />
+                <div className="flex items-center gap-3">
+                  <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+                    {draft.logoUrl ? <img src={draft.logoUrl} alt="Logo configuré" className="h-full w-full object-contain p-2" /> : <Image className="h-7 w-7 text-neuro-muted" />}
+                  </div>
+                  <div className="flex-1">
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleLogo(event.target.files?.[0])} />
+                    <button type="button" onClick={() => fileRef.current?.click()} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-black transition-all hover:bg-zinc-100 active:scale-[0.98]">
+                      <Upload className="h-4 w-4" /> {logoState === "uploading" ? "Import…" : "Importer logo"}
+                    </button>
+                    {!SUPABASE_CONFIGURED && <p className="mt-2 text-caption text-amber-300">Supabase non configuré : stockage local possible selon navigateur.</p>}
+                    {logoError && <p className="mt-2 text-caption text-neuro-error">{logoError}</p>}
+                    {logoState === "done" && <p className="mt-2 text-caption text-emerald-300">Logo mis à jour.</p>}
+                  </div>
                 </div>
-              )}
+              </Card>
 
-              {/* Actions */}
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowPinModal(false);
-                    setPinModalData({ oldPin: '', newPin: '', confirmPin: '', error: '' });
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-zinc-800 text-zinc-300 hover:text-white font-medium transition-colors"
-                >
-                  Annuler
+              <Card icon={<Video className="h-5 w-5" />} title="Capture" description="Réglages rapides adaptés à l'usage événementiel.">
+                <div className="grid grid-cols-3 gap-1.5">
+                  {DURATIONS.map((duration) => <Fragment key={duration}><Segment value={duration} selected={draft.duration === duration} label={fmtDuration(duration)} onClick={(value) => update("duration", value)} /></Fragment>)}
+                </div>
+                <p className="mb-2 mt-3 text-caption font-semibold text-neuro-muted">Countdown</p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {COUNTDOWNS.map((countdown) => <Fragment key={countdown}><Segment value={countdown} selected={draft.countdownSeconds === countdown} label={countdown === 0 ? "Off" : `${countdown}s`} onClick={(value) => update("countdownSeconds", value)} /></Fragment>)}
+                </div>
+              </Card>
+
+              <Card icon={<Camera className="h-5 w-5" />} title="Caméra" description="Priorité mobile : choisir optique et qualité avant la session.">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Segment value="user" selected={draft.facingMode === "user"} label="Selfie" sub="Invité" onClick={(value) => update("facingMode", value)} />
+                  <Segment value="environment" selected={draft.facingMode === "environment"} label="Arrière" sub="Kiosque" onClick={(value) => update("facingMode", value)} />
+                </div>
+                <p className="mb-2 mt-3 text-caption font-semibold text-neuro-muted">Résolution</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {RESOLUTIONS.map((resolution) => <Fragment key={resolution.value}><Segment value={resolution.value} selected={draft.resolution === resolution.value} label={resolution.label} sub={resolution.sub} onClick={(value) => update("resolution", value)} /></Fragment>)}
+                </div>
+              </Card>
+
+              <Card icon={draft.recordAudio ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />} title="Audio & sécurité" description="Contrôle simple et protégé pour l'exploitant.">
+                <Toggle checked={draft.recordAudio} onChange={() => update("recordAudio", !draft.recordAudio)} label="Enregistrer le micro" />
+                <label className="mb-2 mt-3 block text-caption font-semibold text-neuro-muted" htmlFor="admin-pin-settings">PIN administrateur</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neuro-muted" />
+                  <input id="admin-pin-settings" value={draft.adminPin} onChange={(event) => update("adminPin", event.target.value)} inputMode="numeric" className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-11 pr-4 text-body text-white" />
+                </div>
+              </Card>
+
+              <Card icon={<Palette className="h-5 w-5" />} title="Accent UI" description="Couleur de marque appliquée aux actions et états actifs.">
+                <div className="grid grid-cols-5 gap-1.5">
+                  {ACCENT_COLORS.map((color) => (
+                    <button key={color.value} type="button" onClick={() => update("accentColor", color.value)} className={`grid min-h-12 place-items-center rounded-xl border transition-all active:scale-95 ${draft.accentColor === color.value ? "border-white bg-white/10" : "border-white/10 bg-white/5"}`} aria-label={`Couleur ${color.label}`} aria-pressed={draft.accentColor === color.value}>
+                      <span className={`h-6 w-6 rounded-full ${color.bg} shadow-lg`} />
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              <Card icon={<RotateCcw className="h-5 w-5" />} title="Preset premium" description="Revenir aux valeurs recommandées pour borne mobile-first.">
+                <button type="button" onClick={() => setDraft(DEFAULT_SETTINGS)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-sm font-bold text-neuro-muted transition-all hover:text-white active:scale-[0.98]">
+                  <Clock className="h-4 w-4" /> Restaurer le preset
                 </button>
-                <button
-                  onClick={handlePinSubmit}
-                  className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors"
-                >
-                  Confirmer
+              </Card>
+            </div>
+
+            <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-neuro-bg/90 p-3 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:static sm:p-5">
+              <div className="mx-auto grid max-w-3xl grid-cols-2 gap-3">
+                <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-white/10 bg-white/5 text-body font-bold text-neuro-muted transition-all hover:text-white active:scale-[0.98]">Annuler</button>
+                <button type="button" onClick={handleSave} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-neuro-accent text-body font-black text-white shadow-[0_0_28px_rgba(99,102,241,0.36)] transition-all hover:bg-indigo-500 active:scale-[0.98]">
+                  <Check className="h-5 w-5" /> Sauvegarder
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
+            </footer>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 }
