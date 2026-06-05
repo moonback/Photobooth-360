@@ -1,5 +1,3 @@
-import { Play } from "lucide-react";
-
 interface GalleryStripProps {
   gallery: string[];
   activeUrl: string;
@@ -7,25 +5,34 @@ interface GalleryStripProps {
   onSelect: (url: string) => void;
 }
 
-export default function GalleryStrip({ gallery, activeUrl, accentBorder, onSelect }: GalleryStripProps) {
+export default function GalleryStrip({
+  gallery,
+  activeUrl,
+  accentBorder,
+  onSelect,
+}: GalleryStripProps) {
   if (gallery.length === 0) return null;
 
   return (
-    <div className="flex gap-3 overflow-x-auto px-5 pb-2 scrollbar-none snap-x" aria-label="Vidéos récentes">
+    <div className="flex gap-3 overflow-x-auto pb-1 px-5 scrollbar-none snap-x">
       {gallery.map((url, idx) => (
         <button
-          key={`${url}-${idx}`}
-          type="button"
+          key={idx}
           onClick={() => onSelect(url)}
-          className={`group relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-[1.35rem] border snap-start transition-all hover:scale-[1.03] active:scale-95 ${
-            activeUrl === url ? `${accentBorder} opacity-100 shadow-[0_0_22px_rgba(99,102,241,0.3)]` : "border-white/10 opacity-70 hover:opacity-100"
+          className={`relative flex-shrink-0 w-16 h-24 rounded-xl overflow-hidden snap-start transition-all border-2 ${
+            activeUrl === url
+              ? `${accentBorder} scale-95 opacity-100`
+              : "border-transparent opacity-50 hover:opacity-80"
           }`}
-          aria-label={`Ouvrir la vidéo ${idx + 1}`}
         >
-          <video src={url} className="h-full w-full object-cover pointer-events-none" muted preload="metadata" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-          <div className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/15 backdrop-blur-xl">
-            <Play className="h-3.5 w-3.5 fill-white text-white" />
+          <video
+            src={url}
+            className="w-full h-full object-cover pointer-events-none"
+            muted
+          />
+          {/* Overlay number */}
+          <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center">
+            <span className="text-[9px] text-white font-bold">{idx + 1}</span>
           </div>
         </button>
       ))}
