@@ -95,19 +95,19 @@ export default function SharePage() {
     : `photobooth360-${selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo'}.webm`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-4 py-8 font-sans overflow-y-auto">
-      <div className="w-full max-w-sm flex flex-col items-center gap-6 pb-safe">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-3 py-4 font-sans overflow-y-auto">
+      <div className="w-full max-w-sm flex flex-col items-center gap-3 pb-safe">
 
         {/* Header */}
-        <div className="text-center space-y-1">
-          <div className="inline-flex items-center justify-center p-2.5 bg-indigo-500/10 rounded-full mb-1">
-            <Camera className="w-6 h-6 text-indigo-400" />
+        <div className="text-center space-y-0.5">
+          <div className="inline-flex items-center justify-center p-2 bg-indigo-500/10 rounded-full mb-0.5">
+            <Camera className="w-5 h-5 text-indigo-400" />
           </div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-xl font-bold text-white">
             NeuroBooth <span className="text-indigo-400">360</span>
           </h1>
-          <p className="text-zinc-400 text-sm">Ta vidéo est prête 🎉</p>
-          <div className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full mt-1 ${
+          <p className="text-zinc-400 text-xs">Ta vidéo est prête 🎉</p>
+          <div className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-0.5 ${
             source === 'cloud'
               ? 'bg-emerald-500/10 text-emerald-400'
               : 'bg-zinc-800 text-zinc-500'
@@ -155,30 +155,30 @@ export default function SharePage() {
             </div>
 
             {/* Speed picker */}
-            <div className="w-full space-y-3">
+            <div className="w-full space-y-2">
               <div className="flex items-center gap-2">
                 <Gauge className="w-4 h-4 text-indigo-400" />
                 <span className="text-sm font-semibold">Choisis ton effet</span>
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 {SPEEDS.map(({ value, emoji, label, sublabel }) => (
                   <button
                     key={value}
                     onClick={() => setSelectedSpeed(value)}
                     disabled={phase === 'encoding'}
-                    className={`flex items-center gap-4 px-5 py-4 rounded-2xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                       selectedSpeed === value
                         ? 'bg-indigo-500/10 border-indigo-500 text-white'
                         : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                     }`}
                   >
-                    <span className="text-2xl">{emoji}</span>
+                    <span className="text-xl">{emoji}</span>
                     <div className="flex-1">
-                      <div className="font-semibold">{label} — {sublabel}</div>
+                      <div className="font-semibold text-sm">{label} — {sublabel}</div>
                       {value !== 1 && (
                         <div className="text-xs opacity-60 mt-0.5">
-                          Aperçu en direct · export encodé au téléchargement
+                          Aperçu en direct
                         </div>
                       )}
                     </div>
@@ -216,7 +216,7 @@ export default function SharePage() {
             {phase === 'choose' && (
               <button
                 onClick={handleConfirm}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
               >
                 <Download className="w-5 h-5" />
                 Préparer le téléchargement
@@ -240,7 +240,7 @@ export default function SharePage() {
               />
             </div>
 
-            <div className="w-full flex flex-col items-center gap-4">
+            <div className="w-full flex flex-col items-center gap-3">
               <div className="flex items-center gap-2 text-sm text-emerald-400">
                 <CheckCircle className="w-4 h-4" />
                 {selectedSpeed === 1
@@ -251,7 +251,7 @@ export default function SharePage() {
               <a
                 href={downloadUrl}
                 download={filename}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-2xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
               >
                 <Download className="w-5 h-5" />
                 Télécharger sur mon téléphone
@@ -262,7 +262,7 @@ export default function SharePage() {
                   setPhase('choose');
                   setDownloadUrl('');
                 }}
-                className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
               >
                 Changer l'effet
               </button>
@@ -270,7 +270,7 @@ export default function SharePage() {
           </>
         )}
 
-        <p className="text-xs text-zinc-700 text-center mt-2">
+        <p className="text-xs text-zinc-700 text-center mt-1">
           NeuroBooth 360 · {source === 'cloud' ? 'Vidéo hébergée sur Supabase Storage' : 'Vidéo stockée localement sur cet appareil'}
         </p>
       </div>
