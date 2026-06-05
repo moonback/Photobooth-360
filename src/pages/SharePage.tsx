@@ -95,8 +95,8 @@ export default function SharePage() {
     : `photobooth360-${selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo'}.webm`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-4 py-8 font-sans">
-      <div className="w-full max-w-sm flex flex-col items-center gap-6">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-4 py-8 font-sans overflow-y-auto">
+      <div className="w-full max-w-sm flex flex-col items-center gap-6 pb-safe">
 
         {/* Header */}
         <div className="text-center space-y-1">
