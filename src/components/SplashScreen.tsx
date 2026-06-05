@@ -74,15 +74,11 @@ export default function SplashScreen({ settings, onEnter, onAdmin }: SplashScree
           )}
         </motion.div>
 
-        <p className="mb-3 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-neuro-muted backdrop-blur-xl">
-          NeuroBooth 360
-        </p>
+        
         <h1 className="text-[30px] font-black leading-[1.02] tracking-[-0.05em] text-white drop-shadow-2xl sm:text-[38px]">
           {settings.eventName}
         </h1>
-        <p className="mt-3 max-w-[280px] text-[15px] leading-6 text-neuro-muted">
-          Capture immersive. QR instantané. Zéro explication.
-        </p>
+        
 
         <motion.button
           type="button"
