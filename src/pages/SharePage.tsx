@@ -104,11 +104,11 @@ export default function SharePage() {
   const filename = `photobooth360-${formatSlug}-${speedSlug}.webm`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-3 py-4 font-sans overflow-y-auto">
-      <div className="w-full max-w-sm flex flex-col items-center gap-3 pb-safe">
+    <div className="min-h-screen h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center font-sans overflow-y-auto">
+      <div className="w-full max-w-sm flex flex-col items-center gap-3 px-3 py-4 pb-8">
 
         {/* Header */}
-        <div className="text-center space-y-0.5">
+        <div className="text-center space-y-0.5 flex-shrink-0">
           <div className="inline-flex items-center justify-center p-2 bg-indigo-500/10 rounded-full mb-0.5">
             <Camera className="w-5 h-5 text-indigo-400" />
           </div>
@@ -130,7 +130,7 @@ export default function SharePage() {
 
         {/* ── LOADING ── */}
         {phase === 'loading' && (
-          <div className="flex flex-col items-center gap-3 py-12 text-zinc-400">
+          <div className="flex flex-col items-center gap-3 py-12 text-zinc-400 flex-shrink-0">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
             <span className="text-sm">Chargement de ta vidéo…</span>
           </div>
@@ -138,7 +138,7 @@ export default function SharePage() {
 
         {/* ── ERROR ── */}
         {phase === 'error' && (
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <div className="flex flex-col items-center gap-3 py-12 text-center flex-shrink-0">
             <AlertCircle className="w-10 h-10 text-red-400" />
             <p className="text-red-400 text-sm">{errorMsg}</p>
             <p className="text-zinc-600 text-xs">
