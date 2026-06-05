@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { AlertCircle, ArrowLeft, Camera, Download, Loader2, Play, RefreshCw, X } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { useNavigate } from "react-router-dom";
-import { getAllVideos } from "../lib/videoStore";
-import { listVideosFromBucket } from "../lib/uploadVideo";
-import { SUPABASE_CONFIGURED } from "../lib/supabase";
+import { useEffect, useState, useRef } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
+import { Loader2, AlertCircle, Camera, RefreshCw, ArrowLeft, X, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { getAllVideos } from '../lib/videoStore';
+import { listVideosFromBucket } from '../lib/uploadVideo';
+import { SUPABASE_CONFIGURED } from '../lib/supabase';
 
 interface VideoItem {
   id: string;
@@ -13,7 +12,8 @@ interface VideoItem {
   shareUrl: string;
 }
 
-function VideoCard({ video, index, onClick }: { key?: string; video: VideoItem; index: number; onClick: () => void }) {
+// Video card component with intersection observer
+function VideoCard({ video, qrSize, onClick }: { video: VideoItem; qrSize: number; onClick: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -23,87 +23,138 @@ function VideoCard({ video, index, onClick }: { key?: string; video: VideoItem; 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) videoElement.play().catch(() => undefined);
-          else videoElement.pause();
+          if (entry.isIntersecting) {
+            videoElement.play().catch(() => {
+              // Autoplay might be blocked, ignore error
+            });
+          } else {
+            videoElement.pause();
+          }
         });
       },
-      { threshold: 0.4 }
+      {
+        threshold: 0.5, // Play when 50% of video is visible
+      }
     );
 
     observer.observe(videoElement);
-    return () => observer.disconnect();
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      className="group mb-4 block w-full break-inside-avoid overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 text-left shadow-2xl backdrop-blur-xl transition-all hover:border-white/20 active:scale-[0.98]"
-      initial={{ y: 18, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: Math.min(index * 0.035, 0.35) }}
-      aria-label={`Ouvrir la vidéo ${index + 1}`}
-    >
-      <div className={`${index % 3 === 1 ? "aspect-[3/4]" : index % 3 === 2 ? "aspect-square" : "aspect-[4/5]"} relative overflow-hidden bg-black`}>
-        <video ref={videoRef} src={video.url} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loop muted playsInline preload="metadata" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/10" />
-        <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-caption font-bold uppercase tracking-[0.18em] text-neuro-muted">Capture</p>
-            <p className="text-body font-black text-white">#{String(index + 1).padStart(2, "0")}</p>
+    <div className="flex flex-col gap-4 items-center bg-zinc-900/50 rounded-2xl p-4 border border-zinc-800 hover:border-zinc-700 transition-colors">
+      {/* Video Preview - Larger - Clickable */}
+      <div 
+        className="w-full aspect-video bg-black rounded-xl overflow-hidden shadow-lg relative cursor-pointer group"
+        onClick={onClick}
+      >
+        <video
+          ref={videoRef}
+          src={video.url}
+          className="w-full h-full object-cover"
+          loop
+          muted
+          playsInline
+          preload="metadata"
+        />
+        {/* Play/Expand indicator */}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border-2 border-white/40">
+              <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1" />
+            </div>
           </div>
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-white text-black shadow-[0_0_30px_rgba(255,255,255,0.25)]">
-            <Play className="h-5 w-5 fill-black" />
-          </span>
         </div>
       </div>
-    </motion.button>
+
+      {/* QR Code - Centered below video */}
+      <div className="bg-white p-4 rounded-xl shadow-xl">
+        <QRCodeSVG
+          value={video.shareUrl}
+          size={qrSize}
+          bgColor="#ffffff"
+          fgColor="#09090b"
+          level="M"
+          includeMargin={false}
+        />
+      </div>
+    </div>
   );
 }
 
+// Video Modal Component
 function VideoModal({ video, onClose }: { video: VideoItem; onClose: () => void }) {
   const modalVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    // Play video when modal opens
     modalVideoRef.current?.play();
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+
+    // Close on ESC key
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
   return (
-    <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-xl safe-top safe-bottom" onClick={onClose} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-      <motion.div className="w-full max-w-5xl" onClick={(event) => event.stopPropagation()} initial={{ scale: 0.96, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, y: 10, opacity: 0 }}>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-caption font-bold uppercase tracking-[0.18em] text-neuro-accent">Fullscreen viewer</p>
-            <h2 className="text-title font-black text-white">Vidéo prête à partager</h2>
-          </div>
-          <button type="button" onClick={onClose} className="grid min-h-12 min-w-12 place-items-center rounded-full border border-white/10 bg-white/5 text-white backdrop-blur-xl transition-all active:scale-95" aria-label="Fermer">
-            <X className="h-5 w-5" />
-          </button>
+    <div 
+      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="relative max-w-6xl w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute -top-12 right-0 p-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white transition-colors"
+          aria-label="Fermer"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        {/* Video */}
+        <div className="relative aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
+          <video
+            ref={modalVideoRef}
+            src={video.url}
+            className="w-full h-full object-contain"
+            controls
+            loop
+            playsInline
+          />
         </div>
 
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-black shadow-2xl">
-          <video ref={modalVideoRef} src={video.url} className="max-h-[68dvh] w-full object-contain" controls loop playsInline />
-        </div>
-
-        <div className="mt-4 grid gap-3 rounded-[1.75rem] border border-white/10 bg-white/5 p-4 backdrop-blur-xl sm:grid-cols-[auto_1fr] sm:items-center">
-          <div className="mx-auto rounded-3xl bg-white p-3 sm:mx-0">
-            <QRCodeSVG value={video.shareUrl} size={144} bgColor="#ffffff" fgColor="#09090B" level="M" includeMargin={false} />
+        {/* QR Code and Download - Below video */}
+        <div className="mt-6 flex items-center justify-center gap-6">
+          <div className="bg-white p-4 rounded-xl shadow-xl">
+            <QRCodeSVG
+              value={video.shareUrl}
+              size={150}
+              bgColor="#ffffff"
+              fgColor="#09090b"
+              level="M"
+              includeMargin={false}
+            />
           </div>
-          <div className="text-center sm:text-left">
-            <p className="text-subtitle font-black text-white">Scanner pour récupérer</p>
-            <p className="mt-1 text-caption text-neuro-muted">Le QR code est optimisé mobile et reste l'action principale.</p>
-            <a href={video.url} download="neurobooth360.webm" className="mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-neuro-accent px-5 text-sm font-bold text-white shadow-[0_0_24px_rgba(99,102,241,0.35)] transition-all active:scale-95">
-              <Download className="h-4 w-4" /> Télécharger
-            </a>
-          </div>
+          
+          <a
+            href={video.url}
+            download="photobooth360.webm"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors"
+          >
+            <Download className="w-5 h-5" />
+            Télécharger
+          </a>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -111,23 +162,58 @@ export default function GalleryPage() {
   const navigate = useNavigate();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
+  const [qrSize, setQrSize] = useState(120);
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
+
+  // Adjust QR size based on screen width
+  useEffect(() => {
+    const updateQrSize = () => {
+      // Responsive QR sizes: mobile (140), tablet (130), laptop (120), desktop (110)
+      if (window.innerWidth < 640) {
+        setQrSize(140); // Mobile - larger for easy scanning
+      } else if (window.innerWidth < 1024) {
+        setQrSize(130); // Tablet - 2 columns
+      } else if (window.innerWidth < 1280) {
+        setQrSize(120); // Laptop - 3 columns
+      } else {
+        setQrSize(110); // Desktop - 5 columns
+      }
+    };
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   const loadAllVideos = async () => {
     setLoading(true);
-    setError("");
+    setError('');
     try {
       if (SUPABASE_CONFIGURED) {
+        // Load from Supabase bucket
+        console.log('[GalleryPage] Loading from Supabase bucket...');
         const bucketVideos = await listVideosFromBucket();
-        setVideos(bucketVideos.map((url, index) => ({ id: `bucket-${index}`, url, shareUrl: url })));
+        console.log('[GalleryPage] Found', bucketVideos.length, 'videos');
+        const videosWithShareUrl = bucketVideos.map((url, index) => ({
+          id: `bucket-${index}`,
+          url,
+          shareUrl: url, // Use the public URL directly
+        }));
+        setVideos(videosWithShareUrl);
       } else {
+        // Load from IndexedDB
+        console.log('[GalleryPage] Loading from IndexedDB...');
         const allVideos = await getAllVideos();
-        setVideos(allVideos.map((video) => ({ ...video, shareUrl: `${window.location.origin}/share/${video.id}` })));
+        console.log('[GalleryPage] Found', allVideos.length, 'videos');
+        const videosWithShareUrl = allVideos.map((v) => ({
+          ...v,
+          shareUrl: `${window.location.origin}/share/${v.id}`,
+        }));
+        setVideos(videosWithShareUrl);
       }
     } catch (err) {
-      console.error("Error loading videos:", err);
-      setError("Erreur lors du chargement des vidéos");
+      console.error('Error loading videos:', err);
+      setError('Erreur lors du chargement des vidéos');
     } finally {
       setLoading(false);
     }
@@ -138,57 +224,79 @@ export default function GalleryPage() {
   }, []);
 
   return (
-    <div className="h-dvh overflow-y-auto bg-neuro-bg text-neuro-text font-sans safe-top safe-bottom">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-neuro-bg/80 px-4 py-4 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
-          <button type="button" onClick={() => navigate("/")} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-white/10 bg-white/5 text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Retour à la capture">
-            <ArrowLeft className="h-5 w-5" />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur-xl border-b border-zinc-800 px-4 sm:px-6 py-3 sm:py-4">
+        <div className="flex items-center justify-between max-w-[1800px] mx-auto">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span className="text-sm sm:text-base">Retour</span>
           </button>
-          <div className="min-w-0 text-center">
-            <p className="text-caption font-bold uppercase tracking-[0.2em] text-neuro-accent">NeuroBooth</p>
-            <h1 className="truncate text-title font-black text-white">Galerie ({videos.length})</h1>
-          </div>
-          <button type="button" onClick={loadAllVideos} disabled={loading} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-white/10 bg-white/5 text-white transition-all hover:bg-white/10 active:scale-95 disabled:opacity-50" aria-label="Actualiser la galerie">
-            <RefreshCw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
+          
+          <h1 className="text-lg sm:text-2xl font-bold">
+            Galerie <span className="text-indigo-400">({videos.length})</span>
+          </h1>
+          
+          <button
+            onClick={loadAllVideos}
+            disabled={loading}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm sm:text-base"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Actualiser</span>
           </button>
         </div>
       </header>
 
+      {/* Loading */}
       {loading && (
-        <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-4">
-          <Loader2 className="h-10 w-10 animate-spin text-neuro-accent" />
-          <p className="text-body text-neuro-muted">Chargement des vidéos…</p>
+        <div className="flex flex-col items-center justify-center gap-4 min-h-[calc(100vh-80px)] px-4">
+          <Loader2 className="w-10 h-10 animate-spin text-indigo-400" />
+          <p className="text-zinc-400 text-sm sm:text-base">Chargement des vidéos…</p>
         </div>
       )}
 
+      {/* Error */}
       {!loading && error && (
-        <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-3 px-4 text-center">
-          <AlertCircle className="h-11 w-11 text-neuro-error" />
-          <p className="text-body text-red-200">{error}</p>
+        <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100vh-80px)] px-4">
+          <AlertCircle className="w-10 h-10 text-red-400" />
+          <p className="text-red-400 text-center text-sm sm:text-base">{error}</p>
         </div>
       )}
 
+      {/* Empty state */}
       {!loading && !error && videos.length === 0 && (
-        <div className="flex min-h-[70dvh] flex-col items-center justify-center gap-4 px-4 text-center text-neuro-muted">
-          <div className="grid h-20 w-20 place-items-center rounded-[2rem] border border-white/10 bg-white/5">
-            <Camera className="h-10 w-10" />
-          </div>
-          <div>
-            <p className="text-subtitle font-bold text-white">Aucune vidéo enregistrée</p>
-            <p className="mt-1 text-caption">Les captures apparaîtront ici automatiquement.</p>
-          </div>
+        <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100vh-80px)] text-zinc-600 px-4">
+          <Camera className="w-12 h-12 sm:w-16 sm:h-16" />
+          <p className="text-base sm:text-lg">Aucune vidéo enregistrée</p>
         </div>
       )}
 
+      {/* Gallery Grid - Responsive: 1 col mobile, 2 cols tablet, 3 cols laptop, 5 cols desktop */}
       {!loading && !error && videos.length > 0 && (
-        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6">
-          <div className="columns-2 gap-4 sm:columns-3 lg:columns-4 xl:columns-5">
-            {videos.map((video, index) => <VideoCard key={video.id || `video-${index}`} video={video} index={index} onClick={() => setSelectedVideo(video)} />)}
-          </div>
-        </main>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 p-4 sm:p-6 max-w-[1920px] mx-auto">
+          {videos.map((video, index) => (
+            <div key={video.id || `video-${index}`}>
+              <VideoCard 
+                video={video} 
+                qrSize={qrSize}
+                onClick={() => setSelectedVideo(video)}
+              />
+            </div>
+          ))}
+        </div>
       )}
 
-      <AnimatePresence>{selectedVideo && <VideoModal video={selectedVideo} onClose={() => setSelectedVideo(null)} />}</AnimatePresence>
+      {/* Video Modal */}
+      {selectedVideo && (
+        <VideoModal 
+          video={selectedVideo} 
+          onClose={() => setSelectedVideo(null)} 
+        />
+      )}
     </div>
   );
 }
