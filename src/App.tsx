@@ -176,17 +176,6 @@ export default function App() {
       ) : (
         <>
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
-            {!isReviewing && (
-              <button
-                type="button"
-                onClick={() => setIsFullscreen((value) => !value)}
-                className="glass-panel absolute right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-30 grid min-h-10 min-w-10 place-items-center rounded-full text-white transition-all hover:bg-white/10 active:scale-95 sm:right-5"
-                aria-label={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
-              >
-                {isFullscreen ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
-              </button>
-            )}
-
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
                 <AlertCircle className="h-11 w-11 text-neuro-error" />
@@ -194,13 +183,22 @@ export default function App() {
               </div>
             ) : (
               <>
-                <CameraView liveVideoRef={liveVideoRef} isRecording={isRecording} countdown={countdown} showFlash={showFlash} eventName={settings.eventName} hidden={isReviewing} />
+                <CameraView 
+                  liveVideoRef={liveVideoRef} 
+                  isRecording={isRecording} 
+                  countdown={countdown} 
+                  showFlash={showFlash} 
+                  eventName={settings.eventName} 
+                  hidden={isReviewing} 
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={() => setIsFullscreen((value) => !value)}
+                />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
               </>
             )}
 
             {!isReviewing && (
-              <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+4.55rem)] left-1/2 z-40 -translate-x-1/2 md:bottom-6">
+              <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-40 -translate-x-1/2 md:bottom-8">
                 <RecordButton isRecording={isRecording} isCountingDown={countdown !== null} hasStream={Boolean(stream)} durationSeconds={settings.duration / 1000} onStart={handleStart} onStop={stopRecording} />
               </div>
             )}
@@ -213,14 +211,33 @@ export default function App() {
             )}
 
             {isReviewing && (
-              <div className="absolute left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-30 flex gap-2 sm:left-5">
-                <motion.button type="button" onClick={handleReset} className="glass-panel flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[12px] font-bold text-white" whileTap={{ scale: 0.95 }} aria-label="Refaire une capture">
+              <motion.div 
+                className="absolute left-3 top-[calc(env(safe-area-inset-top)+6rem)] z-30 flex gap-2 sm:left-5 sm:top-[calc(env(safe-area-inset-top)+7rem)]"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <motion.button 
+                  type="button" 
+                  onClick={handleReset} 
+                  className="glass-panel flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white hover:bg-white/15 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]" 
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.95 }} 
+                  aria-label="Refaire une capture"
+                >
                   <RefreshCcw className="h-4 w-4" /> Refaire
                 </motion.button>
-                <motion.a href={videoUrl} download="neurobooth360.webm" className={`flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[12px] font-bold text-white ${accent.bg} ${accent.glow}`} whileTap={{ scale: 0.95 }} aria-label="Télécharger la vidéo">
+                <motion.a 
+                  href={videoUrl} 
+                  download="neurobooth360.webm" 
+                  className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white ${accent.bg} ${accent.glow} hover:brightness-110`} 
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.95 }} 
+                  aria-label="Télécharger la vidéo"
+                >
                   <Download className="h-4 w-4" /> Sauver
                 </motion.a>
-              </div>
+              </motion.div>
             )}
           </main>
 

@@ -1,5 +1,5 @@
 import { RefObject } from "react";
-import { Camera, Radio, Sparkles } from "lucide-react";
+import { Camera, Radio, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 interface CameraViewProps {
@@ -9,6 +9,8 @@ interface CameraViewProps {
   showFlash: boolean;
   eventName: string;
   hidden: boolean;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 export default function CameraView({
@@ -18,6 +20,8 @@ export default function CameraView({
   showFlash,
   eventName,
   hidden,
+  isFullscreen,
+  onToggleFullscreen,
 }: CameraViewProps) {
   const countdownLabel = countdown === 0 ? "GO" : countdown;
 
@@ -49,11 +53,24 @@ export default function CameraView({
           <p className="min-w-0 truncate text-[13px] font-bold text-white">{eventName}</p>
         </div>
 
-        <div className="glass-panel flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 py-1.5" aria-live="polite">
-          <span className={`h-2 w-2 rounded-full ${isRecording ? "bg-neuro-error animate-pulse" : "bg-neuro-success"}`} />
-          <span className={`text-[11px] font-black uppercase tracking-[0.18em] ${isRecording ? "text-red-300" : "text-emerald-300"}`}>
-            {isRecording ? "REC" : "LIVE"}
-          </span>
+        <div className="flex items-center gap-2">
+          <div className="glass-panel flex min-h-10 shrink-0 items-center gap-2 rounded-full px-3 py-1.5" aria-live="polite">
+            <span className={`h-2 w-2 rounded-full ${isRecording ? "bg-neuro-error animate-pulse" : "bg-neuro-success"}`} />
+            <span className={`text-[11px] font-black uppercase tracking-[0.18em] ${isRecording ? "text-red-300" : "text-emerald-300"}`}>
+              {isRecording ? "REC" : "LIVE"}
+            </span>
+          </div>
+          
+          <motion.button
+            type="button"
+            onClick={onToggleFullscreen}
+            className="glass-panel grid min-h-10 min-w-10 shrink-0 place-items-center rounded-full text-white transition-all hover:bg-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            aria-label={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
+          >
+            {isFullscreen ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
+          </motion.button>
         </div>
       </motion.div>
 
@@ -66,11 +83,11 @@ export default function CameraView({
             transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
           />
           <motion.div
-            className="absolute bottom-[calc(env(safe-area-inset-bottom)+8rem)] left-1/2 z-20 -translate-x-1/2 rounded-full border border-red-400/20 bg-red-500/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-red-100 backdrop-blur-xl shadow-[0_0_28px_rgba(239,68,68,0.24)]"
+            className="absolute bottom-[calc(env(safe-area-inset-bottom)+13rem)] left-1/2 z-20 -translate-x-1/2 rounded-full border border-red-400/20 bg-red-500/12 px-4 py-2 text-[12px] font-black uppercase tracking-[0.18em] text-red-100 backdrop-blur-xl shadow-[0_0_28px_rgba(239,68,68,0.3)] md:bottom-[calc(env(safe-area-inset-bottom)+15rem)]"
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
           >
-            <span className="inline-flex items-center gap-1.5"><Radio className="h-3.5 w-3.5" /> Enregistrement</span>
+            <span className="inline-flex items-center gap-1.5"><Radio className="h-4 w-4" /> Enregistrement</span>
           </motion.div>
         </>
       )}
