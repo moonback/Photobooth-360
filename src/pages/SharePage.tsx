@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff } from 'lucide-react';
+import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square } from 'lucide-react';
 import { loadVideo } from '../lib/videoStore';
-import { useSlowMotion, SlowMotionSpeed } from '../hooks/useSlowMotion';
+import { useSlowMotion, SlowMotionSpeed, ExportFormat } from '../hooks/useSlowMotion';
 
 type Speed = 1 | SlowMotionSpeed;
 
@@ -10,6 +10,18 @@ const SPEEDS: { value: Speed; emoji: string; label: string; sublabel: string }[]
   { value: 1,    emoji: '▶️',  label: '1×',  sublabel: 'Vitesse normale'  },
   { value: 0.5,  emoji: '🐢',  label: '½×',  sublabel: 'Slow-Mo'          },
   { value: 0.25, emoji: '✨',  label: '¼×',  sublabel: 'Ultra Slow'       },
+];
+
+const EXPORT_FORMATS: {
+  value: ExportFormat;
+  icon: typeof RectangleHorizontal;
+  label: string;
+  sublabel: string;
+  aspectRatio: string;
+}[] = [
+  { value: '16:9', icon: RectangleHorizontal, label: '16:9', sublabel: "Projection et écrans d'ambiance", aspectRatio: '16 / 9' },
+  { value: '9:16', icon: RectangleVertical, label: '9:16', sublabel: 'Reels, TikTok, Stories', aspectRatio: '9 / 16' },
+  { value: '1:1', icon: Square, label: '1:1', sublabel: 'Feed Instagram, bornes', aspectRatio: '1 / 1' },
 ];
 
 type Phase = 'loading' | 'choose' | 'encoding' | 'ready' | 'error';
@@ -23,6 +35,7 @@ export default function SharePage() {
   const [source, setSource] = useState<Source>('local');
   const [originalUrl, setOriginalUrl] = useState('');
   const [selectedSpeed, setSelectedSpeed] = useState<Speed>(1);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('16:9');
   const [downloadUrl, setDownloadUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -74,32 +87,28 @@ export default function SharePage() {
   }, [selectedSpeed]);
 
   const handleConfirm = async () => {
-    if (selectedSpeed === 1) {
-      setDownloadUrl(originalUrl);
-      setPhase('ready');
-      return;
-    }
     setPhase('encoding');
-    const result = await processVideo(originalUrl, selectedSpeed as SlowMotionSpeed);
+    const result = await processVideo(originalUrl, selectedSpeed, selectedFormat);
     if (result) {
       setDownloadUrl(result);
       setPhase('ready');
     } else {
-      setErrorMsg("L'encodage a échoué. Réessayez ou choisissez la vitesse normale.");
+      setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
       setPhase('choose');
     }
   };
 
-  const filename = selectedSpeed === 1
-    ? 'photobooth360.webm'
-    : `photobooth360-${selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo'}.webm`;
+  const selectedFormatConfig = EXPORT_FORMATS.find((format) => format.value === selectedFormat) ?? EXPORT_FORMATS[0];
+  const speedSlug = selectedSpeed === 1 ? 'normal' : selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo';
+  const formatSlug = selectedFormat.replace(':', 'x');
+  const filename = `photobooth360-${formatSlug}-${speedSlug}.webm`;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center px-3 py-4 font-sans overflow-y-auto">
-      <div className="w-full max-w-sm flex flex-col items-center gap-3 pb-safe">
+    <div className="min-h-screen h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center font-sans overflow-y-auto">
+      <div className="w-full max-w-sm flex flex-col items-center gap-3 px-3 py-4 pb-8">
 
         {/* Header */}
-        <div className="text-center space-y-0.5">
+        <div className="text-center space-y-0.5 flex-shrink-0">
           <div className="inline-flex items-center justify-center p-2 bg-indigo-500/10 rounded-full mb-0.5">
             <Camera className="w-5 h-5 text-indigo-400" />
           </div>
@@ -121,7 +130,7 @@ export default function SharePage() {
 
         {/* ── LOADING ── */}
         {phase === 'loading' && (
-          <div className="flex flex-col items-center gap-3 py-12 text-zinc-400">
+          <div className="flex flex-col items-center gap-3 py-12 text-zinc-400 flex-shrink-0">
             <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
             <span className="text-sm">Chargement de ta vidéo…</span>
           </div>
@@ -129,7 +138,7 @@ export default function SharePage() {
 
         {/* ── ERROR ── */}
         {phase === 'error' && (
-          <div className="flex flex-col items-center gap-3 py-12 text-center">
+          <div className="flex flex-col items-center gap-3 py-12 text-center flex-shrink-0">
             <AlertCircle className="w-10 h-10 text-red-400" />
             <p className="text-red-400 text-sm">{errorMsg}</p>
             <p className="text-zinc-600 text-xs">
@@ -142,7 +151,7 @@ export default function SharePage() {
         {(phase === 'choose' || phase === 'encoding') && originalUrl && (
           <>
             {/* Preview player */}
-            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-white/10">
+            <div className="w-full rounded-2xl overflow-hidden bg-black ring-1 ring-white/10" style={{ aspectRatio: selectedFormatConfig.aspectRatio }}>
               <video
                 ref={videoRef}
                 src={originalUrl}
@@ -150,8 +159,40 @@ export default function SharePage() {
                 loop
                 playsInline
                 muted={false}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
+            </div>
+
+            {/* Format picker */}
+            <div className="w-full space-y-2">
+              <div className="flex items-center gap-2">
+                <RectangleHorizontal className="w-4 h-4 text-indigo-400" />
+                <span className="text-sm font-semibold">Choisis ton format d'export</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5">
+                {EXPORT_FORMATS.map(({ value, icon: Icon, label, sublabel }) => (
+                  <button
+                    key={value}
+                    onClick={() => setSelectedFormat(value)}
+                    disabled={phase === 'encoding'}
+                    className={`flex min-h-[102px] flex-col items-center justify-center gap-2 rounded-xl border px-2 py-2 text-center transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      selectedFormat === value
+                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="h-6 w-6" />
+                    <div>
+                      <div className="text-sm font-bold">{label}</div>
+                      <div className="mt-0.5 text-[10px] leading-tight opacity-60">{sublabel}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-center text-[11px] text-zinc-600">
+                Recadrage automatique centré, optimisé pour chaque plateforme.
+              </p>
             </div>
 
             {/* Speed picker */}
@@ -219,7 +260,7 @@ export default function SharePage() {
                 className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
               >
                 <Download className="w-5 h-5" />
-                Préparer le téléchargement
+                Préparer le téléchargement {selectedFormat}
               </button>
             )}
           </>
@@ -229,14 +270,14 @@ export default function SharePage() {
         {phase === 'ready' && (
           <>
             {/* Playback */}
-            <div className="w-full rounded-2xl overflow-hidden bg-black aspect-video ring-1 ring-indigo-500/30">
+            <div className="w-full rounded-2xl overflow-hidden bg-black ring-1 ring-indigo-500/30" style={{ aspectRatio: selectedFormatConfig.aspectRatio }}>
               <video
                 src={downloadUrl}
                 autoPlay
                 loop
                 playsInline
                 controls
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
 
@@ -244,8 +285,8 @@ export default function SharePage() {
               <div className="flex items-center gap-2 text-sm text-emerald-400">
                 <CheckCircle className="w-4 h-4" />
                 {selectedSpeed === 1
-                  ? 'Vidéo originale prête'
-                  : `Slow-motion ${selectedSpeed === 0.5 ? '½×' : '¼×'} encodé`}
+                  ? `Export ${selectedFormat} prêt`
+                  : `Export ${selectedFormat} · Slow-motion ${selectedSpeed === 0.5 ? '½×' : '¼×'} encodé`}
               </div>
 
               <a
