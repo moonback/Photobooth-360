@@ -2,8 +2,8 @@
  * KioskGuard
  *
  * Zone haut-centre (160×60 px) — deux seuils, un seul listener :
- *   5 taps  → ouvre le clavier PIN admin (toujours actif)
- *   10 taps → désactive le kiosque directement (kiosque actif seulement)
+ *   5 taps  → ouvre le clavier PIN → accès réglages admin
+ *   10 taps → ouvre le clavier PIN → quitte le kiosque (si PIN valide)
  *
  * Le listener est monté une seule fois (deps vides).
  * Toutes les valeurs dynamiques passent par des refs pour éviter
@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Lock, Maximize2, Shield, WifiOff, X } from "lucide-react";
+import { Lock, Maximize2, Shield, WifiOff, X, LogOut, Settings } from "lucide-react";
 import type { KioskState } from "../hooks/useKiosk";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -45,7 +45,9 @@ export default function KioskGuard({
   const [showPrompt,   setShowPrompt]   = useState(false);
   const [pinInput,     setPinInput]     = useState("");
   const [pinError,     setPinError]     = useState(false);
-  const [tapFeedback,  setTapFeedback]  = useState(0); // 0–EXIT_TAPS
+  const [tapFeedback,  setTapFeedback]  = useState(0);
+  // "admin" → ouvre les réglages après PIN, "exit" → quitte le kiosque après PIN
+  const [pendingAction, setPendingAction] = useState<"admin" | "exit">("admin");
 
   // Stable refs — never trigger effect re-runs
   const tapCountRef      = useRef(0);
@@ -66,7 +68,8 @@ export default function KioskGuard({
 
   // ── Open admin prompt (called from inside the stable listener) ────────────
 
-  const openAdminPrompt = useCallback(() => {
+  const openAdminPrompt = useCallback((action: "admin" | "exit" = "admin") => {
+    setPendingAction(action);
     showPromptRef.current = true;
     setShowPrompt(true);
   }, []);
@@ -99,17 +102,17 @@ export default function KioskGuard({
 
         // Exactly 5 taps and no more → open admin PIN
         if (finalCount === ADMIN_TAPS) {
-          openAdminPromptRef.current();
+          openAdminPromptRef.current("admin");
         }
         // 6–9 taps: ignore (incomplete exit gesture)
       }, TAP_WINDOW_MS);
 
-      // 10+ taps → exit kiosk immediately
+      // 10+ taps → demande le PIN pour quitter le kiosque
       if (count >= EXIT_TAPS && kioskActiveRef.current) {
         tapCountRef.current = 0;
         setTapFeedback(0);
         if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
-        onExitKioskRef.current();
+        openAdminPromptRef.current("exit");
       }
     };
 
@@ -154,7 +157,11 @@ export default function KioskGuard({
   const handlePinSubmit = () => {
     if (pinInput === adminPin) {
       setPinInput(""); setPinError(false); setShowPrompt(false);
-      onAdminAccessRef.current();
+      if (pendingAction === "exit") {
+        onExitKioskRef.current();
+      } else {
+        onAdminAccessRef.current();
+      }
     } else {
       setPinError(true); setPinInput("");
     }
@@ -278,12 +285,16 @@ export default function KioskGuard({
             >
               {/* Header */}
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-400">
-                  <Lock className="h-5 w-5" />
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${pendingAction === "exit" ? "bg-red-500/15 text-red-400" : "bg-indigo-500/15 text-indigo-400"}`}>
+                  {pendingAction === "exit" ? <LogOut className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-[17px] font-black text-white leading-tight">Administrateur</h2>
-                  <p className="text-[12px] text-white/50">Gestion du PhotoBooth360</p>
+                  <h2 className="text-[17px] font-black text-white leading-tight">
+                    {pendingAction === "exit" ? "Quitter le kiosque" : "Administrateur"}
+                  </h2>
+                  <p className="text-[12px] text-white/50">
+                    {pendingAction === "exit" ? "Entrez le PIN pour désactiver" : "Gestion du PhotoBooth360"}
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -364,7 +375,21 @@ export default function KioskGuard({
                 </motion.button>
               </div>
 
-              
+              {/* Confirm */}
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={handlePinSubmit}
+                disabled={pinInput.length === 0}
+                className={`flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl text-[14px] font-black text-white disabled:opacity-40 touch-manipulation ${
+                  pendingAction === "exit"
+                    ? "bg-red-500 shadow-[0_0_24px_rgba(239,68,68,0.4)]"
+                    : "bg-indigo-500 shadow-[0_0_24px_rgba(99,102,241,0.4)]"
+                }`}
+              >
+                {pendingAction === "exit" ? <LogOut className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
+                {pendingAction === "exit" ? "Quitter le kiosque" : "Confirmer"}
+              </motion.button>
             </motion.div>
           </motion.div>
         )}
