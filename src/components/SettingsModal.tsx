@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X, BarChart3, ChevronRight } from "lucide-react";
+import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, RotateCw, Type, Upload, Video, X, BarChart3, ChevronRight, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
@@ -18,6 +18,14 @@ export interface AppSettings {
   logoUrl?: string;
   emailCaptureEnabled: boolean;
   emailSendEnabled: boolean;
+  // Motor control
+  motorEnabled: boolean;
+  motorSpeed: number;
+  motorDirection: "CW" | "CCW";
+  motorTurns: number;
+  motorBackend: "serial" | "usb";
+  /** Start motor automatically when recording starts */
+  motorAutoStart: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,6 +40,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   logoUrl: "",
   emailCaptureEnabled: true,
   emailSendEnabled: true,
+  motorEnabled: false,
+  motorSpeed: 50,
+  motorDirection: "CW",
+  motorTurns: 1,
+  motorBackend: "serial",
+  motorAutoStart: true,
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -336,6 +350,106 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                         Le bouton "Recevoir par email" sera masqué après la capture.
                       </p>
                     )}
+                  </div>
+                </Card>
+
+                {/* Moteur */}
+                <Card icon={<RefreshCw className="h-4 w-4" />} title="Plateau tournant">
+                  <div className="space-y-2">
+                    <Toggle
+                      checked={draft.motorEnabled}
+                      onChange={() => update("motorEnabled", !draft.motorEnabled)}
+                      label="Activer le contrôle moteur"
+                    />
+                    <AnimatePresence>
+                      {draft.motorEnabled && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-1">
+                            {/* Auto-start */}
+                            <Toggle
+                              checked={draft.motorAutoStart}
+                              onChange={() => update("motorAutoStart", !draft.motorAutoStart)}
+                              label="Démarrage auto à l'enregistrement"
+                            />
+
+                            {/* Backend */}
+                            <div>
+                              <SectionLabel>Interface</SectionLabel>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <Segment value="serial" selected={draft.motorBackend === "serial"} label="WebSerial" sub="USB-Série" onClick={(v) => update("motorBackend", v)} />
+                                <Segment value="usb" selected={draft.motorBackend === "usb"} label="WebUSB" sub="USB direct" onClick={(v) => update("motorBackend", v)} />
+                              </div>
+                            </div>
+
+                            {/* Speed */}
+                            <div>
+                              <SectionLabel>Vitesse par défaut — {draft.motorSpeed}%</SectionLabel>
+                              <input
+                                type="range"
+                                min={5}
+                                max={100}
+                                step={5}
+                                value={draft.motorSpeed}
+                                onChange={(e) => update("motorSpeed", Number(e.target.value))}
+                                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500"
+                                aria-label="Vitesse moteur par défaut"
+                              />
+                            </div>
+
+                            {/* Direction */}
+                            <div>
+                              <SectionLabel>Direction par défaut</SectionLabel>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => update("motorDirection", "CW")}
+                                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition-all touch-manipulation ${draft.motorDirection === "CW" ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
+                                  aria-pressed={draft.motorDirection === "CW"}
+                                >
+                                  <RotateCw className="h-4 w-4" /> Horaire
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => update("motorDirection", "CCW")}
+                                  className={`flex h-11 items-center justify-center gap-2 rounded-xl border text-[13px] font-bold transition-all touch-manipulation ${draft.motorDirection === "CCW" ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
+                                  aria-pressed={draft.motorDirection === "CCW"}
+                                >
+                                  <RotateCcw className="h-4 w-4" /> Anti-H.
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Turns */}
+                            <div>
+                              <SectionLabel>Tours par défaut</SectionLabel>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[0, 1, 2, 3, 5, 10].map((n) => (
+                                  <button
+                                    key={n}
+                                    type="button"
+                                    onClick={() => update("motorTurns", n)}
+                                    className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-xl border px-3 text-[13px] font-bold transition-all touch-manipulation ${draft.motorTurns === n ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
+                                    aria-pressed={draft.motorTurns === n}
+                                  >
+                                    {n === 0 ? "∞" : n}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
+                              WebSerial / WebUSB nécessite Chrome ou Edge sur desktop. Le panneau de contrôle apparaît sur l'écran de capture.
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </Card>
 

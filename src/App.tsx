@@ -11,10 +11,12 @@ import RecordButton from "./components/RecordButton";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
 import EmailCaptureModal from "./components/EmailCaptureModal";
+import MotorControlPanel from "./components/MotorControlPanel";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
+import { useMotor } from "./hooks/useMotor";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
@@ -36,6 +38,7 @@ export default function App() {
   const { settings, loadState, handleSave } = useSettings();
   const mobile = useMobileOptimizations();
   const haptic = useHapticFeedback();
+  const motor = useMotor();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -68,12 +71,33 @@ export default function App() {
       
       // Feedback haptique sur mobile
       haptic.medium();
+
+      // Auto-start motor if enabled and connected
+      if (
+        settings.motorEnabled &&
+        settings.motorAutoStart &&
+        motor.connectionState === "connected" &&
+        !motor.isRunning
+      ) {
+        motor.startMotor({
+          speed: settings.motorSpeed,
+          direction: settings.motorDirection,
+          turns: settings.motorTurns,
+          baudRate: 115200,
+          backend: settings.motorBackend,
+        }).catch(console.error);
+      }
     },
     onRecordingComplete: (url) => {
       stream?.getAudioTracks().forEach((track) => { track.enabled = false; });
       setVideoUrl(url);
       setShareId("");
       setGallery((prev) => [url, ...prev.filter((item) => item !== url)]);
+
+      // Stop motor when recording ends
+      if (settings.motorEnabled && motor.isRunning) {
+        motor.stopMotor().catch(console.error);
+      }
 
       // Générer un ID unique pour la vidéo
       const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -264,6 +288,11 @@ export default function App() {
                   onToggleFullscreen={() => setIsFullscreen((value) => !value)}
                 />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
+
+                {/* Motor control panel — visible on camera view when motor is enabled */}
+                {settings.motorEnabled && !isReviewing && (
+                  <MotorControlPanel settings={settings} visible={!isReviewing} />
+                )}
               </>
             )}
 
