@@ -12,6 +12,7 @@ import ShareSection from "./components/ShareSection";
 import EmailCaptureModal from "./components/EmailCaptureModal";
 import MotorControlPanel from "./components/MotorControlPanel";
 import KioskGuard from "./components/KioskGuard";
+import CameraDiagnostic from "./components/CameraDiagnostic";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
@@ -51,7 +52,23 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState("");
+  const [showDiagnostic, setShowDiagnostic] = useState(false); // État pour le diagnostic
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Exposer le toggle diagnostic dans la console pour debug mobile
+  useEffect(() => {
+    (window as any).toggleCameraDiagnostic = () => {
+      setShowDiagnostic(prev => {
+        console.log("[Debug] Camera diagnostic:", !prev ? "ON" : "OFF");
+        return !prev;
+      });
+    };
+    console.log("[Debug] Pour afficher le diagnostic caméra, tapez: toggleCameraDiagnostic()");
+    
+    return () => {
+      delete (window as any).toggleCameraDiagnostic;
+    };
+  }, []);
 
   const accent = ACCENT[settings.accentColor];
   const isReviewing = Boolean(videoUrl);
@@ -244,6 +261,7 @@ export default function App() {
     if (isRecording || countdown !== null) return; // Ne pas changer pendant l'enregistrement ou le compte à rebours
     
     const newFacingMode = settings.facingMode === "user" ? "environment" : "user";
+    console.log("[App] Switching camera from", settings.facingMode, "to", newFacingMode);
     handleSave({ ...settings, facingMode: newFacingMode });
     haptic.light();
   };
@@ -491,6 +509,15 @@ export default function App() {
       {/* Composants PWA */}
       <PWAInstallPrompt />
       <PWAUpdatePrompt />
+
+      {/* Diagnostic caméra - activé par triple tap sur le logo ou via console */}
+      {showDiagnostic && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setShowDiagnostic(false)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <CameraDiagnostic />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
