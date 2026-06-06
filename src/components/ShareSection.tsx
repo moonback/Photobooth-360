@@ -2,6 +2,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, CloudUpload, Loader2, QrCode, Wifi, WifiOff } from "lucide-react";
 import { motion } from "motion/react";
 import { UploadStatus } from "../lib/uploadVideo";
+import { useEffect, useRef } from "react";
+import { trackShare } from "../lib/analytics";
 
 interface AccentStyle {
   bg: string;
@@ -39,6 +41,18 @@ export default function ShareSection({
       : "";
   const isReady = Boolean(qrValue);
   const isUploading = cloudEnabled && (uploadStatus === "idle" || uploadStatus === "uploading");
+  
+  // Ref pour tracker uniquement une fois par vidéo
+  const trackedVideoRef = useRef<string>("");
+
+  // Tracker quand le QR code est prêt
+  useEffect(() => {
+    if (isReady && qrValue && qrValue !== trackedVideoRef.current) {
+      trackedVideoRef.current = qrValue;
+      const videoId = shareId || uploadedUrl || `video_${Date.now()}`;
+      trackShare(videoId, cloudEnabled ? 'qr_cloud' : 'qr_local');
+    }
+  }, [isReady, qrValue, shareId, uploadedUrl, cloudEnabled]);
 
   return (
     <div className="px-4 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-1 sm:px-6">

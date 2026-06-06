@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Camera, Check, Clock, Image, Lock, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X } from "lucide-react";
+import { Camera, Check, Clock, Image, Lock, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X, BarChart3 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
 
 export interface AppSettings {
   eventName: string;
@@ -105,6 +106,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [logoState, setLogoState] = useState<LogoUploadState>("idle");
   const [logoError, setLogoError] = useState("");
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -142,6 +144,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
   return (
     <AnimatePresence>
+      {showAnalytics && <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />}
+      
       {isOpen && (
         <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-0 backdrop-blur-xl sm:items-center sm:p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div
@@ -228,6 +232,18 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   <Clock className="h-4 w-4" /> Restaurer le preset
                 </button>
               </Card>
+
+              {SUPABASE_CONFIGURED && (
+                <Card icon={<BarChart3 className="h-5 w-5" />} title="Statistiques" description="Tableau de bord en temps réel pour suivre l'activité de l'événement.">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAnalytics(true)} 
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-bold text-white transition-all hover:brightness-110 active:scale-[0.98] shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+                  >
+                    <BarChart3 className="h-4 w-4" /> Voir les statistiques
+                  </button>
+                </Card>
+              )}
             </div>
 
             <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-neuro-bg/90 p-3 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:static sm:p-5">

@@ -13,11 +13,13 @@ import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
+import { LiveStatsBadge } from "./components/LiveStatsBadge";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { saveVideo } from "./lib/videoStore";
+import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 
 const ACCENT: Record<AppSettings["accentColor"], { bg: string; text: string; border: string; glow: string }> = {
   indigo: { bg: "bg-indigo-500", text: "text-indigo-300", border: "border-indigo-500", glow: "shadow-[0_0_30px_rgba(99,102,241,0.5)]" },
@@ -63,6 +65,16 @@ export default function App() {
       setVideoUrl(url);
       setShareId("");
       setGallery((prev) => [url, ...prev.filter((item) => item !== url)]);
+
+      // Générer un ID unique pour la vidéo
+      const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Tracker la capture
+      trackCapture(videoId, {
+        duration: settings.duration,
+        resolution: settings.resolution,
+        facingMode: settings.facingMode,
+      });
 
       if (cloudEnabled) {
         upload(url).then((publicUrl) => {
@@ -177,6 +189,9 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Badge de statistiques live */}
+          <LiveStatsBadge show={!isReviewing && !isFullscreen} />
+          
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
@@ -231,7 +246,11 @@ export default function App() {
                 </motion.button>
                 <motion.a 
                   href={videoUrl} 
-                  download="neurobooth360.webm" 
+                  download="neurobooth360.webm"
+                  onClick={() => {
+                    const videoId = shareId || videoUrl || `video_${Date.now()}`;
+                    trackDownload(videoId);
+                  }}
                   className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white ${accent.bg} ${accent.glow} hover:brightness-110`} 
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.95 }} 
