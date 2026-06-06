@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { composeVideo } from '../lib/videoComposer';
+import { getExportDimensions, type ExportFormat } from '../lib/exportFormat';
 import { AppSettings } from '../components/SettingsModal';
 
 export type CompositionStage = 'idle' | 'intro' | 'main' | 'outro' | 'finalizing' | 'done';
@@ -8,7 +9,7 @@ export interface UseVideoComposerReturn {
   isComposing: boolean;
   compositionStage: CompositionStage;
   compositionProgress: number;
-  composeWithJingles: (videoUrl: string, settings: AppSettings) => Promise<string>;
+  composeWithJingles: (videoUrl: string, settings: AppSettings, format?: ExportFormat) => Promise<string>;
 }
 
 /**
@@ -20,7 +21,7 @@ export function useVideoComposer(): UseVideoComposerReturn {
   const [compositionProgress, setCompositionProgress] = useState(0);
 
   const composeWithJingles = useCallback(
-    async (videoUrl: string, settings: AppSettings): Promise<string> => {
+    async (videoUrl: string, settings: AppSettings, format: ExportFormat = '16:9'): Promise<string> => {
       // If jingles are disabled or not configured, return video as-is
       const introSlide = settings.introMode === "template" ? {
         template: settings.introTemplate,
@@ -50,13 +51,7 @@ export function useVideoComposer(): UseVideoComposerReturn {
       setCompositionProgress(0);
 
       try {
-        // Get video dimensions from settings
-        const resolutions = {
-          '480p': { width: 854, height: 480 },
-          '720p': { width: 1280, height: 720 },
-          '1080p': { width: 1920, height: 1080 },
-        };
-        const { width, height } = resolutions[settings.resolution || '720p'];
+        const { width, height } = getExportDimensions(settings.resolution || '720p', format);
 
         const composedUrl = await composeVideo({
           introUrl,
@@ -66,6 +61,7 @@ export function useVideoComposer(): UseVideoComposerReturn {
           mainVideoUrl: videoUrl,
           width,
           height,
+          format,
           recordAudio: settings.recordAudio,
           onProgress: (stage, progress) => {
             setCompositionStage(stage);

@@ -20,7 +20,6 @@ import { useMotor } from "./hooks/useMotor";
 import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
-import { useVideoComposer } from "./hooks/useVideoComposer";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
@@ -42,8 +41,6 @@ export default function App() {
   const haptic = useHapticFeedback();
   const motor = useMotor();
   const kiosk = useKiosk();
-  const { isComposing, compositionStage, compositionProgress, composeWithJingles } = useVideoComposer();
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
@@ -120,12 +117,9 @@ export default function App() {
     onRecordingComplete: async (url) => {
       stream?.getAudioTracks().forEach((track: MediaStreamTrack) => { track.enabled = false; });
       
-      // Compose video with intro/outro if enabled
-      const finalUrl = await composeWithJingles(url, settings);
-      
-      setVideoUrl(finalUrl);
+      setVideoUrl(url);
       setShareId("");
-      setGallery((prev: string[]) => [finalUrl, ...prev.filter((item: string) => item !== finalUrl)]);
+      setGallery((prev: string[]) => [url, ...prev.filter((item: string) => item !== url)]);
 
       // Stop motor when recording ends
       if (settings.motorEnabled && motor.isRunning) {
@@ -145,12 +139,12 @@ export default function App() {
       haptic.success();
 
       if (cloudEnabled) {
-        upload(finalUrl).then((publicUrl) => {
-          if (publicUrl) setGallery((prev: string[]) => prev.map((item: string) => (item === finalUrl ? publicUrl : item)));
+        upload(url).then((publicUrl) => {
+          if (publicUrl) setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
         });
       } else {
         setIsSavingShare(true);
-        saveVideo(finalUrl)
+        saveVideo(url)
           .then((id) => setShareId(id))
           .catch(console.error)
           .finally(() => setIsSavingShare(false));
@@ -308,64 +302,6 @@ export default function App() {
                   onToggleFullscreen={() => setIsFullscreen((value) => !value)}
                 />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
-
-                {/* Composition progress indicator */}
-                {isComposing && (
-                  <motion.div
-                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <div className="flex flex-col items-center gap-6 px-8">
-                      <div className="relative">
-                        <svg className="h-24 w-24 -rotate-90 transform">
-                          <circle
-                            cx="48"
-                            cy="48"
-                            r="42"
-                            stroke="rgba(255,255,255,0.1)"
-                            strokeWidth="8"
-                            fill="none"
-                          />
-                          <motion.circle
-                            cx="48"
-                            cy="48"
-                            r="42"
-                            stroke="url(#gradient)"
-                            strokeWidth="8"
-                            fill="none"
-                            strokeLinecap="round"
-                            strokeDasharray={264}
-                            initial={{ strokeDashoffset: 264 }}
-                            animate={{ strokeDashoffset: 264 - (264 * compositionProgress) / 100 }}
-                            transition={{ duration: 0.3 }}
-                          />
-                          <defs>
-                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                              <stop offset="0%" stopColor="#6366f1" />
-                              <stop offset="100%" stopColor="#a855f7" />
-                            </linearGradient>
-                          </defs>
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-2xl font-black text-white">{compositionProgress}%</span>
-                        </div>
-                      </div>
-                      
-                      <div className="text-center">
-                        <p className="text-lg font-bold text-white">
-                          {compositionStage === 'intro' && 'Ajout de l\'intro...'}
-                          {compositionStage === 'main' && 'Traitement vidéo...'}
-                          {compositionStage === 'outro' && 'Ajout de l\'outro...'}
-                          {compositionStage === 'finalizing' && 'Finalisation...'}
-                        </p>
-                        <p className="mt-2 text-sm text-white/60">
-                          Composition de la vidéo avec jingles
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
 
                 {/* Motor control panel — visible on camera view when motor is enabled */}
                 {settings.motorEnabled && !isReviewing && (

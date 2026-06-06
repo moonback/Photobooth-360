@@ -5,6 +5,7 @@ import { loadVideo } from '../lib/videoStore';
 import { loadSettings } from '../lib/settingsStore';
 import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
 import { useSlowMotion, SlowMotionSpeed, ExportFormat } from '../hooks/useSlowMotion';
+import { useVideoComposer } from '../hooks/useVideoComposer';
 import type { AppSettings } from '../components/SettingsModal';
 
 type Speed = 1 | SlowMotionSpeed;
@@ -43,13 +44,16 @@ export default function SharePage() {
   const [musicEnabled, setMusicEnabled] = useState(false);
   const [musicVolume, setMusicVolume] = useState(35);
   const [recordAudio, setRecordAudio] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const { processVideo, status, progress } = useSlowMotion();
+  const { composeWithJingles, compositionStage, compositionProgress } = useVideoComposer();
 
   useEffect(() => {
     loadSettings().then((settings: AppSettings) => {
+      setAppSettings(settings);
       setMusicEnabled(settings.backgroundMusicEnabled);
       setMusicVolume(settings.backgroundMusicVolume);
       setRecordAudio(settings.recordAudio);
@@ -100,15 +104,27 @@ export default function SharePage() {
 
   const handleConfirm = async () => {
     setPhase('encoding');
-    const result = await processVideo(originalUrl, selectedSpeed, selectedFormat, {
-      music: musicEnabled ? selectedMusic : 'none',
-      musicVolume,
-      mixWithVideoAudio: recordAudio,
-    });
-    if (result) {
-      setDownloadUrl(result);
-      setPhase('ready');
-    } else {
+    try {
+      let sourceUrl = originalUrl;
+
+      if (appSettings?.jingleEnabled) {
+        sourceUrl = await composeWithJingles(originalUrl, appSettings, selectedFormat);
+      }
+
+      const result = await processVideo(sourceUrl, selectedSpeed, selectedFormat, {
+        music: musicEnabled ? selectedMusic : 'none',
+        musicVolume,
+        mixWithVideoAudio: recordAudio,
+      });
+
+      if (result) {
+        setDownloadUrl(result);
+        setPhase('ready');
+      } else {
+        setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
+        setPhase('choose');
+      }
+    } catch {
       setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
       setPhase('choose');
     }
@@ -291,14 +307,30 @@ export default function SharePage() {
                 <div className="flex items-center justify-between text-xs text-zinc-400">
                   <span className="flex items-center gap-1.5">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {status === 'loading' ? 'Chargement FFmpeg…' : `Encodage… ${progress}%`}
+                    {compositionStage === 'intro' && 'Ajout de l\'intro…'}
+                    {compositionStage === 'main' && 'Traitement vidéo…'}
+                    {compositionStage === 'outro' && 'Ajout de l\'outro…'}
+                    {compositionStage === 'finalizing' && 'Finalisation intro/outro…'}
+                    {(compositionStage === 'idle' || compositionStage === 'done') && (
+                      status === 'loading' ? 'Chargement FFmpeg…' : `Encodage… ${progress}%`
+                    )}
                   </span>
-                  <span>{progress}%</span>
+                  <span>
+                    {compositionStage === 'idle' || compositionStage === 'done'
+                      ? `${progress}%`
+                      : `${compositionProgress}%`}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-                    style={{ width: `${status === 'loading' ? 3 : progress}%` }}
+                    style={{
+                      width: `${
+                        compositionStage === 'idle' || compositionStage === 'done'
+                          ? (status === 'loading' ? 3 : progress)
+                          : compositionProgress
+                      }%`,
+                    }}
                   />
                 </div>
                 <p className="text-xs text-zinc-600 text-center">

@@ -4,9 +4,10 @@ import type { MusicSelection } from '../lib/backgroundMusic';
 import { getTrackById } from '../lib/backgroundMusic';
 import { cleanupFiles, getFFmpeg, resetFFmpeg } from '../lib/ffmpegCore';
 import { computeMusicStartOffset, getMediaDuration } from '../lib/musicSync';
+import { buildCropFilter, type ExportFormat } from '../lib/exportFormat';
 
 export type SlowMotionSpeed = 0.5 | 0.25;
-export type ExportFormat = '16:9' | '9:16' | '1:1';
+export type { ExportFormat };
 
 export type ProcessingStatus = 'idle' | 'loading' | 'processing' | 'done' | 'error';
 
@@ -27,18 +28,6 @@ interface UseSlowMotionReturn {
   progress: number;
   errorMessage: string;
   cancel: () => void;
-}
-
-const FORMAT_RATIOS: Record<ExportFormat, { num: number; den: number }> = {
-  '16:9': { num: 16, den: 9 },
-  '9:16': { num: 9, den: 16 },
-  '1:1': { num: 1, den: 1 },
-};
-
-function buildCropFilter(format: ExportFormat): string {
-  const { num, den } = FORMAT_RATIOS[format];
-  const ratio = num / den;
-  return `crop='if(gte(a,${ratio}),floor(ih*${ratio}/2)*2,iw)':'if(gte(a,${ratio}),ih,floor(iw/${ratio}/2)*2)':(iw-ow)/2:(ih-oh)/2`;
 }
 
 function buildAudioFilter(volume: number, mixWithVideoAudio: boolean): string {
