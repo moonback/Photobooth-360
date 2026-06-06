@@ -3,6 +3,7 @@ import { fetchFile } from '@ffmpeg/util';
 import type { MusicSelection } from '../lib/backgroundMusic';
 import { getTrackById } from '../lib/backgroundMusic';
 import { cleanupFiles, getFFmpeg, resetFFmpeg } from '../lib/ffmpegCore';
+import { computeMusicStartOffset, getMediaDuration } from '../lib/musicSync';
 
 export type SlowMotionSpeed = 0.5 | 0.25;
 export type ExportFormat = '16:9' | '9:16' | '1:1';
@@ -46,6 +47,30 @@ function buildAudioFilter(volume: number, mixWithVideoAudio: boolean): string {
     return `[1:a]volume=${vol}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`;
   }
   return `[1:a]volume=${vol}[a]`;
+}
+
+function buildMusicInputArgs(startOffsetSec: number): string[] {
+  if (startOffsetSec > 0.05) {
+    return ['-ss', startOffsetSec.toFixed(3), '-stream_loop', '-1', '-i', 'music.mp3'];
+  }
+  return ['-stream_loop', '-1', '-i', 'music.mp3'];
+}
+
+async function resolveMusicStartOffset(
+  videoUrl: string,
+  trackFile: string,
+  highlightAt: number,
+): Promise<number> {
+  try {
+    const [videoDuration, musicDuration] = await Promise.all([
+      getMediaDuration(videoUrl),
+      getMediaDuration(trackFile),
+    ]);
+    return computeMusicStartOffset(videoDuration, musicDuration, highlightAt);
+  } catch (err) {
+    console.warn('[useSlowMotion] Impossible de caler la musique, départ à 0s:', err);
+    return 0;
+  }
 }
 
 function needsProcessing(
@@ -98,15 +123,19 @@ export function useSlowMotion(): UseSlowMotionReturn {
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
       await ff.writeFile('input.webm', await fetchFile(inputUrl));
 
+      let musicStartOffset = 0;
       if (hasMusic) {
         const track = getTrackById(music);
         await ff.writeFile('music.mp3', await fetchFile(track.file));
+        musicStartOffset = await resolveMusicStartOffset(inputUrl, track.file, track.highlightAt);
       }
 
       if (cancelledRef.current) {
         setStatus('idle');
         return null;
       }
+
+      const musicInputArgs = hasMusic ? buildMusicInputArgs(musicStartOffset) : [];
 
       const videoFilters = [
         ...(format !== '16:9' ? [buildCropFilter(format)] : []),
@@ -119,8 +148,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
       if (hasMusic && speed === 1 && format === '16:9') {
         outputArgs = [
           '-i', 'input.webm',
-          '-stream_loop', '-1',
-          '-i', 'music.mp3',
+          ...musicInputArgs,
           '-filter_complex', buildAudioFilter(musicVolume, mixWithVideoAudio),
           '-map', '0:v:0',
           '-map', '[a]',
@@ -138,8 +166,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
         outputArgs = [
           '-i', 'input.webm',
-          '-stream_loop', '-1',
-          '-i', 'music.mp3',
+          ...musicInputArgs,
           '-filter:v', `setpts=${(1 / speed).toFixed(1)}*PTS`,
           '-filter_complex', audioFilter,
           '-map', '0:v:0',
@@ -168,8 +195,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
         outputArgs = [
           '-i', 'input.webm',
-          '-stream_loop', '-1',
-          '-i', 'music.mp3',
+          ...musicInputArgs,
           '-filter_complex',
           `[0:v]${videoFilter}[v];${audioFilter}`,
           '-map', '[v]',
