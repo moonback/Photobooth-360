@@ -23,6 +23,7 @@ import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
+import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 import { saveEmailCapture } from "./lib/emailCapture";
 import type { EmailCaptureData } from "./components/EmailCaptureModal";
@@ -157,12 +158,26 @@ export default function App() {
 
       if (cloudEnabled) {
         upload(url).then((publicUrl) => {
-          if (publicUrl) setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
+          if (publicUrl) {
+            setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
+            publishScreenCapture({
+              videoUrl: publicUrl,
+              shareUrl: buildCloudShareUrl(publicUrl),
+              source: "cloud",
+            });
+          }
         });
       } else {
         setIsSavingShare(true);
         saveVideo(url)
-          .then((id) => setShareId(id))
+          .then((id) => {
+            setShareId(id);
+            publishScreenCapture({
+              videoUrl: url,
+              shareUrl: buildLocalShareUrl(id),
+              source: "local",
+            });
+          })
           .catch(console.error)
           .finally(() => setIsSavingShare(false));
       }

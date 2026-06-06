@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, Check, Download, Film, Mail, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, X,
+  ArrowLeft, BarChart3, Check, Download, ExternalLink, Film, Mail, MonitorPlay, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../../lib/uploadLogo";
@@ -357,6 +357,23 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                         <HubRow icon={<Smartphone className="h-4 w-4" />} title="Mode kiosque" summary={summaries.kiosk} onClick={() => setPanel("kiosk")} />
                         <HubRow icon={<Film className="h-4 w-4" />} title="Intro / Outro" summary={summaries.jingle} onClick={() => setPanel("jingle")} />
                         <HubRow icon={<Music className="h-4 w-4" />} title="Musique de fond" summary={summaries.music} onClick={() => setPanel("music")} />
+                      </PanelBlock>
+
+                      <PanelBlock>
+                        <button
+                          type="button"
+                          onClick={() => window.open("/ecran", "_blank", "noopener,noreferrer")}
+                          className="flex min-h-[3.25rem] w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-white/5 touch-manipulation"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-300">
+                            <MonitorPlay className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold text-white">Écran client dédié</p>
+                            <p className="text-[11px] text-neuro-muted">Ouvrir la route /ecran avec vidéo et QR code</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-neuro-muted" />
+                        </button>
                       </PanelBlock>
 
                       {/* Tools */}
