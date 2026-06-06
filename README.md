@@ -1,303 +1,281 @@
-# Neurobooth 360 🎥
+# NeuroBooth 360 🎥
+
 <p align="center">
-  <img src="public/header-bg.png" alt="Shop ia" width="100%" />
+  <img src="public/header-bg.png" alt="NeuroBooth 360" width="100%" />
 </p>
 
-Une application web moderne de type "Photomaton 360" professionnelle, permettant de capturer et partager des vidéos directement depuis le navigateur. Conçue pour être utilisée lors d'événements, soirées et mariages sur une borne interactive ou une tablette.
+Application web professionnelle de type photomaton 360° — capture, partage et diffusion de vidéos depuis le navigateur. Conçue pour les événements, mariages, galas et soirées d'entreprise sur borne interactive ou tablette.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.5.0-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)
+![PWA](https://img.shields.io/badge/PWA-ready-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## ✨ Fonctionnalités Principales
+---
 
-### 📹 Capture Vidéo Avancée
-- **Enregistrement natif** via l'API `MediaRecorder` (sans plugins)
-- **Compte à rebours visuel** personnalisable (0s, 3s, 5s, 10s)
-- **Durées flexibles** : 10s, 15s, 30s, 1min, 2min
-- **Modes caméra** : Frontale / Arrière
-- **Qualités vidéo** : 480p, 720p HD, 1080p Full HD
-- **Enregistrement audio** : Activable/désactivable
-- **Mode plein écran** : Pour une expérience immersive
+## ✨ Fonctionnalités
 
-### 🎨 Interface Utilisateur
-- **Design moderne** avec Tailwind CSS 4 et thème sombre
-- **Responsive & Mobile-First** : Optimisé pour tablettes, smartphones et desktop
-- **5 thèmes de couleur** : Indigo, Rose, Ambre, Émeraude, Cyan
-- **Animations fluides** avec Motion
-- **Splash screen** personnalisable avec logo
-- **Watermark** sur les vidéos avec nom de l'événement
+### 📹 Capture Vidéo
+- Enregistrement natif via `MediaRecorder` (sans plugin)
+- Compte à rebours configurable (0s, 3s, 5s, 10s)
+- Durées flexibles : 10s, 15s, 30s, 1min, 2min
+- Modes caméra : Frontale / Arrière
+- Qualités : 480p, 720p HD, 1080p Full HD
+- Audio activable/désactivable
+- Mode plein écran immersif
 
-### 🔒 Sécurité & Administration
-- **Code PIN administrateur** pour protéger les réglages
-- **Modal de modification sécurisé** (requiert l'ancien code)
-- **Accès restreint** aux paramètres sensibles
-- **Timer d'inactivité** : Retour au splash après 5 minutes
+### 🎡 Plateau Motorisé (ESP32)
+- Contrôle du moteur via WebSerial / Bluetooth
+- Réglage vitesse, direction et nombre de tours
+- Synchronisation plateau / déclenchement d'enregistrement
+- Modes de sync : ACK firmware, délai fixe, ou immédiat
+- Panneau de contrôle moteur intégré dans l'interface
+
+### 🔒 Mode Kiosque
+- Verrouillage plein écran avec Wake Lock (écran toujours allumé)
+- **Geste secret haut-centre :**
+  - 5 taps → accès réglages admin (PIN requis)
+  - 10 taps → quitter le kiosque (PIN requis)
+- Feedback visuel : 5 puces indigo (réglages) + 5 puces rouges (exit)
+- Badge kiosque et statut veille en superposition
+- Bannière de reprise si plein écran interrompu
+- PIN admin pour protéger les deux actions
 
 ### 📤 Partage & Stockage
-- **Cloud Storage** : Upload automatique vers Supabase
-- **QR Codes** : Génération instantanée pour partage mobile
-- **Téléchargement direct** : Format WebM universel
-- **Stockage local** : IndexedDB comme fallback
-- **URLs publiques** : Partage cross-device
+- Upload automatique vers Supabase Storage avec barre de progression
+- QR Code instantané après chaque prise
+- Page de récupération mobile (téléchargement iOS/Android)
+- Stockage local IndexedDB comme fallback hors-ligne
+- Capture email opt-in avec envoi automatique de la vidéo
 
-### 🖼️ Galerie Interactive
-- **Affichage adaptatif** : 1 col mobile → 5 cols desktop
-- **Lecture au scroll** : Autoplay intelligent (Intersection Observer)
-- **Modal plein écran** : Visionnage détaillé avec contrôles
-- **Tri chronologique** : Vidéos les plus récentes en premier
-- **Pagination** : Jusqu'à 1000 vidéos
+### 🎨 Interface & UX
+- Design sombre avec Tailwind CSS 4
+- 5 thèmes de couleur : Indigo, Rose, Ambre, Émeraude, Cyan
+- Animations fluides avec Motion
+- Retour haptique sur mobile
+- Splash screen avec logo et nom de l'événement
+- Header compact : nom événement, badge LIVE/REC, bouton plein écran
+- Timer d'inactivité : retour splash après 5 minutes
 
-### ⚙️ Réglages Avancés
-- **Personnalisation complète** de l'événement
-- **Upload de logo** pour l'écran d'accueil
-- **Synchronisation cloud** des paramètres (Supabase)
-- **Fallback localStorage** si cloud indisponible
-- **Présets multiples** pour chaque paramètre
+### 📊 Analytics
+- Suivi des captures, partages, téléchargements
+- Dashboard analytique live pour l'organisateur
+- Badge live stats en superposition
+- Export et rapport d'événement
+
+### 📱 PWA
+- Installable sur iOS et Android (mode standalone)
+- Service Worker avec cache offline
+- Prompt d'installation et mise à jour automatique
+
+### 🖼️ Galerie
+- Affichage adaptatif : 1 col mobile → 5 cols desktop
+- Autoplay au scroll (Intersection Observer)
+- Modal plein écran avec contrôles vidéo
+- Tri chronologique, pagination jusqu'à 1000 vidéos
+
+---
 
 ## 🛠 Stack Technique
 
-### Frontend
-- **React 19** - Framework moderne avec Server Components
-- **TypeScript 5.8** - Typage fort et IntelliSense
-- **Vite 6** - Build ultra-rapide et HMR instantané
-- **Tailwind CSS 4** - Utility-first CSS avec design system
-- **Lucide React** - Bibliothèque d'icônes SVG légères
+| Couche | Technologie |
+|--------|-------------|
+| UI | React 19 + TypeScript 5.8 |
+| Build | Vite 6 + SWC |
+| Style | Tailwind CSS 4 |
+| Animations | Motion 12 |
+| Backend | Supabase (DB + Storage + Auth) |
+| Stockage local | IndexedDB |
+| Navigation | React Router DOM 6 |
+| QR Code | qrcode.react |
+| Icônes | Lucide React |
+| PWA | vite-plugin-pwa + Workbox |
+| Matériel | WebSerial API (ESP32) |
 
-### Backend & Services
-- **Supabase** - BaaS pour authentification, storage et database
-- **Supabase Storage** - CDN pour vidéos et images
-- **IndexedDB** - Stockage local navigateur
+---
 
-### Bibliothèques
-- **React Router DOM 6** - Navigation SPA avec routes dynamiques
-- **QRCode.react** - Génération de QR codes SVG
-- **Motion 12** - Animations et transitions fluides
-- **@supabase/supabase-js** - Client Supabase TypeScript
-
-### APIs Web Natives
-- **MediaDevices API** - Accès caméra/micro
-- **MediaRecorder API** - Enregistrement audio/vidéo
-- **Intersection Observer API** - Détection de visibilité
-- **Blob & File APIs** - Manipulation de fichiers binaires
-
-## 📦 Installation et Lancement
+## 📦 Installation
 
 ### Prérequis
-- **Node.js** 18+ 
-- **npm** ou **yarn**
-- **Compte Supabase** (optionnel, pour le cloud)
-
-### Installation
+- Node.js 18+
+- npm ou yarn
+- Compte Supabase (optionnel)
 
 ```bash
-# Cloner le projet
 git clone https://github.com/votre-username/photobooth-360.git
 cd photobooth-360
-
-# Installer les dépendances
 npm install
 ```
 
-### Configuration
-
-Créez un fichier `.env` à la racine du projet :
+### Variables d'environnement
 
 ```env
 VITE_SUPABASE_URL=votre_url_supabase
 VITE_SUPABASE_ANON_KEY=votre_cle_anonyme
 ```
 
-> **Note** : Sans configuration Supabase, l'app fonctionne en mode local avec IndexedDB.
+> Sans Supabase, l'app fonctionne en mode local avec IndexedDB.
 
-### Lancement
+### Commandes
 
 ```bash
-# Développement (port 3000)
-npm run dev
-
-# Build de production
-npm run build
-
-# Preview du build
-npm run preview
-
-# Vérification TypeScript
-npm run lint
+npm run dev        # Développement (port 3000)
+npm run build      # Build production
+npm run preview    # Preview du build
+npm run lint       # Vérification TypeScript
 ```
 
-L'application sera accessible sur `http://localhost:3000`
-
-> ⚠️ **Important** : L'accès caméra requiert HTTPS en production ou `localhost` en développement.
+---
 
 ## 🏗 Structure du Projet
 
 ```
 photobooth-360/
 ├── src/
-│   ├── components/          # Composants React réutilisables
-│   │   ├── CameraView.tsx   # Flux vidéo en direct
-│   │   ├── PlaybackView.tsx # Lecteur vidéo enregistrée
-│   │   ├── RecordButton.tsx # Bouton d'enregistrement animé
-│   │   ├── SplashScreen.tsx # Écran d'accueil
-│   │   ├── SettingsModal.tsx # Modal de configuration
-│   │   ├── PinModal.tsx     # Modal de code PIN
-│   │   ├── ShareSection.tsx # Section de partage
-│   │   └── GalleryStrip.tsx # Bande de galerie
-│   │
-│   ├── hooks/               # Hooks React personnalisés
-│   │   ├── useCamera.ts     # Gestion de la caméra
-│   │   ├── useRecorder.ts   # Logique d'enregistrement
-│   │   ├── useSettings.ts   # Persistance des réglages
-│   │   ├── useUpload.ts     # Upload vers Supabase
-│   │   └── useSlowMotion.ts # Effets slow-motion
-│   │
-│   ├── lib/                 # Utilitaires et services
-│   │   ├── supabase.ts      # Client Supabase
-│   │   ├── videoStore.ts    # IndexedDB pour vidéos
-│   │   ├── settingsStore.ts # Stockage des réglages
-│   │   ├── uploadVideo.ts   # Upload vidéo cloud
-│   │   └── uploadLogo.ts    # Upload logo événement
-│   │
-│   ├── pages/               # Pages de l'application
-│   │   ├── GalleryPage.tsx  # Galerie complète
-│   │   └── SharePage.tsx    # Page de partage
-│   │
-│   ├── App.tsx              # Composant racine
-│   ├── main.tsx             # Point d'entrée
-│   └── index.css            # Styles globaux
-│
-├── public/                  # Assets statiques
-├── supabase/               # Configuration Supabase
-│   └── setup.sql           # Schéma SQL
-├── .env.example            # Template variables d'env
-├── package.json            # Dépendances npm
-├── tsconfig.json           # Configuration TypeScript
-├── vite.config.ts          # Configuration Vite
-├── tailwind.config.js      # Configuration Tailwind
-├── README.md               # Ce fichier
-└── ROADMAP.md             # Feuille de route
-
+│   ├── components/
+│   │   ├── CameraView.tsx        # Flux caméra live
+│   │   ├── PlaybackView.tsx      # Lecteur vidéo
+│   │   ├── RecordButton.tsx      # Bouton enregistrement
+│   │   ├── SplashScreen.tsx      # Écran d'accueil
+│   │   ├── SettingsModal.tsx     # Réglages complets
+│   │   ├── KioskGuard.tsx        # Mode kiosque + PIN
+│   │   ├── ShareSection.tsx      # QR code + partage
+│   │   ├── EmailCaptureModal.tsx # Collecte email
+│   │   ├── MotorControlPanel.tsx # Contrôle plateau
+│   │   ├── AnalyticsDashboard.tsx# Stats événement
+│   │   ├── GalleryStrip.tsx      # Bande galerie
+│   │   └── SlowMotionPanel.tsx   # Effets slow-mo
+│   ├── hooks/
+│   │   ├── useCamera.ts          # Gestion caméra
+│   │   ├── useRecorder.ts        # Enregistrement
+│   │   ├── useMotor.ts           # Contrôle moteur
+│   │   ├── useKiosk.ts           # Mode kiosque
+│   │   ├── useSettings.ts        # Persistance réglages
+│   │   ├── useUpload.ts          # Upload cloud
+│   │   ├── useAnalytics.ts       # Métriques
+│   │   └── useSlowMotion.ts      # Slow motion
+│   ├── lib/
+│   │   ├── supabase.ts           # Client Supabase
+│   │   ├── videoStore.ts         # IndexedDB vidéos
+│   │   ├── settingsStore.ts      # Stockage réglages
+│   │   ├── uploadVideo.ts        # Upload vidéo
+│   │   ├── emailCapture.ts       # Capture emails
+│   │   └── analytics.ts          # Tracking
+│   ├── pages/
+│   │   ├── GalleryPage.tsx       # Galerie complète
+│   │   └── SharePage.tsx         # Page partage QR
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── firmware/
+│   └── esp32_photobooth360/      # Code Arduino ESP32
+├── public/
+│   ├── manifest.json             # PWA manifest
+│   └── offline.html              # Page hors-ligne
+├── supabase/
+│   └── functions/                # Edge Functions
+├── .env.example
+└── ROADMAP.md
 ```
+
+---
 
 ## 🚀 Déploiement
 
-### Vercel (Recommandé)
+### Vercel (recommandé)
 
 ```bash
-# Installer Vercel CLI
 npm i -g vercel
-
-# Déployer
 vercel --prod
 ```
 
 ### Netlify
 
 ```bash
-# Build
 npm run build
-
 # Déployer le dossier dist/
 ```
 
-### Variables d'environnement
-
-N'oubliez pas de configurer les variables d'environnement sur votre plateforme :
+Variables à configurer sur la plateforme :
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-## 📱 Utilisation
+---
 
-### Pour les Organisateurs
+## 📱 Guide d'utilisation
 
-1. **Configuration initiale**
-   - Accédez aux réglages avec le code PIN (défaut: `1234`)
-   - Personnalisez le nom de l'événement
-   - Uploadez votre logo
-   - Choisissez la durée et le compte à rebours
-   - Sélectionnez votre thème de couleur
+### Organisateur
 
-2. **Installation borne**
-   - Utilisez un iPad/tablette en mode paysage
-   - Fixez-le sur un pied stable
-   - Assurez-vous d'un bon éclairage
-   - Testez la caméra et le micro
+1. Accéder aux réglages via le geste secret (5 taps haut-centre) + PIN
+2. Configurer : nom événement, logo, durée, compte à rebours, résolution, thème
+3. Activer le mode kiosque pour verrouiller l'écran
+4. Suivre les stats en direct depuis le dashboard analytique
 
-3. **Pendant l'événement**
-   - L'app retourne au splash après 5min d'inactivité
-   - Les vidéos sont sauvegardées automatiquement
-   - Les invités peuvent scanner le QR code pour récupérer leur vidéo
+### Invité
 
-### Pour les Invités
+1. Taper l'écran splash pour démarrer
+2. Appuyer sur le bouton rouge pour lancer l'enregistrement
+3. Regarder le compte à rebours et sourire
+4. Scanner le QR code pour récupérer sa vidéo
 
-1. Tapez sur l'écran splash pour commencer
-2. Appuyez sur le bouton rouge pour enregistrer
-3. Regardez le compte à rebours
-4. Profitez de votre moment !
-5. Scannez le QR code pour obtenir votre vidéo
+### Mode kiosque
+
+- **5 taps** dans la zone haut-centre → PIN → réglages admin
+- **10 taps** dans la zone haut-centre → PIN → exit kiosque
+
+---
 
 ## 🔧 Configuration Supabase
 
-### 1. Créer un projet
-
-Allez sur [supabase.com](https://supabase.com) et créez un nouveau projet.
-
-### 2. Créer le bucket de storage
-
 ```sql
--- Exécutez dans l'éditeur SQL Supabase
-INSERT INTO storage.buckets (id, name, public) 
+-- Bucket de stockage
+INSERT INTO storage.buckets (id, name, public)
 VALUES ('photobooth360', 'photobooth360', true);
-```
 
-### 3. Créer la table settings (optionnel)
-
-```sql
--- Pour la synchronisation des réglages
+-- Table settings
 CREATE TABLE settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   data JSONB NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Table captures email
+CREATE TABLE email_captures (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id TEXT,
+  video_url TEXT,
+  email TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
+---
+
 ## 🎯 Roadmap
 
-Consultez le fichier `ROADMAP.md` pour les fonctionnalités à venir :
-- ✅ Phase 1 : Capture vidéo de base
-- ✅ Phase 2 : Réglages et personnalisation
-- ✅ Phase 3 : Cloud storage et partage
-- ✅ Phase 4 : Galerie et visualisation
-- 🚧 Phase 5 : Effets et filtres
-- 📋 Phase 6 : Analytics et statistiques
+Voir `ROADMAP.md` pour le détail complet des phases.
 
-## 🤝 Contribution
+**État actuel :**
+- ✅ Phase 1 — Capture vidéo
+- ✅ Phase 2 — Personnalisation & UX
+- ✅ Phase 3 — Cloud & partage
+- ✅ Phase 4 — Galerie & playback
+- ✅ Phase 5 — Mode kiosque & opérateur
+- ✅ Phase 6 — Moteur & matériel
+- 🚧 Phase 7 — Effets & post-traitement
+- 📋 Phase 8 — Analytics avancés & API
 
-Les contributions sont les bienvenues ! N'hésitez pas à :
-- Ouvrir une issue pour signaler un bug
-- Proposer une nouvelle fonctionnalité
-- Soumettre une pull request
+---
 
 ## 📄 Licence
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+MIT — voir `LICENSE`
 
 ## 💡 Support
 
-Pour toute question ou problème :
-- 📧 Email : support@neurobooth360.com
-- 🐛 Issues : [GitHub Issues](https://github.com/votre-username/photobooth-360/issues)
-- 📖 Documentation : [Wiki](https://github.com/votre-username/photobooth-360/wiki)
-
-## 🙏 Remerciements
-
-- [React](https://react.dev) - Framework UI
-- [Supabase](https://supabase.com) - Backend as a Service
-- [Tailwind CSS](https://tailwindcss.com) - Framework CSS
-- [Lucide](https://lucide.dev) - Bibliothèque d'icônes
+- Issues : [GitHub Issues](https://github.com/votre-username/photobooth-360/issues)
+- Email : support@neurobooth360.com
 
 ---
 
