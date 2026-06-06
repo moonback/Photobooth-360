@@ -27,18 +27,6 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
       const { width, height } = RESOLUTION_MAP[res];
       console.log("[useCamera] Starting camera:", { mode, resolution: res, recordAudio });
       
-      // First, enumerate devices to check what's available
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        console.log("[useCamera] Available video devices:", videoDevices.map(d => ({
-          label: d.label || 'Unknown',
-          deviceId: d.deviceId
-        })));
-      } catch (err) {
-        console.warn("[useCamera] Could not enumerate devices:", err);
-      }
-      
       try {
         let newStream: MediaStream | null = null;
         let lastError: any = null;
@@ -176,18 +164,10 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
 
   // Restart when facingMode or resolution changes
   useEffect(() => {
-    console.log("[useCamera] Effect triggered - facingMode or resolution changed");
     startCamera(facingMode, resolution);
-    
-    // Cleanup function - stop the current stream when unmounting or before starting a new one
-    return () => {
-      console.log("[useCamera] Cleanup - stopping current stream");
-      setStream((currentStream) => {
-        stopStream(currentStream);
-        return null;
-      });
-    };
-  }, [facingMode, resolution, startCamera, stopStream]);
+    return () => stopStream(stream);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [facingMode, resolution]);
 
   // Keep the <video> element in sync - runs when stream changes OR when video element mounts
   useEffect(() => {
