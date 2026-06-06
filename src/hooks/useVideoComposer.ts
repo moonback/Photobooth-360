@@ -26,6 +26,7 @@ export function useVideoComposer(): UseVideoComposerReturn {
         template: settings.introTemplate,
         title: settings.introTitle,
         subtitle: settings.introSubtitle,
+        imageUrl: settings.introImageUrl,
         background: settings.introBackground,
         durationSeconds: settings.introDurationSeconds,
       } : undefined;
@@ -33,6 +34,7 @@ export function useVideoComposer(): UseVideoComposerReturn {
         template: settings.outroTemplate,
         title: settings.outroTitle,
         subtitle: settings.outroSubtitle,
+        imageUrl: settings.outroImageUrl,
         background: settings.outroBackground,
         durationSeconds: settings.outroDurationSeconds,
       } : undefined;

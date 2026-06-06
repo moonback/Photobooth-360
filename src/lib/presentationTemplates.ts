@@ -17,6 +17,7 @@ export interface PresentationSlideConfig {
   template: PresentationTemplateId;
   title: string;
   subtitle: string;
+  imageUrl?: string;
   background: PresentationBackgroundId;
   durationSeconds: number;
 }

@@ -55,8 +55,10 @@ export interface AppSettings {
   outroTemplate: PresentationTemplateId;
   introTitle: string;
   introSubtitle: string;
+  introImageUrl?: string;
   outroTitle: string;
   outroSubtitle: string;
+  outroImageUrl?: string;
   introBackground: PresentationBackgroundId;
   outroBackground: PresentationBackgroundId;
   introDurationSeconds: number;
@@ -93,8 +95,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   outroTemplate: "gradient",
   introTitle: "Bienvenue",
   introSubtitle: "Préparez-vous pour votre expérience 360°",
+  introImageUrl: "",
   outroTitle: "Merci !",
   outroSubtitle: "Scannez, partagez et revivez votre moment",
+  outroImageUrl: "",
   introBackground: "midnight",
   outroBackground: "violet",
   introDurationSeconds: 3,
@@ -198,11 +202,17 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [introError, setIntroError] = useState("");
   const [outroState, setOutroState] = useState<LogoUploadState>("idle");
   const [outroError, setOutroError] = useState("");
+  const [introImageState, setIntroImageState] = useState<LogoUploadState>("idle");
+  const [introImageError, setIntroImageError] = useState("");
+  const [outroImageState, setOutroImageState] = useState<LogoUploadState>("idle");
+  const [outroImageError, setOutroImageError] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showEmailList, setShowEmailList] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const introRef = useRef<HTMLInputElement>(null);
   const outroRef = useRef<HTMLInputElement>(null);
+  const introImageRef = useRef<HTMLInputElement>(null);
+  const outroImageRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -213,6 +223,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       setIntroError("");
       setOutroState("idle");
       setOutroError("");
+      setIntroImageState("idle");
+      setIntroImageError("");
+      setOutroImageState("idle");
+      setOutroImageError("");
     }
   }, [isOpen, settings]);
 
@@ -267,6 +281,26 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     }
   };
 
+
+  const handlePresentationImage = async (kind: "intro" | "outro", file?: File) => {
+    if (!file) return;
+    const isIntro = kind === "intro";
+    const setState = isIntro ? setIntroImageState : setOutroImageState;
+    const setError = isIntro ? setIntroImageError : setOutroImageError;
+
+    setState("uploading");
+    setError("");
+    try {
+      const result = await uploadJingle(file, kind, () => undefined);
+      if (!result) throw new Error("not configured");
+      update(isIntro ? "introImageUrl" : "outroImageUrl", result.publicUrl);
+      setState("done");
+    } catch {
+      setState("error");
+      setError("Import image impossible. Vérifiez Supabase.");
+    }
+  };
+
   const handleSave = () => { onSave(draft); onClose(); };
 
 
@@ -275,6 +309,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     const mode = isIntro ? draft.introMode : draft.outroMode;
     const title = isIntro ? draft.introTitle : draft.outroTitle;
     const subtitle = isIntro ? draft.introSubtitle : draft.outroSubtitle;
+    const imageUrl = isIntro ? draft.introImageUrl : draft.outroImageUrl;
+    const imageState = isIntro ? introImageState : outroImageState;
+    const imageError = isIntro ? introImageError : outroImageError;
+    const imageRef = isIntro ? introImageRef : outroImageRef;
     const template = isIntro ? draft.introTemplate : draft.outroTemplate;
     const background = isIntro ? draft.introBackground : draft.outroBackground;
     const duration = isIntro ? draft.introDurationSeconds : draft.outroDurationSeconds;
@@ -314,6 +352,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 className="relative flex min-h-28 flex-col justify-center p-4 text-white"
                 style={{ background: `radial-gradient(circle at 50% 20%, ${PRESENTATION_BACKGROUNDS.find((item) => item.id === background)?.colors[1]}55, transparent 55%), linear-gradient(135deg, ${PRESENTATION_BACKGROUNDS.find((item) => item.id === background)?.colors.join(", ")})` }}
               >
+                {imageUrl && (
+                  <img
+                    src={imageUrl}
+                    alt={`Image ${label.toLowerCase()}`}
+                    className="mb-3 h-14 w-14 rounded-2xl border border-white/20 object-cover shadow-2xl"
+                  />
+                )}
                 <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/55">{label}</p>
                 <p className="mt-2 text-[22px] font-black leading-none tracking-[-0.05em]">{title || label}</p>
                 <p className="mt-2 text-[12px] font-semibold text-white/75">{subtitle || "Votre message"}</p>
@@ -335,6 +380,48 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                 className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-zinc-600"
                 placeholder="Sous-titre ou appel à l'action"
               />
+            </div>
+
+            <div>
+              <SectionLabel>Image + texte</SectionLabel>
+              <div className="flex items-center gap-3">
+                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt={`Image ${label.toLowerCase()}`} className="h-full w-full object-cover" />
+                  ) : (
+                    <Image className="h-6 w-6 text-neuro-muted" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    ref={imageRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePresentationImage(kind, e.target.files?.[0])}
+                  />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => imageRef.current?.click()}
+                      className="flex h-10 items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      {imageState === "uploading" ? "Import…" : "Image"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updatePresentation(isIntro ? { introImageUrl: "" } : { outroImageUrl: "" })}
+                      disabled={!imageUrl}
+                      className="h-10 rounded-xl border border-white/10 bg-white/5 text-[13px] font-bold text-neuro-muted disabled:opacity-40"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                  {imageError && <p className="mt-1.5 text-[11px] text-red-400">{imageError}</p>}
+                  {imageState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ Image ajoutée au template</p>}
+                </div>
+              </div>
             </div>
 
             <div>
@@ -825,7 +912,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                             {renderPresentationEditor("outro")}
 
                             <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
-                              Les intros/outros peuvent être générées comme présentations texte avec fond et template, ou importées en MP4, WebM, MOV, JPG ou PNG.
+                              Les intros/outros peuvent être générées comme présentations avec image + texte, fond et template, ou importées en MP4, WebM, MOV, JPG ou PNG.
                             </p>
                           </div>
                         </motion.div>

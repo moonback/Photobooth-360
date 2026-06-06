@@ -120,10 +120,19 @@ async function renderPresentationSlide(
   onProgress: (progress: number) => void,
 ): Promise<void> {
   const frames = Math.max(1, Math.round(slide.durationSeconds * 30));
+  let slideImage: HTMLImageElement | undefined;
+
+  if (slide.imageUrl) {
+    try {
+      slideImage = await loadImage(slide.imageUrl);
+    } catch (err) {
+      console.warn('[videoComposer] Could not load presentation image:', err);
+    }
+  }
 
   for (let i = 0; i < frames; i++) {
     const progress = i / frames;
-    drawPresentationSlide(ctx, slide, width, height, progress);
+    drawPresentationSlide(ctx, slide, width, height, progress, slideImage);
     onProgress(Math.round(progress * 100));
     await delay(1000 / 30);
   }
@@ -137,6 +146,7 @@ function drawPresentationSlide(
   width: number,
   height: number,
   progress: number,
+  slideImage?: HTMLImageElement,
 ): void {
   const background = getPresentationBackground(slide.background);
   const [start, accent, end] = background.colors;
@@ -159,11 +169,11 @@ function drawPresentationSlide(
   ctx.translate(0, (1 - eased) * 36);
 
   if (slide.template === 'minimal') {
-    drawMinimalTemplate(ctx, title, subtitle, width, height, accent);
+    drawMinimalTemplate(ctx, title, subtitle, width, height, accent, slideImage);
   } else if (slide.template === 'gradient') {
-    drawGradientTemplate(ctx, title, subtitle, width, height);
+    drawGradientTemplate(ctx, title, subtitle, width, height, slideImage);
   } else {
-    drawSpotlightTemplate(ctx, title, subtitle, width, height, accent);
+    drawSpotlightTemplate(ctx, title, subtitle, width, height, accent, slideImage);
   }
 
   ctx.restore();
@@ -176,6 +186,7 @@ function drawSpotlightTemplate(
   width: number,
   height: number,
   accent: string,
+  slideImage?: HTMLImageElement,
 ): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -186,13 +197,17 @@ function drawSpotlightTemplate(
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = accent;
-  ctx.beginPath();
-  ctx.arc(width * 0.5, height * 0.32, 10, 0, Math.PI * 2);
-  ctx.fill();
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.43, height * 0.28, width * 0.14, width * 0.14, 24);
+  } else {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(width * 0.5, height * 0.32, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  drawWrappedText(ctx, title, width / 2, height * 0.48, width * 0.68, Math.round(width * 0.07), 0.92, '#fff', '900');
-  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * 0.64, width * 0.58, Math.round(width * 0.026), 1.35, 'rgba(255,255,255,0.78)', '700');
+  drawWrappedText(ctx, title, width / 2, height * (slideImage ? 0.54 : 0.48), width * 0.68, Math.round(width * 0.07), 0.92, '#fff', '900');
+  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * (slideImage ? 0.7 : 0.64), width * 0.58, Math.round(width * 0.026), 1.35, 'rgba(255,255,255,0.78)', '700');
 }
 
 function drawGradientTemplate(
@@ -201,11 +216,15 @@ function drawGradientTemplate(
   subtitle: string,
   width: number,
   height: number,
+  slideImage?: HTMLImageElement,
 ): void {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
   ctx.fillRect(width * 0.08, height * 0.16, 4, height * 0.68);
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.68, height * 0.24, width * 0.22, width * 0.22, 32);
+  }
   drawWrappedText(ctx, title, width * 0.14, height * 0.44, width * 0.76, Math.round(width * 0.082), 0.9, '#fff', '900', 'left');
   if (subtitle) drawWrappedText(ctx, subtitle, width * 0.14, height * 0.66, width * 0.62, Math.round(width * 0.027), 1.35, 'rgba(255,255,255,0.78)', '700', 'left');
 }
@@ -217,17 +236,58 @@ function drawMinimalTemplate(
   width: number,
   height: number,
   accent: string,
+  slideImage?: HTMLImageElement,
 ): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(0,0,0,0.32)';
   roundRect(ctx, width * 0.2, height * 0.3, width * 0.6, height * 0.4, 28);
   ctx.fill();
-  ctx.fillStyle = accent;
-  roundRect(ctx, width * 0.44, height * 0.36, width * 0.12, 8, 4);
-  ctx.fill();
-  drawWrappedText(ctx, title, width / 2, height * 0.5, width * 0.5, Math.round(width * 0.055), 1.0, '#fff', '900');
-  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * 0.62, width * 0.46, Math.round(width * 0.023), 1.35, 'rgba(255,255,255,0.72)', '700');
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.455, height * 0.34, width * 0.09, width * 0.09, 18);
+  } else {
+    ctx.fillStyle = accent;
+    roundRect(ctx, width * 0.44, height * 0.36, width * 0.12, 8, 4);
+    ctx.fill();
+  }
+  drawWrappedText(ctx, title, width / 2, height * (slideImage ? 0.54 : 0.5), width * 0.5, Math.round(width * 0.055), 1.0, '#fff', '900');
+  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * (slideImage ? 0.66 : 0.62), width * 0.46, Math.round(width * 0.023), 1.35, 'rgba(255,255,255,0.72)', '700');
+}
+
+
+function drawRoundedImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  ctx.save();
+  roundRect(ctx, x, y, width, height, radius);
+  ctx.clip();
+  drawImageCover(ctx, image, x, y, width, height);
+  ctx.restore();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.24)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, x, y, width, height, radius);
+  ctx.stroke();
+}
+
+function drawImageCover(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): void {
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const scaledWidth = image.naturalWidth * scale;
+  const scaledHeight = image.naturalHeight * scale;
+  ctx.drawImage(image, x + (width - scaledWidth) / 2, y + (height - scaledHeight) / 2, scaledWidth, scaledHeight);
 }
 
 function drawWrappedText(
