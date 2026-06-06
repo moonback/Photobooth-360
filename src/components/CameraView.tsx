@@ -35,6 +35,10 @@ export default function CameraView({
         autoPlay
         playsInline
         muted
+        webkit-playsinline="true"
+        x5-playsinline="true"
+        x5-video-player-type="h5"
+        x5-video-player-fullscreen="false"
         className="h-full w-full object-cover transition-opacity duration-500"
         aria-label="Aperçu caméra en direct"
       />

@@ -13,59 +13,6 @@ interface UseCameraOptions {
   recordAudio: boolean;
 }
 
-/**
- * Get the best matching camera device ID for the desired facing mode
- */
-async function getBestCameraDevice(desiredFacing: "user" | "environment"): Promise<string | undefined> {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    
-    console.log('Available video devices:', videoDevices.map(d => ({ 
-      label: d.label, 
-      deviceId: d.deviceId 
-    })));
-
-    // Try to find a device that matches the facing mode in its label
-    const facingKeywords = desiredFacing === "environment" 
-      ? ["back", "rear", "arrière", "environment"]
-      : ["front", "face", "user", "avant", "selfie"];
-    
-    const matchingDevice = videoDevices.find(device => {
-      const label = device.label.toLowerCase();
-      return facingKeywords.some(keyword => label.includes(keyword));
-    });
-
-    if (matchingDevice) {
-      console.log(`Found matching device for ${desiredFacing}:`, matchingDevice.label);
-      return matchingDevice.deviceId;
-    }
-
-    // Fallback: if environment, try to get the last camera (usually rear on mobile)
-    if (desiredFacing === "environment" && videoDevices.length > 1) {
-      console.log('Using last device as environment camera');
-      return videoDevices[videoDevices.length - 1].deviceId;
-    }
-
-    // Fallback: if user, try to get the first camera (usually front on mobile)
-    if (desiredFacing === "user" && videoDevices.length > 0) {
-      console.log('Using first device as user camera');
-      return videoDevices[0].deviceId;
-    }
-
-    return undefined;
-  } catch (err) {
-    console.error('Error enumerating devices:', err);
-    return undefined;
-  }
-}
-
-interface UseCameraOptions {
-  facingMode: "user" | "environment";
-  resolution: AppSettings["resolution"];
-  recordAudio: boolean;
-}
-
 export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOptions) {
   const liveVideoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -78,34 +25,33 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
   const startCamera = useCallback(
     async (mode: "user" | "environment", res: AppSettings["resolution"]) => {
       const { width, height } = RESOLUTION_MAP[res];
-      console.log("Starting camera with:", { mode, resolution: res, width, height, recordAudio });
+      console.log("[useCamera] Starting camera:", { mode, resolution: res, recordAudio });
       
       try {
         let newStream: MediaStream | null = null;
+        let lastError: any = null;
 
-        // Strategy 1: Try to get specific device ID (most reliable on mobile)
-        const deviceId = await getBestCameraDevice(mode);
-        
-        if (deviceId) {
-          console.log(`Attempting with specific deviceId: ${deviceId}`);
-          try {
-            newStream = await navigator.mediaDevices.getUserMedia({
-              video: {
-                deviceId: { exact: deviceId },
-                width: { ideal: width },
-                height: { ideal: height }
-              },
-              audio: recordAudio,
-            });
-            console.log("✓ Camera stream obtained with deviceId");
-          } catch (deviceError) {
-            console.warn("Failed with deviceId, trying facingMode:", deviceError);
-          }
+        // Strategy 1: Try exact facingMode with high resolution (best quality)
+        try {
+          console.log("[useCamera] Strategy 1: Exact facingMode with full resolution");
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { exact: mode },
+              width: { ideal: width },
+              height: { ideal: height }
+            },
+            audio: recordAudio,
+          });
+          console.log("[useCamera] ✓ Strategy 1 succeeded");
+        } catch (err) {
+          lastError = err;
+          console.warn("[useCamera] Strategy 1 failed:", err);
         }
 
-        // Strategy 2: Try with ideal facingMode
+        // Strategy 2: Try ideal facingMode with resolution
         if (!newStream) {
           try {
+            console.log("[useCamera] Strategy 2: Ideal facingMode with resolution");
             newStream = await navigator.mediaDevices.getUserMedia({
               video: {
                 facingMode: { ideal: mode },
@@ -114,64 +60,103 @@ export function useCamera({ facingMode, resolution, recordAudio }: UseCameraOpti
               },
               audio: recordAudio,
             });
-            console.log("✓ Camera stream obtained with ideal facingMode");
-          } catch (idealError) {
-            console.warn("Failed with ideal facingMode, trying exact:", idealError);
+            console.log("[useCamera] ✓ Strategy 2 succeeded");
+          } catch (err) {
+            lastError = err;
+            console.warn("[useCamera] Strategy 2 failed:", err);
           }
         }
 
-        // Strategy 3: Try with exact facingMode (strict for mobile)
+        // Strategy 3: Try just facingMode string (works on many mobiles)
         if (!newStream) {
           try {
+            console.log("[useCamera] Strategy 3: Simple facingMode string");
             newStream = await navigator.mediaDevices.getUserMedia({
               video: {
-                facingMode: { exact: mode },
+                facingMode: mode,
                 width: { ideal: width },
                 height: { ideal: height }
               },
               audio: recordAudio,
             });
-            console.log("✓ Camera stream obtained with exact facingMode");
-          } catch (exactError) {
-            console.warn("Failed with exact facingMode, trying basic:", exactError);
+            console.log("[useCamera] ✓ Strategy 3 succeeded");
+          } catch (err) {
+            lastError = err;
+            console.warn("[useCamera] Strategy 3 failed:", err);
           }
         }
 
-        // Strategy 4: Fallback to basic constraints
+        // Strategy 4: Try without resolution constraints
         if (!newStream) {
-          newStream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { ideal: mode }
-            },
-            audio: recordAudio,
-          });
-          console.log("✓ Camera stream obtained with basic constraints");
-        }
-
-        // Log final stream info
-        const videoTrack = newStream.getVideoTracks()[0];
-        const settings = videoTrack?.getSettings();
-        console.log("Camera stream final:", {
-          videoTracks: newStream.getVideoTracks().length,
-          audioTracks: newStream.getAudioTracks().length,
-          settings: {
-            facingMode: settings?.facingMode,
-            width: settings?.width,
-            height: settings?.height,
-            deviceId: settings?.deviceId,
+          try {
+            console.log("[useCamera] Strategy 4: Just facingMode, no resolution");
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: mode },
+              audio: recordAudio,
+            });
+            console.log("[useCamera] ✓ Strategy 4 succeeded");
+          } catch (err) {
+            lastError = err;
+            console.warn("[useCamera] Strategy 4 failed:", err);
           }
-        });
-
-        setStream((prev) => { stopStream(prev); return newStream; });
-        if (liveVideoRef.current) {
-          liveVideoRef.current.srcObject = newStream;
-          console.log("Video element srcObject set");
         }
-        setCameraError("");
+
+        // Strategy 5: Try ANY video (last resort)
+        if (!newStream) {
+          try {
+            console.log("[useCamera] Strategy 5: Any video source");
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: recordAudio,
+            });
+            console.log("[useCamera] ✓ Strategy 5 succeeded (but might not be correct camera)");
+          } catch (err) {
+            lastError = err;
+            console.error("[useCamera] Strategy 5 failed:", err);
+            throw lastError || err;
+          }
+        }
+
+        // Log successful stream details
+        if (newStream) {
+          const videoTrack = newStream.getVideoTracks()[0];
+          const settings = videoTrack?.getSettings();
+          const capabilities = videoTrack?.getCapabilities?.();
+          
+          console.log("[useCamera] Stream obtained successfully:", {
+            videoTracks: newStream.getVideoTracks().length,
+            audioTracks: newStream.getAudioTracks().length,
+            label: videoTrack?.label,
+            settings: {
+              facingMode: settings?.facingMode,
+              width: settings?.width,
+              height: settings?.height,
+              deviceId: settings?.deviceId,
+            },
+            capabilities: capabilities ? {
+              facingMode: capabilities.facingMode,
+            } : 'not available'
+          });
+
+          setStream((prev) => { 
+            stopStream(prev); 
+            return newStream; 
+          });
+          
+          if (liveVideoRef.current) {
+            liveVideoRef.current.srcObject = newStream;
+            console.log("[useCamera] Video element srcObject set");
+          }
+          setCameraError("");
+        }
+
       } catch (err) {
-        console.error("Camera access error:", err);
-        const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
-        setCameraError(`Impossible d'accéder à la caméra ${mode === "environment" ? "arrière" : "avant"}. ${errorMessage}`);
+        console.error("[useCamera] All strategies failed:", err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        setCameraError(
+          `Impossible d'accéder à la caméra ${mode === "environment" ? "arrière" : "avant"}. ` +
+          `Erreur: ${errorMsg}. Vérifiez les permissions.`
+        );
       }
     },
     [recordAudio, stopStream]
