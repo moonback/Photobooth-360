@@ -109,3 +109,71 @@ export async function getAllVideos(): Promise<Array<{ id: string; url: string }>
     req.onerror = () => reject(req.error);
   });
 }
+
+/** Get all stored videos with their blobs (for export). */
+export async function getAllVideosWithBlobs(): Promise<Array<{ id: string; blob: Blob }>> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAllKeys();
+    
+    req.onsuccess = () => {
+      const keys = req.result as string[];
+      const videos: Array<{ id: string; blob: Blob }> = [];
+      let pending = keys.length;
+      
+      if (pending === 0) {
+        resolve([]);
+        return;
+      }
+      
+      keys.forEach((key) => {
+        const getReq = store.get(key);
+        getReq.onsuccess = () => {
+          if (getReq.result instanceof Blob) {
+            videos.push({
+              id: key as string,
+              blob: getReq.result,
+            });
+          }
+          pending--;
+          if (pending === 0) {
+            resolve(videos);
+          }
+        };
+        getReq.onerror = () => {
+          pending--;
+          if (pending === 0) {
+            resolve(videos);
+          }
+        };
+      });
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Get count of stored videos
+ */
+export async function getVideoCount(): Promise<number> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).count();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** Clear all stored videos from IndexedDB. */
+export async function clearAllVideos(): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}

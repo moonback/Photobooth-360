@@ -10,9 +10,9 @@ export interface UploadResult {
 }
 
 /**
- * List all videos from Supabase Storage bucket
+ * List all videos from Supabase Storage bucket with metadata
  */
-export async function listVideosFromBucket(): Promise<string[]> {
+export async function listVideosFromBucket(): Promise<Array<{ name: string; url: string; path: string; createdAt: string; size: number }>> {
   if (!SUPABASE_CONFIGURED || !supabase) {
     console.log('[listVideosFromBucket] Supabase not configured');
     return [];
@@ -23,7 +23,7 @@ export async function listVideosFromBucket(): Promise<string[]> {
     const { data, error } = await supabase.storage
       .from(BUCKET)
       .list('videos', {
-        limit: 1000, // Increase limit to get more videos
+        limit: 1000,
         sortBy: { column: 'created_at', order: 'desc' },
       });
 
@@ -39,29 +39,71 @@ export async function listVideosFromBucket(): Promise<string[]> {
 
     console.log('[listVideosFromBucket] Found', data.length, 'files');
 
-    // Convert to public URLs
-    const publicUrls = data
-      .filter(file => {
-        const isWebm = file.name.endsWith('.webm');
-        if (!isWebm) {
-          console.log('[listVideosFromBucket] Skipping non-webm file:', file.name);
-        }
-        return isWebm;
-      })
+    // Convert to objects with metadata
+    const videos = data
+      .filter(file => file.name.endsWith('.webm'))
       .map(file => {
-        const { data: urlData } = supabase.storage
-          .from(BUCKET)
-          .getPublicUrl(`videos/${file.name}`);
-        console.log('[listVideosFromBucket] Public URL for', file.name, ':', urlData.publicUrl);
-        return urlData.publicUrl;
+        const path = `videos/${file.name}`;
+        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+        return {
+          name: file.name,
+          url: urlData.publicUrl,
+          path: path,
+          createdAt: file.created_at || '',
+          size: file.metadata?.size || 0,
+        };
       });
 
-    console.log('[listVideosFromBucket] Returning', publicUrls.length, 'video URLs');
-    return publicUrls;
+    console.log('[listVideosFromBucket] Returning', videos.length, 'videos');
+    return videos;
   } catch (err) {
     console.error('[listVideosFromBucket] Error:', err);
     return [];
   }
+}
+
+/**
+ * Delete multiple videos from Supabase Storage
+ */
+export async function deleteVideosFromBucket(paths: string[]): Promise<{ success: boolean; errors: string[] }> {
+  if (!SUPABASE_CONFIGURED || !supabase) {
+    return { success: false, errors: ['Supabase not configured'] };
+  }
+
+  try {
+    const { data, error } = await supabase.storage.from(BUCKET).remove(paths);
+    
+    if (error) {
+      console.error('[deleteVideosFromBucket] Error:', error);
+      return { success: false, errors: [error.message] };
+    }
+
+    console.log('[deleteVideosFromBucket] Deleted', data?.length || 0, 'files');
+    return { success: true, errors: [] };
+  } catch (err) {
+    console.error('[deleteVideosFromBucket] Error:', err);
+    return { success: false, errors: [err instanceof Error ? err.message : 'Unknown error'] };
+  }
+}
+
+/**
+ * Delete all videos from Supabase Storage bucket
+ */
+export async function clearAllVideosFromBucket(): Promise<{ success: boolean; count: number; errors: string[] }> {
+  const videos = await listVideosFromBucket();
+  
+  if (videos.length === 0) {
+    return { success: true, count: 0, errors: [] };
+  }
+
+  const paths = videos.map(v => v.path);
+  const result = await deleteVideosFromBucket(paths);
+  
+  return {
+    success: result.success,
+    count: videos.length,
+    errors: result.errors,
+  };
 }
 
 /**
