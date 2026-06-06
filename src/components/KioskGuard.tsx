@@ -77,10 +77,9 @@ export default function KioskGuard({
   }, [resetTapCounter]);
 
   useEffect(() => {
-    if (!kioskState.active) return;
-
+    // Tap detection runs always — not just in kiosk mode
     const onTouchStart = (e: TouchEvent) => {
-      if (showPromptRef.current) return; // prompt already open
+      if (showPromptRef.current) return;
 
       const touch = e.touches[0];
       if (!touch) return;
@@ -88,15 +87,12 @@ export default function KioskGuard({
       const fromRight  = window.innerWidth  - touch.clientX;
       const fromBottom = window.innerHeight - touch.clientY;
 
-      // Only count taps in the bottom-right corner zone
       if (fromRight > ZONE_SIZE || fromBottom > ZONE_SIZE) return;
 
-      // Increment ref counter
       tapCountRef.current += 1;
       const count = tapCountRef.current;
       setTapFeedback(count);
 
-      // Reset the window timer
       if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
       tapTimerRef.current = setTimeout(resetTapCounter, TAP_WINDOW_MS);
 
@@ -109,7 +105,7 @@ export default function KioskGuard({
     return () => {
       document.removeEventListener("touchstart", onTouchStart, { capture: true });
     };
-  }, [kioskState.active, resetTapCounter, openExitPrompt]);
+  }, [resetTapCounter, openExitPrompt]);
 
   // Keep the ref in sync with state
   useEffect(() => {
@@ -152,33 +148,35 @@ export default function KioskGuard({
     setPinError(false);
   };
 
-  if (!kioskState.active) return null;
+  if (!kioskState.active && !showExitPrompt && tapFeedback === 0) return null;
 
   return (
     <>
-      {/* ── Status indicators (top-left, pointer-events none) ──────────── */}
-      <motion.div
-        className="pointer-events-none fixed left-3 top-[calc(env(safe-area-inset-top)+0.6rem)] z-[199] flex items-center gap-1.5"
-        initial={{ opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-      >
-        <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
-          <Shield className="h-2.5 w-2.5 text-emerald-400" />
-          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-400">
-            Kiosque
-          </span>
-        </div>
-
-        {!kioskState.isWakeLocked && (
-          <div className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
-            <WifiOff className="h-2.5 w-2.5 text-amber-400" />
-            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-400">
-              Veille
+      {/* ── Status indicators — only in kiosk mode ─────────────────────── */}
+      {kioskState.active && (
+        <motion.div
+          className="pointer-events-none fixed left-3 top-[calc(env(safe-area-inset-top)+0.6rem)] z-[199] flex items-center gap-1.5"
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
+          <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
+            <Shield className="h-2.5 w-2.5 text-emerald-400" />
+            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-400">
+              Kiosque
             </span>
           </div>
-        )}
-      </motion.div>
+
+          {!kioskState.isWakeLocked && (
+            <div className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
+              <WifiOff className="h-2.5 w-2.5 text-amber-400" />
+              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-400">
+                Veille
+              </span>
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* ── Secret tap zone — bottom-right corner ──────────────────────── */}
       {/* Nearly invisible — just a subtle dot so the admin knows where to tap */}

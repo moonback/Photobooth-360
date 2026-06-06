@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw, Lock } from "lucide-react";
+import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
 
 import SplashScreen from "./components/SplashScreen";
 import CameraView from "./components/CameraView";
-import PinModal from "./components/PinModal";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
@@ -44,7 +43,6 @@ export default function App() {
   const kiosk = useKiosk();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
@@ -278,39 +276,12 @@ export default function App() {
           onEnter={() => {
             setShowSplash(false);
             if (settings.kioskEnabled) {
-              // Must be triggered by gesture, setTimeout allows state flush first
               setTimeout(() => kiosk.enter(), 100);
             }
-          }}
-          onAdmin={() => {
-            setShowSplash(false);
-            setSettingsOpen(true);
           }}
         />
       ) : (
         <>
-          {/* Bouton admin (cadenas) en haut à droite - toujours visible */}
-          <motion.button
-            type="button"
-            onClick={() => {
-              if (settings.adminPin) {
-                setShowPinModal(true);
-              } else {
-                setSettingsOpen(true);
-              }
-              haptic.light();
-            }}
-            className="glass-panel fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 grid min-h-11 min-w-11 place-items-center rounded-full text-white shadow-lg transition-all hover:bg-white/20 hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] active:scale-95 touch-manipulation sm:right-5"
-            initial={{ x: 20, opacity: 0, scale: 0.9 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label="Accéder aux réglages admin"
-          >
-            <Lock className="h-[18px] w-[18px]" />
-          </motion.button>
-
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
@@ -461,7 +432,6 @@ export default function App() {
         </>
       )}
 
-      {showPinModal && <PinModal adminPin={settings.adminPin} onUnlock={() => { setShowPinModal(false); setSettingsOpen(true); }} onCancel={() => setShowPinModal(false)} />}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
       
       {/* Modal email capture */}
