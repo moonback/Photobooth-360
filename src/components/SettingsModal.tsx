@@ -59,7 +59,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   motorAutoStart: true,
   motorSyncMode: "ack",
   motorSyncDelay: 500,
-  kioskEnabled: false,
+  kioskEnabled: true,
   adminPin: "1234",
 };
 

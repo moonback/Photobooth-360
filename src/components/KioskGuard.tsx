@@ -1,9 +1,13 @@
 /**
  * KioskGuard
  *
- * Deux gestes secrets :
- *   1. Haut-centre (160×60 px) — toujours actif → ouvre le clavier PIN admin
- *   2. Milieu-gauche (60×120 px) — kiosque actif seulement → désactive le kiosque directement
+ * Zone haut-centre (160×60 px) — deux seuils, un seul listener :
+ *   5 taps  → ouvre le clavier PIN admin (toujours actif)
+ *   10 taps → désactive le kiosque directement (kiosque actif seulement)
+ *
+ * Le listener est monté une seule fois (deps vides).
+ * Toutes les valeurs dynamiques passent par des refs pour éviter
+ * les re-enregistrements qui remettent le compteur à zéro.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,16 +17,11 @@ import type { KioskState } from "../hooks/useKiosk";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const TAPS_REQUIRED = 5;
-const TAP_WINDOW_MS = 3000;
-
-// Zone 1 — haut centre → admin PIN
-const ADMIN_ZONE_HEIGHT  = 60;  // px depuis le haut
-const ADMIN_ZONE_HALF_W  = 80;  // px de chaque côté du centre
-
-// Zone 2 — milieu gauche → exit kiosk (kiosk only)
-const EXIT_ZONE_WIDTH    = 60;  // px depuis le bord gauche
-const EXIT_ZONE_HALF_H   = 60;  // px de chaque côté du centre vertical
+const TAP_WINDOW_MS  = 4000;
+const ZONE_HEIGHT    = 60;    // px depuis le haut de l'écran
+const ZONE_HALF_W    = 80;    // px de chaque côté du centre horizontal
+const ADMIN_TAPS     = 5;     // → ouvre le PIN admin
+const EXIT_TAPS      = 10;    // → désactive le kiosque (kiosk only)
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -31,7 +30,6 @@ interface KioskGuardProps {
   adminPin: string;
   onAdminAccess: () => void;
   onReEnterFullscreen: () => void;
-  /** Called when the exit-kiosk gesture is triggered — should disable kiosk */
   onExitKiosk: () => void;
 }
 
@@ -44,46 +42,39 @@ export default function KioskGuard({
   onReEnterFullscreen,
   onExitKiosk,
 }: KioskGuardProps) {
-  const [showPrompt,       setShowPrompt]       = useState(false);
-  const [pinInput,         setPinInput]         = useState("");
-  const [pinError,         setPinError]         = useState(false);
-  const [adminTapFeedback, setAdminTapFeedback] = useState(0);
-  const [exitTapFeedback,  setExitTapFeedback]  = useState(0);
+  const [showPrompt,   setShowPrompt]   = useState(false);
+  const [pinInput,     setPinInput]     = useState("");
+  const [pinError,     setPinError]     = useState(false);
+  const [tapFeedback,  setTapFeedback]  = useState(0); // 0–EXIT_TAPS
 
-  // Admin zone (top-center) refs
-  const adminTapRef   = useRef(0);
-  const adminTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stable refs — never trigger effect re-runs
+  const tapCountRef      = useRef(0);
+  const tapTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPromptRef    = useRef(false);
+  const kioskActiveRef   = useRef(kioskState.active);
+  const onAdminAccessRef = useRef(onAdminAccess);
+  const onExitKioskRef   = useRef(onExitKiosk);
 
-  // Exit zone (middle-left) refs
-  const exitTapRef    = useRef(0);
-  const exitTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showPromptRef = useRef(false);
+  // Keep refs in sync with latest props/state
+  useEffect(() => { showPromptRef.current    = showPrompt;         }, [showPrompt]);
+  useEffect(() => { kioskActiveRef.current   = kioskState.active;  }, [kioskState.active]);
+  useEffect(() => { onAdminAccessRef.current = onAdminAccess;      }, [onAdminAccess]);
+  useEffect(() => { onExitKioskRef.current   = onExitKiosk;        }, [onExitKiosk]);
 
   const showReEnterBanner =
     kioskState.active && !kioskState.isFullscreen && !showPrompt;
 
-  // ── Reset helpers ──────────────────────────────────────────────────────────
-
-  const resetAdminTaps = useCallback(() => {
-    adminTapRef.current = 0;
-    setAdminTapFeedback(0);
-    if (adminTimerRef.current) { clearTimeout(adminTimerRef.current); adminTimerRef.current = null; }
-  }, []);
-
-  const resetExitTaps = useCallback(() => {
-    exitTapRef.current = 0;
-    setExitTapFeedback(0);
-    if (exitTimerRef.current) { clearTimeout(exitTimerRef.current); exitTimerRef.current = null; }
-  }, []);
+  // ── Open admin prompt (called from inside the stable listener) ────────────
 
   const openAdminPrompt = useCallback(() => {
     showPromptRef.current = true;
     setShowPrompt(true);
-    resetAdminTaps();
-  }, [resetAdminTaps]);
+  }, []);
 
-  // ── Zone 1: top-center → admin PIN (always active) ────────────────────────
+  const openAdminPromptRef = useRef(openAdminPrompt);
+  useEffect(() => { openAdminPromptRef.current = openAdminPrompt; }, [openAdminPrompt]);
+
+  // ── Single stable touch listener — mounted once ───────────────────────────
 
   useEffect(() => {
     const onTouch = (e: TouchEvent) => {
@@ -91,68 +82,50 @@ export default function KioskGuard({
       const touch = e.touches[0];
       if (!touch) return;
 
+      // Filter: top-center zone only
       const fromTop    = touch.clientY;
       const fromCenter = Math.abs(touch.clientX - window.innerWidth / 2);
-      if (fromTop > ADMIN_ZONE_HEIGHT || fromCenter > ADMIN_ZONE_HALF_W) return;
+      if (fromTop > ZONE_HEIGHT || fromCenter > ZONE_HALF_W) return;
 
-      adminTapRef.current += 1;
-      const count = adminTapRef.current;
-      setAdminTapFeedback(count);
+      tapCountRef.current += 1;
+      const count = tapCountRef.current;
+      setTapFeedback(count);
 
-      if (adminTimerRef.current) clearTimeout(adminTimerRef.current);
-      adminTimerRef.current = setTimeout(resetAdminTaps, TAP_WINDOW_MS);
+      // Restart window timer — on expiry, decide what to do with the count
+      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = setTimeout(() => {
+        const finalCount = tapCountRef.current;
+        tapCountRef.current = 0;
+        setTapFeedback(0);
+        tapTimerRef.current = null;
 
-      if (count >= TAPS_REQUIRED) openAdminPrompt();
-    };
+        // Exactly 5 taps and no more → open admin PIN
+        if (finalCount === ADMIN_TAPS) {
+          openAdminPromptRef.current();
+        }
+        // 6-9 taps: ignore (incomplete exit gesture)
+      }, TAP_WINDOW_MS);
 
-    document.addEventListener("touchstart", onTouch, { passive: true, capture: true });
-    return () => document.removeEventListener("touchstart", onTouch, { capture: true });
-  }, [resetAdminTaps, openAdminPrompt]);
-
-  // ── Zone 2: middle-left → exit kiosk (kiosk mode only) ───────────────────
-
-  useEffect(() => {
-    if (!kioskState.active) return;
-
-    const onTouch = (e: TouchEvent) => {
-      if (showPromptRef.current) return;
-      const touch = e.touches[0];
-      if (!touch) return;
-
-      const fromLeft   = touch.clientX;
-      const fromMiddle = Math.abs(touch.clientY - window.innerHeight / 2);
-      if (fromLeft > EXIT_ZONE_WIDTH || fromMiddle > EXIT_ZONE_HALF_H) return;
-
-      exitTapRef.current += 1;
-      const count = exitTapRef.current;
-      setExitTapFeedback(count);
-
-      if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
-      exitTimerRef.current = setTimeout(resetExitTaps, TAP_WINDOW_MS);
-
-      if (count >= TAPS_REQUIRED) {
-        resetExitTaps();
-        onExitKiosk();
+      // 10+ taps → exit kiosk immediately, no wait
+      if (count >= EXIT_TAPS && kioskActiveRef.current) {
+        tapCountRef.current = 0;
+        setTapFeedback(0);
+        if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; }
+        onExitKioskRef.current();
       }
     };
 
     document.addEventListener("touchstart", onTouch, { passive: true, capture: true });
-    return () => {
-      document.removeEventListener("touchstart", onTouch, { capture: true });
-      resetExitTaps();
-    };
-  }, [kioskState.active, resetExitTaps, onExitKiosk]);
+    return () => document.removeEventListener("touchstart", onTouch, { capture: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep ref in sync with state
-  useEffect(() => { showPromptRef.current = showPrompt; }, [showPrompt]);
-
-  // Cleanup
+  // Cleanup timers on unmount
   useEffect(() => () => {
-    if (adminTimerRef.current) clearTimeout(adminTimerRef.current);
-    if (exitTimerRef.current)  clearTimeout(exitTimerRef.current);
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
   }, []);
 
-  // Auto-submit when PIN is complete
+  // ── Auto-submit PIN when length matches ───────────────────────────────────
+
   useEffect(() => {
     if (pinInput.length > 0 && pinInput.length >= Math.max(4, adminPin.length)) {
       const t = setTimeout(handlePinSubmit, 120);
@@ -165,15 +138,18 @@ export default function KioskGuard({
   const handlePinSubmit = () => {
     if (pinInput === adminPin) {
       setPinInput(""); setPinError(false); setShowPrompt(false);
-      onAdminAccess();
+      onAdminAccessRef.current();
     } else {
       setPinError(true); setPinInput("");
     }
   };
 
-  const closePrompt = () => { setShowPrompt(false); setPinInput(""); setPinError(false); };
+  const closePrompt = () => {
+    setShowPrompt(false); setPinInput(""); setPinError(false);
+  };
 
-  if (!kioskState.active && !showPrompt && adminTapFeedback === 0 && exitTapFeedback === 0) return null;
+  // Don't render anything if idle and no kiosk
+  if (!kioskState.active && !showPrompt && tapFeedback === 0) return null;
 
   return (
     <>
@@ -197,24 +173,29 @@ export default function KioskGuard({
         </motion.div>
       )}
 
-      {/* ── Zone 1: top-center — admin PIN ───────────────────────────── */}
+      {/* ── Tap zone (invisible) + progress dots ─────────────────────── */}
       <div
         className="fixed top-0 left-1/2 -translate-x-1/2 z-[198]"
-        style={{ width: ADMIN_ZONE_HALF_W * 2, height: ADMIN_ZONE_HEIGHT }}
+        style={{ width: ZONE_HALF_W * 2, height: ZONE_HEIGHT }}
         aria-hidden="true"
       >
         <AnimatePresence>
-          {adminTapFeedback > 0 && (
+          {tapFeedback > 0 && (
             <motion.div
               className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1.5"
               initial={{ opacity: 0, y: -4, scale: 0.8 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
             >
-              {Array.from({ length: TAPS_REQUIRED }).map((_, i) => (
-                <motion.div key={i}
-                  className={`h-2 w-2 rounded-full ${i < adminTapFeedback ? "bg-indigo-400" : "bg-white/20"}`}
-                  animate={i < adminTapFeedback ? { scale: [1, 1.5, 1] } : {}}
+              {Array.from({ length: EXIT_TAPS }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  className={`h-2 w-2 rounded-full ${
+                    i < tapFeedback
+                      ? i < ADMIN_TAPS ? "bg-indigo-400" : "bg-red-400"
+                      : "bg-white/20"
+                  }`}
+                  animate={i === tapFeedback - 1 ? { scale: [1, 1.6, 1] } : {}}
                   transition={{ duration: 0.18 }}
                 />
               ))}
@@ -222,34 +203,6 @@ export default function KioskGuard({
           )}
         </AnimatePresence>
       </div>
-
-      {/* ── Zone 2: middle-left — exit kiosk (kiosk only) ────────────── */}
-      {kioskState.active && (
-        <div
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-[198]"
-          style={{ width: EXIT_ZONE_WIDTH, height: EXIT_ZONE_HALF_H * 2 }}
-          aria-hidden="true"
-        >
-          <AnimatePresence>
-            {exitTapFeedback > 0 && (
-              <motion.div
-                className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1.5"
-                initial={{ opacity: 0, x: -4, scale: 0.8 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-              >
-                {Array.from({ length: TAPS_REQUIRED }).map((_, i) => (
-                  <motion.div key={i}
-                    className={`h-2 w-2 rounded-full ${i < exitTapFeedback ? "bg-red-400" : "bg-white/20"}`}
-                    animate={i < exitTapFeedback ? { scale: [1, 1.5, 1] } : {}}
-                    transition={{ duration: 0.18 }}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      )}
 
       {/* ── Re-enter fullscreen banner ────────────────────────────────── */}
       <AnimatePresence>
@@ -264,8 +217,11 @@ export default function KioskGuard({
               <Maximize2 className="h-4 w-4 shrink-0 text-white" />
               <p className="text-[13px] font-bold text-white">Kiosque interrompu — touchez pour reprendre</p>
             </div>
-            <button type="button" onClick={onReEnterFullscreen}
-              className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-black text-white active:scale-95 touch-manipulation">
+            <button
+              type="button"
+              onClick={onReEnterFullscreen}
+              className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-black text-white active:scale-95 touch-manipulation"
+            >
               Reprendre
             </button>
           </motion.div>
@@ -295,9 +251,12 @@ export default function KioskGuard({
                   <h2 className="text-[17px] font-black text-white leading-tight">Administrateur</h2>
                   <p className="text-[12px] text-white/50">Gestion du PhotoBooth360</p>
                 </div>
-                <button type="button" onClick={closePrompt}
+                <button
+                  type="button"
+                  onClick={closePrompt}
                   className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/5 text-white/50 active:scale-90 touch-manipulation"
-                  aria-label="Annuler">
+                  aria-label="Annuler"
+                >
                   <X className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -305,9 +264,12 @@ export default function KioskGuard({
               {/* PIN dots */}
               <div className="mb-5 flex justify-center gap-3">
                 {Array.from({ length: Math.max(4, adminPin.length) }).map((_, i) => (
-                  <motion.div key={i}
+                  <motion.div
+                    key={i}
                     className={`h-3.5 w-3.5 rounded-full border-2 transition-all duration-150 ${
-                      i < pinInput.length ? "border-indigo-400 bg-indigo-400" : "border-white/25 bg-transparent"
+                      i < pinInput.length
+                        ? "border-indigo-400 bg-indigo-400"
+                        : "border-white/25 bg-transparent"
                     }`}
                     animate={i === pinInput.length - 1 ? { scale: [1.3, 1] } : {}}
                     transition={{ duration: 0.15 }}
@@ -318,10 +280,13 @@ export default function KioskGuard({
               {/* Error */}
               <AnimatePresence>
                 {pinError && (
-                  <motion.p className="mb-3 text-center text-[12px] font-bold text-red-400"
+                  <motion.p
+                    className="mb-3 text-center text-[12px] font-bold text-red-400"
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
-                    exit={{ opacity: 0 }} transition={{ duration: 0.35 }}>
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                  >
                     Code incorrect
                   </motion.p>
                 )}
@@ -330,32 +295,51 @@ export default function KioskGuard({
               {/* Keypad */}
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <motion.button key={n} type="button" whileTap={{ scale: 0.9 }}
+                  <motion.button
+                    key={n}
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
                     onClick={() => {
                       if (pinInput.length < Math.max(4, adminPin.length)) {
                         setPinError(false);
-                        setPinInput((p) => p + String(n));
+                        setPinInput((p: string) => p + String(n));
                       }
                     }}
-                    className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation">
+                    className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation"
+                  >
                     {n}
                   </motion.button>
                 ))}
                 <div />
-                <motion.button type="button" whileTap={{ scale: 0.9 }}
-                  onClick={() => { setPinError(false); setPinInput((p) => p + "0"); }}
-                  className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => { setPinError(false); setPinInput((p: string) => p + "0"); }}
+                  className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation"
+                >
                   0
                 </motion.button>
-                <motion.button type="button" whileTap={{ scale: 0.9 }}
-                  onClick={() => { setPinError(false); setPinInput((p) => p.slice(0, -1)); }}
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => { setPinError(false); setPinInput((p: string) => p.slice(0, -1)); }}
                   className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[20px] text-white/60 active:bg-white/15 touch-manipulation"
-                  aria-label="Effacer">
+                  aria-label="Effacer"
+                >
                   ⌫
                 </motion.button>
               </div>
 
-              
+              {/* Confirm */}
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.97 }}
+                onClick={handlePinSubmit}
+                disabled={pinInput.length === 0}
+                className="flex h-[3.25rem] w-full items-center justify-center rounded-xl bg-indigo-500 text-[14px] font-black text-white shadow-[0_0_24px_rgba(99,102,241,0.4)] disabled:opacity-40 touch-manipulation"
+              >
+                Confirmer
+              </motion.button>
             </motion.div>
           </motion.div>
         )}
