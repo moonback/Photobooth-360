@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, TouchEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
+import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw, Lock } from "lucide-react";
 import { motion } from "motion/react";
 
 import SplashScreen from "./components/SplashScreen";
 import CameraView from "./components/CameraView";
-import GalleryStrip from "./components/GalleryStrip";
 import PinModal from "./components/PinModal";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
@@ -46,7 +45,6 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState("");
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const accent = ACCENT[settings.accentColor];
   const isReviewing = Boolean(videoUrl);
@@ -180,44 +178,6 @@ export default function App() {
     await handleSave(next);
   };
 
-  // Gestion des gestes de swipe pour mobile
-  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
-    if (!isReviewing || isRecording) return;
-    
-    const touch = e.touches[0];
-    touchStartRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-      time: Date.now()
-    };
-  };
-
-  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
-    if (!touchStartRef.current || !isReviewing || gallery.length <= 1) return;
-
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStartRef.current.x;
-    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
-    const deltaTime = Date.now() - touchStartRef.current.time;
-
-    // Swipe horizontal rapide (< 300ms) avec mouvement > 50px
-    if (deltaTime < 300 && Math.abs(deltaX) > 50 && deltaY < 30) {
-      const currentIndex = gallery.indexOf(videoUrl);
-      
-      if (deltaX > 0 && currentIndex > 0) {
-        // Swipe vers la droite - vidéo précédente
-        setVideoUrl(gallery[currentIndex - 1]);
-        haptic.selection();
-      } else if (deltaX < 0 && currentIndex < gallery.length - 1) {
-        // Swipe vers la gauche - vidéo suivante
-        setVideoUrl(gallery[currentIndex + 1]);
-        haptic.selection();
-      }
-    }
-
-    touchStartRef.current = null;
-  };
-
   if (loadState === "loading") {
     return (
       <div className="fixed inset-0 grid place-items-center bg-neuro-bg text-neuro-muted">
@@ -230,11 +190,7 @@ export default function App() {
   }
 
   return (
-    <div 
-      className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none touch-none"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none touch-none">
       {showSplash ? (
         <SplashScreen
           settings={settings}
@@ -246,6 +202,28 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Bouton admin (cadenas) en haut à droite - toujours visible */}
+          <motion.button
+            type="button"
+            onClick={() => {
+              if (settings.adminPin) {
+                setShowPinModal(true);
+              } else {
+                setSettingsOpen(true);
+              }
+              haptic.light();
+            }}
+            className="glass-panel fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 grid min-h-11 min-w-11 place-items-center rounded-full text-white shadow-lg transition-all hover:bg-white/20 hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] active:scale-95 touch-manipulation sm:right-5"
+            initial={{ x: 20, opacity: 0, scale: 0.9 }}
+            animate={{ x: 0, opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            aria-label="Accéder aux réglages admin"
+          >
+            <Lock className="h-[18px] w-[18px]" />
+          </motion.button>
+
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
@@ -276,46 +254,78 @@ export default function App() {
 
             {isReviewing && (
               <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.9rem)] z-30 md:bottom-0">
-                {gallery.length > 1 && <GalleryStrip gallery={gallery.slice(0, 12)} activeUrl={videoUrl} accentBorder={accent.border} onSelect={setVideoUrl} />}
                 <ShareSection cloudEnabled={cloudEnabled} uploadStatus={uploadStatus} uploadProgress={uploadProgress} uploadedUrl={uploadedUrl} shareId={shareId} isSavingShare={isSavingShare} accent={accent} />
+                
+                {/* Boutons Refaire/Sauver repositionnés sous le QR code */}
+                <motion.div 
+                  className="flex gap-2.5 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 sm:px-6"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+                >
+                  {/* Bouton Refaire */}
+                  <motion.button 
+                    type="button" 
+                    onClick={handleReset} 
+                    className="glass-panel group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-lg hover:bg-white/15 active:scale-[0.98] touch-manipulation" 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }} 
+                    aria-label="Refaire une capture"
+                    onTouchStart={() => haptic.light()}
+                  >
+                    {/* Effet de brillance au hover */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100"
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: "200%" }}
+                      transition={{ duration: 0.6 }}
+                    />
+                    
+                    <RefreshCcw className="relative h-5 w-5" /> 
+                    <span className="relative">Refaire</span>
+                  </motion.button>
+                  
+                  {/* Bouton Sauver avec gradient accent */}
+                  <motion.a 
+                    href={videoUrl} 
+                    download="neurobooth360.webm"
+                    onClick={() => {
+                      const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
+                      trackDownload(videoId);
+                      haptic.medium();
+                    }}
+                    className={`group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.98] touch-manipulation ${accent.bg}`}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }} 
+                    aria-label="Télécharger la vidéo"
+                    onTouchStart={() => haptic.light()}
+                  >
+                    {/* Effet de brillance au hover */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100"
+                      initial={{ x: "-100%" }}
+                      whileHover={{ x: "200%" }}
+                      transition={{ duration: 0.6 }}
+                    />
+                    
+                    {/* Glow ring animé */}
+                    <motion.div
+                      className="absolute inset-0 rounded-[1.2rem] opacity-50"
+                      animate={{
+                        boxShadow: [
+                          "inset 0 0 10px rgba(255,255,255,0.2)",
+                          "inset 0 0 20px rgba(255,255,255,0.3)",
+                          "inset 0 0 10px rgba(255,255,255,0.2)",
+                        ]
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                    
+                    <Download className="relative h-5 w-5" /> 
+                    <span className="relative">Sauver</span>
+                  </motion.a>
+                </motion.div>
               </div>
-            )}
-
-            {isReviewing && (
-              <motion.div 
-                className="absolute left-3 top-[calc(env(safe-area-inset-top)+6rem)] z-30 flex gap-2 sm:left-5 sm:top-[calc(env(safe-area-inset-top)+7rem)]"
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              >
-                <motion.button 
-                  type="button" 
-                  onClick={handleReset} 
-                  className="glass-panel flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white hover:bg-white/15 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 touch-manipulation" 
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.95 }} 
-                  aria-label="Refaire une capture"
-                  onTouchStart={() => haptic.light()}
-                >
-                  <RefreshCcw className="h-4 w-4" /> Refaire
-                </motion.button>
-                <motion.a 
-                  href={videoUrl} 
-                  download="neurobooth360.webm"
-                  onClick={() => {
-                    const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
-                    trackDownload(videoId);
-                    haptic.medium();
-                  }}
-                  className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white ${accent.bg} ${accent.glow} hover:brightness-110 active:scale-95 touch-manipulation`} 
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.95 }} 
-                  aria-label="Télécharger la vidéo"
-                  onTouchStart={() => haptic.light()}
-                >
-                  <Download className="h-4 w-4" /> Sauver
-                </motion.a>
-              </motion.div>
             )}
           </main>
 

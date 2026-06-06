@@ -18,7 +18,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  eventName: "ÉVÉNEMENT 2026",
+  eventName: "NEUROBOOTH",
   duration: 15000,
   facingMode: "user",
   resolution: "720p",
