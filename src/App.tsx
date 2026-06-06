@@ -12,11 +12,13 @@ import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
 import EmailCaptureModal from "./components/EmailCaptureModal";
 import MotorControlPanel from "./components/MotorControlPanel";
+import KioskGuard from "./components/KioskGuard";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useMotor } from "./hooks/useMotor";
+import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
@@ -39,6 +41,7 @@ export default function App() {
   const mobile = useMobileOptimizations();
   const haptic = useHapticFeedback();
   const motor = useMotor();
+  const kiosk = useKiosk();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -228,6 +231,15 @@ export default function App() {
       stream.getAudioTracks().forEach((track) => { track.enabled = next.recordAudio; });
     }
     await handleSave(next);
+
+    // If kiosk was just enabled and we're already in the app, enter it
+    if (next.kioskEnabled && !settings.kioskEnabled && !showSplash) {
+      setTimeout(() => kiosk.enter(), 300);
+    }
+    // If kiosk was disabled, exit it
+    if (!next.kioskEnabled && kiosk.active) {
+      kiosk.exit();
+    }
   };
 
   const handleEmailCapture = async (emailData: EmailCaptureData) => {
@@ -263,7 +275,13 @@ export default function App() {
       {showSplash ? (
         <SplashScreen
           settings={settings}
-          onEnter={() => setShowSplash(false)}
+          onEnter={() => {
+            setShowSplash(false);
+            if (settings.kioskEnabled) {
+              // Must be triggered by gesture, setTimeout allows state flush first
+              setTimeout(() => kiosk.enter(), 100);
+            }
+          }}
           onAdmin={() => {
             setShowSplash(false);
             setSettingsOpen(true);
@@ -454,6 +472,38 @@ export default function App() {
         videoUrl={uploadedUrl || videoUrl}
       />
       
+      {/* Kiosk guard — blocks navigation, shows exit PIN prompt */}
+      <KioskGuard
+        kioskState={kiosk}
+        adminPin={settings.kioskExitPin || settings.adminPin}
+        onAdminAccess={() => {
+          // PIN validated — open settings directly, kiosk stays active
+          // Admin can disable kiosk from within settings if needed
+          setSettingsOpen(true);
+          haptic.medium();
+        }}
+        onReEnterFullscreen={() => kiosk.enter()}
+      />
+
+      {/* iOS kiosk install hint */}
+      {settings.kioskEnabled && kiosk.installRequired && !showSplash && (
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-[198] mx-4">
+          <motion.div
+            className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 backdrop-blur-xl"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
+            <p className="text-[12px] font-bold text-amber-300">
+              Mode kiosque complet sur iOS
+            </p>
+            <p className="mt-0.5 text-[11px] text-amber-200/60">
+              Appuyez sur <span className="font-mono">Partager →</span> puis{" "}
+              <span className="font-mono">"Sur l'écran d'accueil"</span> pour activer le plein écran.
+            </p>
+          </motion.div>
+        </div>
+      )}
+
       {/* Composants PWA */}
       <PWAInstallPrompt />
       <PWAUpdatePrompt />
