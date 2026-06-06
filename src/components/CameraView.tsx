@@ -1,5 +1,5 @@
 import { RefObject } from "react";
-import { Camera, Radio, RefreshCw, Sparkles, Maximize2, Minimize2 } from "lucide-react";
+import { Camera, Radio, RefreshCw, Sparkles, Maximize2, Minimize2, SwitchCamera } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 interface CameraViewProps {
@@ -13,6 +13,8 @@ interface CameraViewProps {
   hidden: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onSwitchCamera?: () => void;
+  facingMode?: "user" | "environment";
 }
 
 export default function CameraView({
@@ -25,6 +27,8 @@ export default function CameraView({
   hidden,
   isFullscreen,
   onToggleFullscreen,
+  onSwitchCamera,
+  facingMode = "user",
 }: CameraViewProps) {
   const countdownLabel = countdown === 0 ? "GO" : countdown;
 
@@ -67,6 +71,19 @@ export default function CameraView({
               {isRecording ? "REC" : "LIVE"}
             </span>
           </div>
+          
+          {onSwitchCamera && !isRecording && (
+            <motion.button
+              type="button"
+              onClick={onSwitchCamera}
+              className="glass-panel grid min-h-10 min-w-10 shrink-0 place-items-center rounded-full text-white transition-all hover:bg-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label={facingMode === "user" ? "Passer à la caméra arrière" : "Passer à la caméra avant"}
+            >
+              <SwitchCamera className="h-[18px] w-[18px]" />
+            </motion.button>
+          )}
           
           <motion.button
             type="button"
