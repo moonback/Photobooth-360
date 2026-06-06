@@ -364,16 +364,7 @@ export default function KioskGuard({
                 </motion.button>
               </div>
 
-              {/* Confirm */}
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={handlePinSubmit}
-                disabled={pinInput.length === 0}
-                className="flex h-[3.25rem] w-full items-center justify-center rounded-xl bg-indigo-500 text-[14px] font-black text-white shadow-[0_0_24px_rgba(99,102,241,0.4)] disabled:opacity-40 touch-manipulation"
-              >
-                Confirmer
-              </motion.button>
+              
             </motion.div>
           </motion.div>
         )}
