@@ -445,14 +445,18 @@ export default function App() {
       {/* Kiosk guard — blocks navigation, shows exit PIN prompt */}
       <KioskGuard
         kioskState={kiosk}
-        adminPin={settings.kioskExitPin || settings.adminPin}
+        adminPin={settings.adminPin}
         onAdminAccess={() => {
-          // PIN validated — open settings directly, kiosk stays active
-          // Admin can disable kiosk from within settings if needed
           setSettingsOpen(true);
           haptic.medium();
         }}
         onReEnterFullscreen={() => kiosk.enter()}
+        onExitKiosk={async () => {
+          // Disable kiosk in settings and exit
+          await handleSave({ ...settings, kioskEnabled: false });
+          kiosk.exit();
+          haptic.medium();
+        }}
       />
 
       {/* iOS kiosk install hint */}

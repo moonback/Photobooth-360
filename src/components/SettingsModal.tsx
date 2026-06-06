@@ -14,7 +14,6 @@ export interface AppSettings {
   countdownSeconds: number;
   accentColor: "indigo" | "rose" | "amber" | "emerald" | "cyan";
   recordAudio: boolean;
-  adminPin: string;
   logoUrl?: string;
   emailCaptureEnabled: boolean;
   emailSendEnabled: boolean;
@@ -37,8 +36,8 @@ export interface AppSettings {
   motorSyncDelay: number;
   // Kiosk mode
   kioskEnabled: boolean;
-  /** PIN to exit kiosk mode (defaults to adminPin if empty) */
-  kioskExitPin: string;
+  /** PIN admin — used to access settings via the secret gesture */
+  adminPin: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -49,7 +48,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   countdownSeconds: 3,
   accentColor: "indigo",
   recordAudio: false,
-  adminPin: "1234",
   logoUrl: "",
   emailCaptureEnabled: true,
   emailSendEnabled: true,
@@ -62,7 +60,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   motorSyncMode: "ack",
   motorSyncDelay: 500,
   kioskEnabled: false,
-  kioskExitPin: "",
+  adminPin: "1234",
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -317,19 +315,9 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   </div>
                 </Card>
 
-                {/* Audio & PIN — inline sur mobile */}
-                <Card icon={draft.recordAudio ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />} title="Audio & Sécurité">
+                {/* Audio */}
+                <Card icon={draft.recordAudio ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />} title="Audio">
                   <Toggle checked={draft.recordAudio} onChange={() => update("recordAudio", !draft.recordAudio)} label="Enregistrer le micro" />
-                  <SectionLabel>PIN administrateur</SectionLabel>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neuro-muted" />
-                    <input
-                      value={draft.adminPin}
-                      onChange={(e) => update("adminPin", e.target.value)}
-                      inputMode="numeric"
-                      className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-[14px] text-white"
-                    />
-                  </div>
                 </Card>
 
                 {/* Email marketing */}
@@ -541,17 +529,17 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                           className="overflow-hidden"
                         >
                           <div className="space-y-3 pt-1">
-                            <SectionLabel>PIN de sortie kiosque</SectionLabel>
+                            <SectionLabel>Code PIN d'accès admin</SectionLabel>
                             <p className="text-[11px] text-white/40 -mt-1">
-                              Laisser vide pour utiliser le PIN admin. Accès par 5 taps rapides sur la barre de statut.
+                              Requis pour accéder aux réglages via le geste secret (5 taps en haut au centre).
                             </p>
                             <div className="relative">
                               <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neuro-muted" />
                               <input
-                                value={draft.kioskExitPin}
-                                onChange={(e) => update("kioskExitPin", e.target.value)}
+                                value={draft.adminPin}
+                                onChange={(e) => update("adminPin", e.target.value)}
                                 inputMode="numeric"
-                                placeholder={`PIN admin (${draft.adminPin || "vide"})`}
+                                placeholder="1234"
                                 className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-[14px] text-white placeholder:text-zinc-600"
                               />
                             </div>
