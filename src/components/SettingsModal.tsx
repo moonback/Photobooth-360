@@ -143,13 +143,20 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   };
 
   return (
-    <AnimatePresence>
-      {showAnalytics && <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />}
-      
-      {isOpen && (
+    <>
+      <AnimatePresence>
+        {showAnalytics && (
+          <Fragment key="analytics-dashboard">
+            <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+          </Fragment>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isOpen && (
         <motion.div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 p-0 backdrop-blur-xl sm:items-center sm:p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div
-            className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-neuro-bg shadow-2xl sm:rounded-[1.5rem]"
+            className="flex max-h-[92dvh] w-full max-w-7xl flex-col overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-neuro-bg shadow-2xl sm:rounded-[1.5rem]"
             initial={{ y: 40, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 24, opacity: 0, scale: 0.98 }}
@@ -257,6 +264,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   );
 }

@@ -47,6 +47,12 @@
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  
+  /* Variables pour safe-area-inset */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  --sar: env(safe-area-inset-right);
 }
 
 html,
@@ -58,6 +64,43 @@ body,
   margin: 0;
   overflow: hidden;
   background: #09090B;
+  
+  /* Optimisations mobile */
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Optimisations spécifiques iOS */
+.is-ios {
+  -webkit-overflow-scrolling: touch;
+}
+
+.is-ios input,
+.is-ios textarea,
+.is-ios select {
+  font-size: 16px !important; /* Empêche le zoom automatique sur focus */
+}
+
+/* Optimisations spécifiques Android */
+.is-android {
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+}
+
+/* Styles pour appareils mobiles */
+.is-mobile button,
+.is-mobile a {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.is-mobile * {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -71,6 +114,17 @@ textarea {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-user-drag: none;
+}
+
+/* Amélioration des zones tactiles sur mobile */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
 
 button:focus-visible,
@@ -80,6 +134,36 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #6366F1;
   outline-offset: 3px;
+}
+
+/* Touch manipulation pour meilleure réactivité */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Désactiver la sélection de texte sur éléments interactifs */
+button,
+a,
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Améliorer le scroll momentum sur iOS */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Empêcher le rebond sur iOS */
+.no-bounce {
+  overscroll-behavior: contain;
+}
+
+/* Désactiver le zoom sur double tap */
+* {
+  touch-action: manipulation;
 }
 
 .safe-top { padding-top: env(safe-area-inset-top); }

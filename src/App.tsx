@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, TouchEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Camera, Download, GalleryHorizontal, Maximize2, Minimize2, RefreshCcw, Settings } from "lucide-react";
 import { motion } from "motion/react";
@@ -14,10 +14,12 @@ import ShareSection from "./components/ShareSection";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { LiveStatsBadge } from "./components/LiveStatsBadge";
+import { SwipeIndicator } from "./components/SwipeIndicator";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
+import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 
@@ -32,6 +34,8 @@ const ACCENT: Record<AppSettings["accentColor"], { bg: string; text: string; bor
 export default function App() {
   const navigate = useNavigate();
   const { settings, loadState, handleSave } = useSettings();
+  const mobile = useMobileOptimizations();
+  const haptic = useHapticFeedback();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -42,7 +46,9 @@ export default function App() {
   const [showFlash, setShowFlash] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentVideoId, setCurrentVideoId] = useState("");
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const accent = ACCENT[settings.accentColor];
   const isReviewing = Boolean(videoUrl);
@@ -59,6 +65,9 @@ export default function App() {
     onRecordingStart: () => {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
+      
+      // Feedback haptique sur mobile
+      haptic.medium();
     },
     onRecordingComplete: (url) => {
       stream?.getAudioTracks().forEach((track) => { track.enabled = false; });
@@ -68,6 +77,7 @@ export default function App() {
 
       // Générer un ID unique pour la vidéo
       const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setCurrentVideoId(videoId);
       
       // Tracker la capture
       trackCapture(videoId, {
@@ -75,6 +85,9 @@ export default function App() {
         resolution: settings.resolution,
         facingMode: settings.facingMode,
       });
+      
+      // Feedback haptique de succès
+      haptic.success();
 
       if (cloudEnabled) {
         upload(url).then((publicUrl) => {
@@ -155,7 +168,11 @@ export default function App() {
     stream?.getAudioTracks().forEach((track) => { track.enabled = settings.recordAudio; });
     setVideoUrl("");
     setShareId("");
+    setCurrentVideoId("");
     setIsFullscreen(false);
+    
+    // Feedback haptique
+    haptic.light();
   };
 
   const handleSaveSettings = async (next: AppSettings) => {
@@ -163,6 +180,44 @@ export default function App() {
       stream.getAudioTracks().forEach((track) => { track.enabled = next.recordAudio; });
     }
     await handleSave(next);
+  };
+
+  // Gestion des gestes de swipe pour mobile
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    if (!isReviewing || isRecording) return;
+    
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now()
+    };
+  };
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current || !isReviewing || gallery.length <= 1) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = Math.abs(touch.clientY - touchStartRef.current.y);
+    const deltaTime = Date.now() - touchStartRef.current.time;
+
+    // Swipe horizontal rapide (< 300ms) avec mouvement > 50px
+    if (deltaTime < 300 && Math.abs(deltaX) > 50 && deltaY < 30) {
+      const currentIndex = gallery.indexOf(videoUrl);
+      
+      if (deltaX > 0 && currentIndex > 0) {
+        // Swipe vers la droite - vidéo précédente
+        setVideoUrl(gallery[currentIndex - 1]);
+        haptic.selection();
+      } else if (deltaX < 0 && currentIndex < gallery.length - 1) {
+        // Swipe vers la gauche - vidéo suivante
+        setVideoUrl(gallery[currentIndex + 1]);
+        haptic.selection();
+      }
+    }
+
+    touchStartRef.current = null;
   };
 
   if (loadState === "loading") {
@@ -177,7 +232,11 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none">
+    <div 
+      className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none touch-none"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {showSplash ? (
         <SplashScreen
           settings={settings}
@@ -191,6 +250,13 @@ export default function App() {
         <>
           {/* Badge de statistiques live */}
           <LiveStatsBadge show={!isReviewing && !isFullscreen} />
+          
+          {/* Indicateur de swipe pour naviguer entre vidéos */}
+          <SwipeIndicator 
+            show={isReviewing && !isFullscreen} 
+            currentIndex={gallery.indexOf(videoUrl)}
+            totalCount={gallery.length}
+          />
           
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
@@ -237,10 +303,11 @@ export default function App() {
                 <motion.button 
                   type="button" 
                   onClick={handleReset} 
-                  className="glass-panel flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white hover:bg-white/15 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)]" 
+                  className="glass-panel flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white hover:bg-white/15 hover:shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-95 touch-manipulation" 
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.95 }} 
                   aria-label="Refaire une capture"
+                  onTouchStart={() => haptic.light()}
                 >
                   <RefreshCcw className="h-4 w-4" /> Refaire
                 </motion.button>
@@ -248,13 +315,15 @@ export default function App() {
                   href={videoUrl} 
                   download="neurobooth360.webm"
                   onClick={() => {
-                    const videoId = shareId || videoUrl || `video_${Date.now()}`;
+                    const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
                     trackDownload(videoId);
+                    haptic.medium();
                   }}
-                  className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white ${accent.bg} ${accent.glow} hover:brightness-110`} 
+                  className={`flex min-h-11 items-center gap-1.5 rounded-full px-4 text-[13px] font-bold text-white ${accent.bg} ${accent.glow} hover:brightness-110 active:scale-95 touch-manipulation`} 
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.95 }} 
                   aria-label="Télécharger la vidéo"
+                  onTouchStart={() => haptic.light()}
                 >
                   <Download className="h-4 w-4" /> Sauver
                 </motion.a>
@@ -264,13 +333,51 @@ export default function App() {
 
           {!isFullscreen && (
             <nav className="glass-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-50 grid min-h-14 grid-cols-3 rounded-[1.25rem] p-1 md:left-1/2 md:max-w-xs md:-translate-x-1/2" aria-label="Navigation principale">
-              <button type="button" onClick={isReviewing ? handleReset : undefined} className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} aria-label="Capture">
+              <button 
+                type="button" 
+                onClick={isReviewing ? handleReset : undefined} 
+                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 touch-manipulation ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} 
+                aria-label="Capture"
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.95)';
+                  haptic.light();
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
                 <Camera className="h-[18px] w-[18px]" /> Capture
               </button>
-              <button type="button" onClick={() => navigate("/gallery")} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Galerie">
+              <button 
+                type="button" 
+                onClick={() => navigate("/gallery")} 
+                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
+                aria-label="Galerie"
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.95)';
+                  haptic.light();
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
                 <GalleryHorizontal className="h-[18px] w-[18px]" /> Galerie
               </button>
-              <button type="button" onClick={() => setShowPinModal(true)} className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95" aria-label="Réglages">
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowPinModal(true);
+                  haptic.light();
+                }} 
+                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
+                aria-label="Réglages"
+                onTouchStart={(e) => {
+                  e.currentTarget.style.transform = 'scale(0.95)';
+                }}
+                onTouchEnd={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
                 <Settings className="h-[18px] w-[18px]" /> Réglages
               </button>
             </nav>

@@ -187,7 +187,18 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT * FROM event_stats WHERE event_id = p_event_id;
+  SELECT
+    s.total_captures,
+    s.total_shares,
+    s.total_downloads,
+    s.total_views,
+    s.unique_videos,
+    s.first_activity,
+    s.last_activity,
+    s.activity_last_hour,
+    s.activity_last_24h
+  FROM event_stats s
+  WHERE s.event_id = p_event_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
