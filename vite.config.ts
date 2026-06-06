@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.png', 'header-bg.png', 'icon-192.png', 'icon-512.png', 'song/*.mp3'],
+        includeAssets: ['logo.png', 'header-bg.png', 'icon-192.png', 'icon-512.png'],
         manifest: {
           name: 'NeuroBooth 360',
           short_name: 'NeuroBooth',
@@ -58,7 +58,7 @@ export default defineConfig(() => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,mp3}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
