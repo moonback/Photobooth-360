@@ -2,10 +2,124 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
+import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: ['logo.png', 'header-bg.png', 'icon-192.png', 'icon-512.png'],
+        manifest: {
+          name: 'NeuroBooth 360',
+          short_name: 'NeuroBooth',
+          description: 'Application de photobooth 360° avec effets slow motion',
+          theme_color: '#000000',
+          background_color: '#000000',
+          display: 'standalone',
+          orientation: 'portrait',
+          icons: [
+            {
+              src: '/logo.png',
+              sizes: 'any',
+              type: 'image/png',
+              purpose: 'any maskable'
+            },
+            {
+              src: '/icon-192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any maskable'
+            },
+            {
+              src: '/icon-512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ],
+          shortcuts: [
+            {
+              name: 'Nouvelle capture',
+              short_name: 'Capturer',
+              description: 'Démarrer une nouvelle capture 360°',
+              url: '/',
+              icons: [{src: '/logo.png', sizes: '192x192'}]
+            },
+            {
+              name: 'Galerie',
+              short_name: 'Galerie',
+              description: 'Voir les captures sauvegardées',
+              url: '/gallery',
+              icons: [{src: '/logo.png', sizes: '192x192'}]
+            }
+          ]
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 an
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
+              urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'supabase-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 7 // 1 semaine
+                },
+                networkTimeoutSeconds: 10
+              }
+            },
+            {
+              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images-cache',
+                expiration: {
+                  maxEntries: 60,
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+                }
+              }
+            },
+            {
+              urlPattern: /\.(?:mp4|webm)$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'videos-cache',
+                expiration: {
+                  maxEntries: 20,
+                  maxAgeSeconds: 60 * 60 * 24 * 7 // 7 jours
+                },
+                rangeRequests: true
+              }
+            }
+          ],
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module'
+        }
+      })
+    ],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
