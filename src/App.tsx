@@ -240,6 +240,14 @@ export default function App() {
     }
   };
 
+  const handleSwitchCamera = () => {
+    if (isRecording || countdown !== null) return; // Ne pas changer pendant l'enregistrement ou le compte à rebours
+    
+    const newFacingMode = settings.facingMode === "user" ? "environment" : "user";
+    handleSave({ ...settings, facingMode: newFacingMode });
+    haptic.light();
+  };
+
   const handleEmailCapture = async (emailData: EmailCaptureData) => {
     const videoToSend = uploadedUrl || videoUrl;
     const videoIdToUse = currentVideoId || shareId || `video_${Date.now()}`;
@@ -300,6 +308,8 @@ export default function App() {
                   hidden={isReviewing} 
                   isFullscreen={isFullscreen}
                   onToggleFullscreen={() => setIsFullscreen((value) => !value)}
+                  onSwitchCamera={handleSwitchCamera}
+                  facingMode={settings.facingMode}
                 />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
 
