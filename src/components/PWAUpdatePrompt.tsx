@@ -22,7 +22,7 @@ export function PWAUpdatePrompt() {
             <RefreshCw className="w-6 h-6 text-white" />
           </div>
           
-          <div className="flex-1">
+          {/* <div className="flex-1">
             {offlineReady && !needRefresh ? (
               <>
                 <h3 className="text-white font-semibold text-lg mb-1">
@@ -50,7 +50,7 @@ export function PWAUpdatePrompt() {
                 </button>
               </>
             )}
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
