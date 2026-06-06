@@ -82,7 +82,7 @@ Traitement vidéo directement dans le navigateur sans serveur de rendu.
 - [x] Slow-motion (0.5× / 0.25×) via playback rate
 - [ ] **Effet Boomerang** — boucle aller-retour style Instagram
 - [ ] **Incrustation logo HD** — compositing PNG sur la vidéo finale (FFmpeg.wasm)
-- [ ] **Intro / Outro animés** — jingle de marque en pré/post-roll
+- [x] **Intro / Outro animés** — jingle de marque en pré/post-roll modifiable dans les réglages
 - [ ] **Recadrage automatique** — export 16:9, 9:16, 1:1 selon destination
 - [ ] **Musique de fond** — bibliothèque de pistes mixées sur la vidéo (muxing FFmpeg.wasm)
 - [ ] **Filtres couleur** — LUT basiques (noir & blanc, sépia, vintage, vivid)

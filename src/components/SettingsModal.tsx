@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, RotateCw, Type, Upload, Video, X, BarChart3, ChevronRight, RefreshCw, Smartphone } from "lucide-react";
+import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, RotateCw, Type, Upload, Video, X, BarChart3, ChevronRight, RefreshCw, Smartphone, Film } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
+import { uploadJingle } from "../lib/uploadJingle";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import EmailListDashboard from "./EmailListDashboard";
@@ -38,6 +39,13 @@ export interface AppSettings {
   kioskEnabled: boolean;
   /** PIN admin — used to access settings via the secret gesture */
   adminPin: string;
+  // Intro/Outro
+  /** URL of intro video/image jingle (pre-roll) */
+  introUrl?: string;
+  /** URL of outro video/image jingle (post-roll) */
+  outroUrl?: string;
+  /** Enable intro/outro composition */
+  jingleEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -61,6 +69,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   motorSyncDelay: 500,
   kioskEnabled: true,
   adminPin: "1234",
+  jingleEnabled: false,
+  introUrl: "",
+  outroUrl: "",
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -156,15 +167,25 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [logoState, setLogoState] = useState<LogoUploadState>("idle");
   const [logoError, setLogoError] = useState("");
+  const [introState, setIntroState] = useState<LogoUploadState>("idle");
+  const [introError, setIntroError] = useState("");
+  const [outroState, setOutroState] = useState<LogoUploadState>("idle");
+  const [outroError, setOutroError] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showEmailList, setShowEmailList] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const introRef = useRef<HTMLInputElement>(null);
+  const outroRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setDraft(settings);
       setLogoState("idle");
       setLogoError("");
+      setIntroState("idle");
+      setIntroError("");
+      setOutroState("idle");
+      setOutroError("");
     }
   }, [isOpen, settings]);
 
@@ -183,6 +204,36 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     } catch {
       setLogoState("error");
       setLogoError("Import impossible. Vérifiez Supabase.");
+    }
+  };
+
+  const handleIntro = async (file?: File) => {
+    if (!file) return;
+    setIntroState("uploading");
+    setIntroError("");
+    try {
+      const result = await uploadJingle(file, "intro", () => undefined);
+      if (!result) throw new Error("not configured");
+      update("introUrl", result.publicUrl);
+      setIntroState("done");
+    } catch {
+      setIntroState("error");
+      setIntroError("Import impossible. Vérifiez Supabase.");
+    }
+  };
+
+  const handleOutro = async (file?: File) => {
+    if (!file) return;
+    setOutroState("uploading");
+    setOutroError("");
+    try {
+      const result = await uploadJingle(file, "outro", () => undefined);
+      if (!result) throw new Error("not configured");
+      update("outroUrl", result.publicUrl);
+      setOutroState("done");
+    } catch {
+      setOutroState("error");
+      setOutroError("Import impossible. Vérifiez Supabase.");
     }
   };
 
@@ -557,6 +608,108 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                                 iOS : installer l'app via "Sur l'écran d'accueil" pour le vrai plein écran.
                               </p>
                             </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </Card>
+
+                {/* Intro/Outro */}
+                <Card icon={<Film className="h-4 w-4" />} title="Intro / Outro animés">
+                  <div className="space-y-2">
+                    <Toggle
+                      checked={draft.jingleEnabled}
+                      onChange={() => update("jingleEnabled", !draft.jingleEnabled)}
+                      label="Ajouter intro/outro aux vidéos"
+                    />
+                    <AnimatePresence>
+                      {draft.jingleEnabled && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-1">
+                            {/* Intro */}
+                            <div>
+                              <SectionLabel>Intro (pré-roll)</SectionLabel>
+                              <div className="flex items-center gap-3">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                                  {draft.introUrl ? (
+                                    draft.introUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                                      <Video className="h-6 w-6 text-neuro-accent" />
+                                    ) : (
+                                      <img src={draft.introUrl} alt="Intro" className="h-full w-full object-cover" />
+                                    )
+                                  ) : (
+                                    <Film className="h-6 w-6 text-neuro-muted" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <input
+                                    ref={introRef}
+                                    type="file"
+                                    accept="video/*,image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleIntro(e.target.files?.[0])}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => introRef.current?.click()}
+                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
+                                  >
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {introState === "uploading" ? "Import…" : "Intro"}
+                                  </button>
+                                  {introError && <p className="mt-1.5 text-[11px] text-red-400">{introError}</p>}
+                                  {introState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ Intro mis à jour</p>}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Outro */}
+                            <div>
+                              <SectionLabel>Outro (post-roll)</SectionLabel>
+                              <div className="flex items-center gap-3">
+                                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                                  {draft.outroUrl ? (
+                                    draft.outroUrl.match(/\.(mp4|webm|mov)$/i) ? (
+                                      <Video className="h-6 w-6 text-neuro-accent" />
+                                    ) : (
+                                      <img src={draft.outroUrl} alt="Outro" className="h-full w-full object-cover" />
+                                    )
+                                  ) : (
+                                    <Film className="h-6 w-6 text-neuro-muted" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <input
+                                    ref={outroRef}
+                                    type="file"
+                                    accept="video/*,image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleOutro(e.target.files?.[0])}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => outroRef.current?.click()}
+                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
+                                  >
+                                    <Upload className="h-3.5 w-3.5" />
+                                    {outroState === "uploading" ? "Import…" : "Outro"}
+                                  </button>
+                                  {outroError && <p className="mt-1.5 text-[11px] text-red-400">{outroError}</p>}
+                                  {outroState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ Outro mis à jour</p>}
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
+                              Les jingles sont ajoutés automatiquement en pré/post-roll à chaque vidéo. Formats acceptés : MP4, WebM, MOV ou images fixes (JPG, PNG).
+                            </p>
                           </div>
                         </motion.div>
                       )}

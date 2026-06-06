@@ -75,6 +75,14 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 - Modal plein écran avec contrôles vidéo
 - Tri chronologique, pagination jusqu'à 1000 vidéos
 
+### 🎬 Effets Vidéo
+- **Slow-motion** : Playback à 0.5× ou 0.25×
+- **Intro/Outro animés** : Jingles de marque en pré/post-roll
+  - Upload de vidéos ou images personnalisées
+  - Composition automatique avec Canvas API
+  - Préservation de l'audio de la vidéo principale
+  - Indicateur de progression lors de la composition
+
 ---
 
 ## 🛠 Stack Technique
