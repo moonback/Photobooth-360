@@ -70,7 +70,7 @@ Transformer l'app en un produit opérable sans technicien sur site.
 - [ ] **Idle screen** — écran d'attente animé avec compteur "dernière prise il y a X min" pour attirer les invités
 - [ ] **Flux de capture guidé** — séquence d'étapes animées (approche → positionnement → compte à rebours → prise → récupération) pour une utilisation 100% autonome
 - [ ] **Panneau opérateur sécurisé** — accès via code PIN pour modifier les réglages sans quitter le mode kiosque
-- [ ] **Compteur de prises en temps réel** — statistiques live (nombre de vidéos, partages, téléchargements) accessibles à l'organisateur
+- [x] **Compteur de prises en temps réel** — statistiques live (nombre de vidéos, partages, téléchargements) accessibles à l'organisateur
 - [ ] **Support multi-langue** — FR / EN / ES / DE pour les événements internationaux
 
 ---
@@ -82,7 +82,7 @@ Données exploitables pour les organisateurs et les équipes marketing.
 - [ ] **Dashboard post-événement** — rapport PDF automatique avec nombre de prises, pics d'utilisation, taux de partage
 - [ ] **Heatmap temporelle** — visualisation de l'activité sur la timeline de l'événement
 - [ ] **Collecte opt-in** — formulaire de recueil d'email ou numéro de téléphone avant récupération de la vidéo (RGPD conforme)
-- [ ] **Intégrations marketing** — envoi automatique par email / SMS via Mailgun, Brevo ou Twilio
+- [x] **Intégrations marketing** — envoi automatique par email 
 - [ ] **Webhook événement** — notification en temps réel vers un CRM ou outil de gestion de l'événement à chaque nouvelle prise
 
 ---

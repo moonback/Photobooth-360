@@ -1,5 +1,5 @@
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, CloudUpload, Loader2, QrCode, Wifi, WifiOff, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, CloudUpload, Loader2, QrCode, Wifi, WifiOff, ChevronDown, ChevronUp, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { UploadStatus } from "../lib/uploadVideo";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +18,7 @@ interface ShareSectionProps {
   shareId: string;
   isSavingShare: boolean;
   accent: AccentStyle;
+  onOpenEmailCapture?: () => void;
 }
 
 function buildCloudShareUrl(uploadedUrl: string) {
@@ -32,6 +33,7 @@ export default function ShareSection({
   shareId,
   isSavingShare,
   accent,
+  onOpenEmailCapture,
 }: ShareSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const showLocal = !cloudEnabled || uploadStatus === "error";
@@ -201,15 +203,31 @@ export default function ShareSection({
               <QRCodeSVG value={qrValue} size={200} bgColor="#ffffff" fgColor="#09090B" level="M" includeMargin={false} />
             </motion.div>
             
-            {/* Description */}
-            <motion.p 
-              className="mt-4 max-w-[260px] text-[13px] font-medium leading-5 text-neuro-muted"
+            {/* Description et bouton email */}
+            <motion.div
+              className="mt-4 space-y-3"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              Scanne pour télécharger<br />ou choisir un effet.
-            </motion.p>
+              <p className="max-w-[260px] text-[13px] font-medium leading-5 text-neuro-muted">
+                Scanne pour télécharger<br />ou choisir un effet.
+              </p>
+              
+              {/* Bouton recevoir par email */}
+              {onOpenEmailCapture && (
+                <motion.button
+                  type="button"
+                  onClick={onOpenEmailCapture}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/5 py-3 text-sm font-bold text-white transition-all hover:border-white/30 hover:bg-white/10 active:scale-[0.98] touch-manipulation"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Mail className="h-4 w-4" />
+                  Recevoir par email
+                </motion.button>
+              )}
+            </motion.div>
           </motion.div>
         )}
 

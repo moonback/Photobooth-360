@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Camera, Check, Clock, Image, Lock, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X, BarChart3, ChevronRight } from "lucide-react";
+import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, Type, Upload, Video, X, BarChart3, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import EmailListDashboard from "./EmailListDashboard";
 
 export interface AppSettings {
   eventName: string;
@@ -15,6 +16,8 @@ export interface AppSettings {
   recordAudio: boolean;
   adminPin: string;
   logoUrl?: string;
+  emailCaptureEnabled: boolean;
+  emailSendEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -27,6 +30,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   recordAudio: false,
   adminPin: "1234",
   logoUrl: "",
+  emailCaptureEnabled: true,
+  emailSendEnabled: true,
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -123,6 +128,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [logoState, setLogoState] = useState<LogoUploadState>("idle");
   const [logoError, setLogoError] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showEmailList, setShowEmailList] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -162,6 +168,12 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
           </Fragment>
         )}
       </AnimatePresence>
+
+      <EmailListDashboard
+        isOpen={showEmailList}
+        onClose={() => setShowEmailList(false)}
+        eventId={draft.eventName || "default"}
+      />
 
       <AnimatePresence>
         {isOpen && (
@@ -289,6 +301,44 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   </div>
                 </Card>
 
+                {/* Email marketing */}
+                <Card icon={<Mail className="h-4 w-4" />} title="Email marketing">
+                  <div className="space-y-2">
+                    <Toggle
+                      checked={draft.emailCaptureEnabled}
+                      onChange={() => update("emailCaptureEnabled", !draft.emailCaptureEnabled)}
+                      label="Collecter les emails"
+                    />
+                    <AnimatePresence>
+                      {draft.emailCaptureEnabled && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <Toggle
+                            checked={draft.emailSendEnabled}
+                            onChange={() => update("emailSendEnabled", !draft.emailSendEnabled)}
+                            label="Envoi automatique"
+                          />
+                          {draft.emailSendEnabled && (
+                            <p className="mt-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
+                              Nécessite la Supabase Edge Function <br /><span className="font-mono opacity-70">send-video-email</span> + clé Resend.
+                            </p>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    {!draft.emailCaptureEnabled && (
+                      <p className="text-[12px] text-neuro-muted">
+                        Le bouton "Recevoir par email" sera masqué après la capture.
+                      </p>
+                    )}
+                  </div>
+                </Card>
+
                 {/* Accent — compact row */}
                 <Card icon={<Palette className="h-4 w-4" />} title="Couleur d'accent">
                   <div className="flex gap-3 justify-between">
@@ -309,7 +359,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   </div>
                 </Card>
 
-                {/* Actions — Reset + Stats côte à côte */}
+                {/* Actions — Reset + Stats + Emails */}
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
@@ -334,6 +384,25 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                       className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-[13px] font-bold text-neuro-muted/40 cursor-not-allowed"
                     >
                       <BarChart3 className="h-4 w-4" /> Stats (off)
+                    </button>
+                  )}
+
+                  {/* Bouton emails sur toute la largeur */}
+                  {SUPABASE_CONFIGURED ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailList(true)}
+                      className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 text-[13px] font-bold text-white shadow-[0_0_20px_rgba(99,102,241,0.35)] active:scale-[0.97] touch-manipulation"
+                    >
+                      <Mail className="h-4 w-4" /> Emails collectés
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 text-[13px] font-bold text-neuro-muted/40 cursor-not-allowed"
+                    >
+                      <Mail className="h-4 w-4" /> Emails (off)
                     </button>
                   )}
                 </div>

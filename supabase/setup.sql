@@ -206,7 +206,57 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION get_event_stats(TEXT) TO anon, authenticated;
 
 -- -----------------------------------------------------------------------------
--- 8. Vérification (exécuter séparément)
+-- 8. Table email_captures (collecte d'emails et envoi automatique)
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS email_captures (
+  id BIGSERIAL PRIMARY KEY,
+  event_id TEXT NOT NULL DEFAULT 'default',
+  video_id TEXT NOT NULL,
+  video_url TEXT NOT NULL,
+  email TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  phone TEXT,
+  consent_marketing BOOLEAN DEFAULT false,
+  email_sent BOOLEAN DEFAULT false,
+  email_sent_at TIMESTAMPTZ,
+  email_error TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour recherche rapide
+CREATE INDEX IF NOT EXISTS idx_email_captures_event_id ON email_captures(event_id);
+CREATE INDEX IF NOT EXISTS idx_email_captures_email ON email_captures(email);
+CREATE INDEX IF NOT EXISTS idx_email_captures_created_at ON email_captures(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_email_captures_email_sent ON email_captures(email_sent);
+
+-- RLS
+ALTER TABLE email_captures ENABLE ROW LEVEL SECURITY;
+
+-- Policies (WITH CHECK (true) = pas de restriction sur les données insérées)
+CREATE POLICY "Allow public insert — email_captures"
+  ON email_captures FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Allow public select — email_captures"
+  ON email_captures FOR SELECT
+  USING (true);
+
+CREATE POLICY "Allow public update — email_captures"
+  ON email_captures FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
+
+-- Grants explicites sur la table et la séquence
+GRANT ALL ON email_captures TO anon;
+GRANT ALL ON email_captures TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE email_captures_id_seq TO anon;
+GRANT USAGE, SELECT ON SEQUENCE email_captures_id_seq TO authenticated;
+
+-- -----------------------------------------------------------------------------
+-- 9. Vérification (exécuter séparément)
 -- -----------------------------------------------------------------------------
 -- SELECT id, name, public FROM storage.buckets WHERE id IN ('photobooth-videos', 'photobooth-logos');
 -- SELECT id, settings, updated_at FROM event_settings;

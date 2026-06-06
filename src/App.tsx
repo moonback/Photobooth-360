@@ -10,6 +10,7 @@ import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
+import EmailCaptureModal from "./components/EmailCaptureModal";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
@@ -19,6 +20,8 @@ import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
+import { saveEmailCapture } from "./lib/emailCapture";
+import type { EmailCaptureData } from "./components/EmailCaptureModal";
 
 const ACCENT: Record<AppSettings["accentColor"], { bg: string; text: string; border: string; glow: string }> = {
   indigo: { bg: "bg-indigo-500", text: "text-indigo-300", border: "border-indigo-500", glow: "shadow-[0_0_30px_rgba(99,102,241,0.5)]" },
@@ -36,6 +39,7 @@ export default function App() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
   const [shareId, setShareId] = useState("");
@@ -178,6 +182,23 @@ export default function App() {
     await handleSave(next);
   };
 
+  const handleEmailCapture = async (emailData: EmailCaptureData) => {
+    const videoToSend = uploadedUrl || videoUrl;
+    const videoIdToUse = currentVideoId || shareId || `video_${Date.now()}`;
+
+    await saveEmailCapture({
+      eventId: settings.eventName || "default",
+      videoId: videoIdToUse,
+      videoUrl: videoToSend,
+      emailData,
+      sendEmail: settings.emailSendEnabled,
+    });
+
+    // Tracker l'action
+    trackShare(videoIdToUse, 'email');
+    haptic.success();
+  };
+
   if (loadState === "loading") {
     return (
       <div className="fixed inset-0 grid place-items-center bg-neuro-bg text-neuro-muted">
@@ -254,7 +275,19 @@ export default function App() {
 
             {isReviewing && (
               <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.9rem)] z-30 md:bottom-0">
-                <ShareSection cloudEnabled={cloudEnabled} uploadStatus={uploadStatus} uploadProgress={uploadProgress} uploadedUrl={uploadedUrl} shareId={shareId} isSavingShare={isSavingShare} accent={accent} />
+                <ShareSection 
+                  cloudEnabled={cloudEnabled} 
+                  uploadStatus={uploadStatus} 
+                  uploadProgress={uploadProgress} 
+                  uploadedUrl={uploadedUrl} 
+                  shareId={shareId} 
+                  isSavingShare={isSavingShare} 
+                  accent={accent}
+                  onOpenEmailCapture={settings.emailCaptureEnabled ? () => {
+                    setShowEmailModal(true);
+                    haptic.light();
+                  } : undefined}
+                />
                 
                 {/* Boutons Refaire/Sauver repositionnés sous le QR code */}
                 <motion.div 
@@ -358,6 +391,14 @@ export default function App() {
 
       {showPinModal && <PinModal adminPin={settings.adminPin} onUnlock={() => { setShowPinModal(false); setSettingsOpen(true); }} onCancel={() => setShowPinModal(false)} />}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
+      
+      {/* Modal email capture */}
+      <EmailCaptureModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onSubmit={handleEmailCapture}
+        videoUrl={uploadedUrl || videoUrl}
+      />
       
       {/* Composants PWA */}
       <PWAInstallPrompt />
