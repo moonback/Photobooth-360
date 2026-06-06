@@ -11,6 +11,8 @@ import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useSettings } from "./hooks/useSettings";
@@ -259,6 +261,10 @@ export default function App() {
 
       {showPinModal && <PinModal adminPin={settings.adminPin} onUnlock={() => { setShowPinModal(false); setSettingsOpen(true); }} onCancel={() => setShowPinModal(false)} />}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
+      
+      {/* Composants PWA */}
+      <PWAInstallPrompt />
+      <PWAUpdatePrompt />
     </div>
   );
 }
