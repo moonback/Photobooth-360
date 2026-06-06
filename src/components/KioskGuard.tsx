@@ -113,12 +113,19 @@ export default function KioskGuard({
       }
     };
 
+    let lastTouchTime = 0;
+
     const onTouch = (e: TouchEvent) => {
+      lastTouchTime = Date.now();
       const touch = e.touches[0];
       if (touch) handlePoint(touch.clientX, touch.clientY);
     };
 
-    const onMouse = (e: MouseEvent) => handlePoint(e.clientX, e.clientY);
+    // Ignore mousedown fired right after a touchstart (same physical tap)
+    const onMouse = (e: MouseEvent) => {
+      if (Date.now() - lastTouchTime < 500) return;
+      handlePoint(e.clientX, e.clientY);
+    };
 
     document.addEventListener("touchstart", onTouch, { passive: true, capture: true });
     document.addEventListener("mousedown",  onMouse, { capture: true });
@@ -192,22 +199,40 @@ export default function KioskGuard({
           {tapFeedback > 0 && (
             <motion.div
               className="absolute top-2 left-1/2 -translate-x-1/2 flex gap-1.5"
-              initial={{ opacity: 0, y: -4, scale: 0.8 }}
+              initial={{ opacity: 0, y: -4, scale: 0.85 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: 0.18 }}
             >
-              {Array.from({ length: EXIT_TAPS }).map((_, i) => (
+              {/* 5 puces indigo → réglages */}
+              {Array.from({ length: ADMIN_TAPS }).map((_, i) => (
                 <motion.div
-                  key={i}
-                  className={`h-2 w-2 rounded-full ${
-                    i < tapFeedback
-                      ? i < ADMIN_TAPS ? "bg-indigo-400" : "bg-red-400"
-                      : "bg-white/20"
+                  key={`admin-${i}`}
+                  className={`h-2 w-2 rounded-full transition-colors duration-100 ${
+                    i < tapFeedback ? "bg-indigo-400" : "bg-white/20"
                   }`}
-                  animate={i === tapFeedback - 1 ? { scale: [1, 1.6, 1] } : {}}
-                  transition={{ duration: 0.18 }}
+                  animate={i === tapFeedback - 1 ? { scale: [1, 1.7, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.2 }}
                 />
               ))}
+
+              {/* Séparateur */}
+              <div className="w-px self-stretch bg-white/20 mx-0.5" />
+
+              {/* 5 puces rouge → exit kiosque */}
+              {Array.from({ length: EXIT_TAPS - ADMIN_TAPS }).map((_, i) => {
+                const globalIndex = ADMIN_TAPS + i;
+                return (
+                  <motion.div
+                    key={`exit-${i}`}
+                    className={`h-2 w-2 rounded-full transition-colors duration-100 ${
+                      globalIndex < tapFeedback ? "bg-red-400" : "bg-white/20"
+                    }`}
+                    animate={globalIndex === tapFeedback - 1 ? { scale: [1, 1.7, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.2 }}
+                  />
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
