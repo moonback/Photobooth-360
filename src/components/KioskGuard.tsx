@@ -169,10 +169,10 @@ export default function KioskGuard({
 
   return (
     <>
-      {/* ── Kiosk status badges ──────────────────────────────────────── */}
+      {/* ── Kiosk status badges — below top bar, left side ── */}
       {kioskState.active && (
         <motion.div
-          className="pointer-events-none fixed left-3 top-[calc(env(safe-area-inset-top)+0.6rem)] z-[199] flex items-center gap-1.5"
+          className="pointer-events-none fixed left-2 top-[calc(env(safe-area-inset-top)+2.6rem)] z-[199] flex items-center gap-1"
           initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
         >
