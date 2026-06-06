@@ -91,8 +91,8 @@ Données exploitables pour les organisateurs et les équipes marketing.
 
 Connecter l'app à l'écosystème physique du NeuroBooth 360.
 
-- [ ] **Contrôle motorisé du plateau tournant** — API WebSerial / WebUSB pour piloter le moteur de rotation (vitesse, sens, nombre de tours) directement depuis l'interface
-- [ ] **Synchronisation déclenchement / rotation** — lancer l'enregistrement exactement en phase avec le départ du plateau pour une capture 360° parfaite
+- [x] **Contrôle motorisé du plateau tournant** — API WebSerial / WebUSB pour piloter le moteur de rotation (vitesse, sens, nombre de tours) directement depuis l'interface
+- [x] **Synchronisation déclenchement / rotation** — lancer l'enregistrement exactement en phase avec le départ du plateau pour une capture 360° parfaite
 - [ ] **Impression instantanée** — intégration avec des imprimantes photo (DNP, HiTi) via API d'impression navigateur ou backend léger
 - [ ] **Affichage miroir** — mode "mirror display" sur un second écran (HDMI) pour que le sujet se voit en direct pendant la rotation
 - [ ] **API publique** — endpoints REST pour intégrer le NeuroBooth dans des plateformes tierces (gestionnaires d'événements, plateformes SaaS)
