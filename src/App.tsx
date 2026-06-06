@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, TouchEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Camera, Download, GalleryHorizontal, Maximize2, Minimize2, RefreshCcw, Settings } from "lucide-react";
+import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
 
 import SplashScreen from "./components/SplashScreen";
@@ -320,19 +320,14 @@ export default function App() {
           </main>
 
           {!isFullscreen && (
-            <nav className="glass-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-50 grid min-h-14 grid-cols-3 rounded-[1.25rem] p-1 md:left-1/2 md:max-w-xs md:-translate-x-1/2" aria-label="Navigation principale">
+            <nav className="glass-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-50 grid min-h-14 grid-cols-2 rounded-[1.25rem] p-1 md:left-1/2 md:max-w-xs md:-translate-x-1/2" aria-label="Navigation principale">
               <button 
                 type="button" 
                 onClick={isReviewing ? handleReset : undefined} 
                 className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 touch-manipulation ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} 
                 aria-label="Capture"
-                onTouchStart={(e) => {
-                  e.currentTarget.style.transform = 'scale(0.95)';
-                  haptic.light();
-                }}
-                onTouchEnd={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
+                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
+                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
               >
                 <Camera className="h-[18px] w-[18px]" /> Capture
               </button>
@@ -341,32 +336,10 @@ export default function App() {
                 onClick={() => navigate("/gallery")} 
                 className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
                 aria-label="Galerie"
-                onTouchStart={(e) => {
-                  e.currentTarget.style.transform = 'scale(0.95)';
-                  haptic.light();
-                }}
-                onTouchEnd={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
+                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
+                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
               >
                 <GalleryHorizontal className="h-[18px] w-[18px]" /> Galerie
-              </button>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setShowPinModal(true);
-                  haptic.light();
-                }} 
-                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
-                aria-label="Réglages"
-                onTouchStart={(e) => {
-                  e.currentTarget.style.transform = 'scale(0.95)';
-                }}
-                onTouchEnd={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <Settings className="h-[18px] w-[18px]" /> Réglages
               </button>
             </nav>
           )}
