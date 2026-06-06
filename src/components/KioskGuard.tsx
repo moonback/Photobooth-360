@@ -74,17 +74,15 @@ export default function KioskGuard({
   const openAdminPromptRef = useRef(openAdminPrompt);
   useEffect(() => { openAdminPromptRef.current = openAdminPrompt; }, [openAdminPrompt]);
 
-  // ── Single stable touch listener — mounted once ───────────────────────────
+  // ── Single stable listener — mouse + touch, mounted once ────────────────
 
   useEffect(() => {
-    const onTouch = (e: TouchEvent) => {
+    const handlePoint = (clientX: number, clientY: number) => {
       if (showPromptRef.current) return;
-      const touch = e.touches[0];
-      if (!touch) return;
 
       // Filter: top-center zone only
-      const fromTop    = touch.clientY;
-      const fromCenter = Math.abs(touch.clientX - window.innerWidth / 2);
+      const fromTop    = clientY;
+      const fromCenter = Math.abs(clientX - window.innerWidth / 2);
       if (fromTop > ZONE_HEIGHT || fromCenter > ZONE_HALF_W) return;
 
       tapCountRef.current += 1;
@@ -103,10 +101,10 @@ export default function KioskGuard({
         if (finalCount === ADMIN_TAPS) {
           openAdminPromptRef.current();
         }
-        // 6-9 taps: ignore (incomplete exit gesture)
+        // 6–9 taps: ignore (incomplete exit gesture)
       }, TAP_WINDOW_MS);
 
-      // 10+ taps → exit kiosk immediately, no wait
+      // 10+ taps → exit kiosk immediately
       if (count >= EXIT_TAPS && kioskActiveRef.current) {
         tapCountRef.current = 0;
         setTapFeedback(0);
@@ -115,8 +113,19 @@ export default function KioskGuard({
       }
     };
 
+    const onTouch = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (touch) handlePoint(touch.clientX, touch.clientY);
+    };
+
+    const onMouse = (e: MouseEvent) => handlePoint(e.clientX, e.clientY);
+
     document.addEventListener("touchstart", onTouch, { passive: true, capture: true });
-    return () => document.removeEventListener("touchstart", onTouch, { capture: true });
+    document.addEventListener("mousedown",  onMouse, { capture: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouch, { capture: true });
+      document.removeEventListener("mousedown",  onMouse, { capture: true });
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup timers on unmount
