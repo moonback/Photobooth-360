@@ -88,10 +88,10 @@ export default function MotorControlPanel({ settings, visible }: MotorControlPan
   const motor = useMotor();
 
   // Local config state (driven by settings defaults, user-adjustable)
-  const [speed, setSpeed]       = useState(settings.motorSpeed ?? 50);
+  const [speed, setSpeed]         = useState(settings.motorSpeed ?? 50);
   const [direction, setDirection] = useState<MotorDirection>(settings.motorDirection ?? "CW");
-  const [turns, setTurns]       = useState(settings.motorTurns ?? 1);
-  const [backend, setBackend]   = useState<MotorBackend>(settings.motorBackend ?? "serial");
+  const [turns, setTurns]         = useState(settings.motorTurns ?? 1);
+  const [backend, setBackend]     = useState<MotorBackend>(settings.motorBackend ?? "serial");
   const [collapsed, setCollapsed] = useState(false);
 
   const isConnected = motor.connectionState === "connected";
@@ -175,7 +175,7 @@ export default function MotorControlPanel({ settings, visible }: MotorControlPan
 
                   {/* Backend selector + Connect / Disconnect */}
                   <div className="flex gap-2">
-                    {/* Backend toggle */}
+                    {/* Backend toggle — Serial only for ESP32, USB kept for future */}
                     {!isConnected && (
                       <div className="grid flex-1 grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
                         {(["serial", "usb"] as MotorBackend[]).map((b) => (
@@ -195,7 +195,7 @@ export default function MotorControlPanel({ settings, visible }: MotorControlPan
                             ) : (
                               <Usb className="h-3.5 w-3.5" />
                             )}
-                            {b === "serial" ? "Serial" : "USB"}
+                            {b === "serial" ? "USB-Serial" : "WebUSB"}
                           </button>
                         ))}
                       </div>
@@ -363,6 +363,14 @@ export default function MotorControlPanel({ settings, visible }: MotorControlPan
                   {!motor.isSupported && (
                     <p className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-300">
                       WebSerial / WebUSB non disponible. Utilisez Chrome ou Edge sur desktop.
+                    </p>
+                  )}
+
+                  {/* ESP32 info — shown when disconnected and supported */}
+                  {motor.isSupported && !isConnected && (
+                    <p className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-[11px] text-white/35 leading-relaxed">
+                      ESP32 via USB · <span className="font-mono">115200 baud</span><br />
+                      Sélectionner <span className="font-mono">CP2102</span> ou <span className="font-mono">CH340</span> dans le dialog
                     </p>
                   )}
                 </div>

@@ -14,6 +14,12 @@
  *   MOTOR:RESET                 → return to home position
  *   MOTOR:STATUS                → request status (device replies with JSON)
  *
+ * Sync responses expected from firmware:
+ *   READY                       → plateau has reached target speed (preferred)
+ *   RUNNING                     → motor started (fallback)
+ *   {"running":true}            → JSON status variant
+ *   STOPPED / {"running":false} → motor stopped
+ *
  * All commands are newline-terminated (\n).
  */
 
@@ -50,6 +56,12 @@ export interface UseMotorReturn {
   disconnect: () => Promise<void>;
   /** Apply speed + direction + turns, then start */
   startMotor: (config: MotorConfig) => Promise<void>;
+  /**
+   * Start motor and wait until the firmware confirms it is up to speed.
+   * Resolves when READY/RUNNING is received, or after `timeoutMs` (fallback).
+   * Use this for recording sync — only start recording after this resolves.
+   */
+  startMotorAndWaitReady: (config: MotorConfig, timeoutMs?: number) => Promise<void>;
   /** Send STOP command */
   stopMotor: () => Promise<void>;
   /** Send RESET command */
@@ -66,6 +78,12 @@ const decoder = new TextDecoder();
 function encodeCmd(cmd: string): Uint8Array {
   return encoder.encode(cmd + "\n");
 }
+
+// Lines that indicate the motor has reached running speed
+const READY_TOKENS = ["READY", "RUNNING", '"running":true'];
+
+// ESP32 boot confirmation
+const BOOT_TOKEN = "PHOTOBOOTH360_READY";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -91,6 +109,9 @@ export function useMotor(): UseMotorReturn {
   const usbEndpointInRef = useRef<number>(1);
 
   const activeBackendRef = useRef<MotorBackend | null>(null);
+
+  // Pending ready-waiters: each entry is a resolve callback for startMotorAndWaitReady
+  const readyWaitersRef = useRef<Array<() => void>>([]);
 
   // ── Serial write ──────────────────────────────────────────────────────────
 
@@ -130,6 +151,39 @@ export function useMotor(): UseMotorReturn {
     [writeSerial, writeUSB]
   );
 
+  // ── Process an inbound line from the firmware ─────────────────────────────
+
+  const processLine = useCallback((line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    console.debug("[Motor] ← ", trimmed);
+    setLastStatus(trimmed);
+
+    const isReady = READY_TOKENS.some((tok) => trimmed.includes(tok));
+    const isStopped =
+      trimmed.includes('"running":false') ||
+      trimmed === "STOPPED";
+    const isBootConfirm = trimmed === BOOT_TOKEN;
+
+    if (isBootConfirm) {
+      console.info("[Motor] ESP32 boot confirmed");
+      // Don't touch isRunning — board just (re)booted
+      return;
+    }
+
+    if (isReady) {
+      setIsRunning(true);
+      // Resolve all pending startMotorAndWaitReady callers
+      const waiters = readyWaitersRef.current.splice(0);
+      waiters.forEach((resolve) => resolve());
+    }
+
+    if (isStopped) {
+      setIsRunning(false);
+    }
+  }, []);
+
   // ── Serial reader loop ────────────────────────────────────────────────────
 
   const startSerialReader = useCallback(async () => {
@@ -148,23 +202,14 @@ export function useMotor(): UseMotorReturn {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed) {
-            console.debug("[Motor] ← ", trimmed);
-            setLastStatus(trimmed);
-            // Parse running state from firmware responses
-            if (trimmed.includes('"running":true') || trimmed === "RUNNING") setIsRunning(true);
-            if (trimmed.includes('"running":false') || trimmed === "STOPPED") setIsRunning(false);
-          }
-        }
+        for (const line of lines) processLine(line);
       }
     } catch {
       // reader cancelled — normal on disconnect
     } finally {
       reader.releaseLock();
     }
-  }, []);
+  }, [processLine]);
 
   // ── Connect — WebSerial ───────────────────────────────────────────────────
 
@@ -175,7 +220,9 @@ export function useMotor(): UseMotorReturn {
     setError(null);
 
     try {
-      const port = await (navigator as Navigator & { serial: { requestPort(): Promise<SerialPort> } }).serial.requestPort();
+      const port = await (navigator as Navigator & {
+        serial: { requestPort(): Promise<SerialPort> };
+      }).serial.requestPort();
       await port.open({ baudRate: 115200 });
 
       serialPortRef.current = port;
@@ -186,7 +233,6 @@ export function useMotor(): UseMotorReturn {
       }
 
       setConnectionState("connected");
-      // Start background reader
       startSerialReader();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -212,7 +258,6 @@ export function useMotor(): UseMotorReturn {
       await device.open();
       if (device.configuration === null) await device.selectConfiguration(1);
 
-      // Find bulk-OUT and bulk-IN endpoints on first interface
       const iface = device.configuration?.interfaces?.[0];
       if (!iface) throw new Error("No USB interface found");
       await device.claimInterface(iface.interfaceNumber);
@@ -255,6 +300,10 @@ export function useMotor(): UseMotorReturn {
 
   const disconnect = useCallback(async () => {
     readerLoopRef.current = false;
+
+    // Flush any pending waiters so they don't hang forever
+    const waiters = readyWaitersRef.current.splice(0);
+    waiters.forEach((resolve) => resolve());
 
     try {
       if (serialWriterRef.current) {
@@ -301,6 +350,39 @@ export function useMotor(): UseMotorReturn {
     [sendCommand]
   );
 
+  /**
+   * Start the motor and wait until the firmware acknowledges it is running
+   * (READY or RUNNING response), or fall back after `timeoutMs`.
+   *
+   * This is the entry point for the recording sync sequence.
+   */
+  const startMotorAndWaitReady = useCallback(
+    async (config: MotorConfig, timeoutMs = 3000) => {
+      await sendCommand(`MOTOR:SPEED:${Math.round(config.speed)}`);
+      await sendCommand(`MOTOR:DIR:${config.direction}`);
+      await sendCommand(`MOTOR:TURNS:${config.turns}`);
+      await sendCommand("MOTOR:START");
+      setIsRunning(true);
+
+      return new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          const idx = readyWaitersRef.current.indexOf(wrappedResolve);
+          if (idx !== -1) readyWaitersRef.current.splice(idx, 1);
+          console.warn("[Motor] startMotorAndWaitReady: timeout, proceeding without READY ack");
+          resolve();
+        }, timeoutMs);
+
+        const wrappedResolve = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+
+        readyWaitersRef.current.push(wrappedResolve);
+      });
+    },
+    [sendCommand]
+  );
+
   const stopMotor = useCallback(async () => {
     await sendCommand("MOTOR:STOP");
     setIsRunning(false);
@@ -316,7 +398,7 @@ export function useMotor(): UseMotorReturn {
   useEffect(() => {
     return () => {
       readerLoopRef.current = false;
-      // Non-async cleanup
+      readyWaitersRef.current.splice(0);
       serialWriterRef.current?.releaseLock();
       serialPortRef.current?.close().catch(() => undefined);
       usbDeviceRef.current?.close().catch(() => undefined);
@@ -332,6 +414,7 @@ export function useMotor(): UseMotorReturn {
     connect,
     disconnect,
     startMotor,
+    startMotorAndWaitReady,
     stopMotor,
     resetMotor,
     sendCommand,

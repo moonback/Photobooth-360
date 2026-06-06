@@ -1,11 +1,13 @@
 import { RefObject } from "react";
-import { Camera, Radio, Sparkles, Maximize2, Minimize2 } from "lucide-react";
+import { Camera, Radio, RefreshCw, Sparkles, Maximize2, Minimize2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 interface CameraViewProps {
   liveVideoRef: RefObject<HTMLVideoElement>;
   isRecording: boolean;
   countdown: number | null;
+  /** True while waiting for the motor to reach speed before recording starts */
+  isSyncing?: boolean;
   showFlash: boolean;
   eventName: string;
   hidden: boolean;
@@ -17,6 +19,7 @@ export default function CameraView({
   liveVideoRef,
   isRecording,
   countdown,
+  isSyncing = false,
   showFlash,
   eventName,
   hidden,
@@ -102,8 +105,45 @@ export default function CameraView({
       </div>
 
       <AnimatePresence mode="wait">
+        {/* ── Motor sync overlay ── */}
+        {isSyncing && !countdown && (
+          <motion.div
+            key="motor-sync"
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-black/52 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Spinning ring */}
+            <motion.div
+              className="relative flex h-28 w-28 items-center justify-center rounded-full border border-indigo-500/30 bg-indigo-500/10 shadow-[0_0_60px_rgba(99,102,241,0.4)]"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
+            >
+              <RefreshCw className="h-10 w-10 text-indigo-300" />
+              {/* Outer arc */}
+              <motion.div
+                className="absolute inset-[-3px] rounded-full border-[3px] border-transparent border-t-indigo-400"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+              />
+            </motion.div>
+
+            <div className="text-center">
+              <p className="text-[13px] font-black uppercase tracking-[0.22em] text-indigo-300">
+                Plateau en démarrage
+              </p>
+              <p className="mt-1 text-[11px] text-white/40">
+                Synchronisation en cours…
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Countdown overlay ── */}
         {countdown !== null && (
           <motion.div
+            key="countdown"
             className="absolute inset-0 z-40 flex items-center justify-center bg-black/48 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

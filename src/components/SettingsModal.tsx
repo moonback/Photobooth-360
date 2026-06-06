@@ -26,6 +26,15 @@ export interface AppSettings {
   motorBackend: "serial" | "usb";
   /** Start motor automatically when recording starts */
   motorAutoStart: boolean;
+  /**
+   * Sync mode:
+   *   'ack'   — wait for firmware READY/RUNNING response before recording
+   *   'delay' — wait a fixed number of ms after MOTOR:START before recording
+   *   'none'  — fire-and-forget, no wait (legacy behaviour)
+   */
+  motorSyncMode: "ack" | "delay" | "none";
+  /** Fixed delay in ms used when motorSyncMode === 'delay' (default 500 ms) */
+  motorSyncDelay: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -46,6 +55,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   motorTurns: 1,
   motorBackend: "serial",
   motorAutoStart: true,
+  motorSyncMode: "ack",
+  motorSyncDelay: 500,
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -441,6 +452,59 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                                   </button>
                                 ))}
                               </div>
+                            </div>
+
+                            {/* Sync mode */}
+                            <div>
+                              <SectionLabel>Synchronisation déclenchement</SectionLabel>
+                              <div className="space-y-1.5">
+                                {(
+                                  [
+                                    { value: "ack",   label: "Attendre READY",  sub: "Firmware confirme la vitesse" },
+                                    { value: "delay", label: "Délai fixe",       sub: `${draft.motorSyncDelay} ms après START` },
+                                    { value: "none",  label: "Aucune",           sub: "Simultané (non-synchronisé)" },
+                                  ] as { value: AppSettings["motorSyncMode"]; label: string; sub: string }[]
+                                ).map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => update("motorSyncMode", opt.value)}
+                                    className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all touch-manipulation ${
+                                      draft.motorSyncMode === opt.value
+                                        ? "border-neuro-accent bg-neuro-accent/15 text-white"
+                                        : "border-white/10 bg-white/5 text-neuro-muted"
+                                    }`}
+                                    aria-pressed={draft.motorSyncMode === opt.value}
+                                  >
+                                    <span className={`mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border-2 ${draft.motorSyncMode === opt.value ? "border-neuro-accent bg-neuro-accent" : "border-white/30"}`} />
+                                    <span>
+                                      <span className="block text-[13px] font-bold leading-none">{opt.label}</span>
+                                      <span className="mt-0.5 block text-[11px] opacity-60">{opt.sub}</span>
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* Delay input — shown only in delay mode */}
+                              {draft.motorSyncMode === "delay" && (
+                                <div className="mt-2">
+                                  <SectionLabel>Délai (ms) — {draft.motorSyncDelay} ms</SectionLabel>
+                                  <input
+                                    type="range"
+                                    min={100}
+                                    max={3000}
+                                    step={100}
+                                    value={draft.motorSyncDelay}
+                                    onChange={(e) => update("motorSyncDelay", Number(e.target.value))}
+                                    className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500"
+                                    aria-label="Délai de synchronisation moteur"
+                                  />
+                                  <div className="flex justify-between text-[10px] text-white/30 mt-1">
+                                    <span>100 ms</span>
+                                    <span>3 000 ms</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                             <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">

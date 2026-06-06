@@ -64,35 +64,61 @@ export default function App() {
 
   const { upload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled } = useUpload();
 
-  const { isRecording, countdown, startRecording, stopRecording } = useRecorder({
+  const { isRecording, countdown, isSyncing, startRecording, stopRecording } = useRecorder({
+    /**
+     * onBeforeRecord — sync gate.
+     *
+     * Called after the countdown, right before MediaRecorder.start().
+     * When motorAutoStart + motorEnabled + connected:
+     *   - 'ack'   → sends MOTOR:START, awaits firmware READY/RUNNING (or timeout)
+     *   - 'delay' → sends MOTOR:START, waits a fixed delay
+     *   - 'none'  → sends MOTOR:START without waiting
+     *
+     * Recording only starts once this promise resolves, ensuring the
+     * turntable is already spinning at target speed on frame 1.
+     */
+    onBeforeRecord: (settings.motorEnabled && settings.motorAutoStart)
+      ? async () => {
+          if (motor.connectionState !== "connected") return;
+          if (motor.isRunning) return; // already spinning, no need to sync
+
+          const config = {
+            speed: settings.motorSpeed,
+            direction: settings.motorDirection,
+            turns: settings.motorTurns,
+            baudRate: 115200,
+            backend: settings.motorBackend,
+          };
+
+          if (settings.motorSyncMode === "ack") {
+            // Wait for firmware READY/RUNNING (with 4s hard timeout)
+            await motor.startMotorAndWaitReady(config, 4000);
+
+          } else if (settings.motorSyncMode === "delay") {
+            // Fire START and wait a fixed duration
+            await motor.startMotor(config);
+            await new Promise<void>((resolve) =>
+              setTimeout(resolve, settings.motorSyncDelay)
+            );
+
+          } else {
+            // 'none' — fire and forget
+            motor.startMotor(config).catch(console.error);
+          }
+        }
+      : undefined,
+
     onRecordingStart: () => {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
-      
-      // Feedback haptique sur mobile
       haptic.medium();
-
-      // Auto-start motor if enabled and connected
-      if (
-        settings.motorEnabled &&
-        settings.motorAutoStart &&
-        motor.connectionState === "connected" &&
-        !motor.isRunning
-      ) {
-        motor.startMotor({
-          speed: settings.motorSpeed,
-          direction: settings.motorDirection,
-          turns: settings.motorTurns,
-          baudRate: 115200,
-          backend: settings.motorBackend,
-        }).catch(console.error);
-      }
     },
+
     onRecordingComplete: (url) => {
-      stream?.getAudioTracks().forEach((track) => { track.enabled = false; });
+      stream?.getAudioTracks().forEach((track: MediaStreamTrack) => { track.enabled = false; });
       setVideoUrl(url);
       setShareId("");
-      setGallery((prev) => [url, ...prev.filter((item) => item !== url)]);
+      setGallery((prev: string[]) => [url, ...prev.filter((item: string) => item !== url)]);
 
       // Stop motor when recording ends
       if (settings.motorEnabled && motor.isRunning) {
@@ -100,22 +126,20 @@ export default function App() {
       }
 
       // Générer un ID unique pour la vidéo
-      const videoId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const videoId = `video_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       setCurrentVideoId(videoId);
-      
-      // Tracker la capture
+
       trackCapture(videoId, {
         duration: settings.duration,
         resolution: settings.resolution,
         facingMode: settings.facingMode,
       });
-      
-      // Feedback haptique de succès
+
       haptic.success();
 
       if (cloudEnabled) {
         upload(url).then((publicUrl) => {
-          if (publicUrl) setGallery((prev) => prev.map((item) => (item === url ? publicUrl : item)));
+          if (publicUrl) setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
         });
       } else {
         setIsSavingShare(true);
@@ -280,7 +304,8 @@ export default function App() {
                 <CameraView 
                   liveVideoRef={liveVideoRef} 
                   isRecording={isRecording} 
-                  countdown={countdown} 
+                  countdown={countdown}
+                  isSyncing={isSyncing}
                   showFlash={showFlash} 
                   eventName={settings.eventName} 
                   hidden={isReviewing} 
