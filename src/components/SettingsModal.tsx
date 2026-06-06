@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { uploadJingle } from "../lib/uploadJingle";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
+import { PRESENTATION_BACKGROUNDS, PRESENTATION_TEMPLATES, type PresentationBackgroundId, type PresentationTemplateId } from "../lib/presentationTemplates";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import EmailListDashboard from "./EmailListDashboard";
 
@@ -46,6 +47,20 @@ export interface AppSettings {
   outroUrl?: string;
   /** Enable intro/outro composition */
   jingleEnabled: boolean;
+  /** Intro source: uploaded media or generated text presentation */
+  introMode: "upload" | "template";
+  /** Outro source: uploaded media or generated text presentation */
+  outroMode: "upload" | "template";
+  introTemplate: PresentationTemplateId;
+  outroTemplate: PresentationTemplateId;
+  introTitle: string;
+  introSubtitle: string;
+  outroTitle: string;
+  outroSubtitle: string;
+  introBackground: PresentationBackgroundId;
+  outroBackground: PresentationBackgroundId;
+  introDurationSeconds: number;
+  outroDurationSeconds: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -72,6 +87,18 @@ export const DEFAULT_SETTINGS: AppSettings = {
   jingleEnabled: false,
   introUrl: "",
   outroUrl: "",
+  introMode: "template",
+  outroMode: "template",
+  introTemplate: "spotlight",
+  outroTemplate: "gradient",
+  introTitle: "Bienvenue",
+  introSubtitle: "Préparez-vous pour votre expérience 360°",
+  outroTitle: "Merci !",
+  outroSubtitle: "Scannez, partagez et revivez votre moment",
+  introBackground: "midnight",
+  outroBackground: "violet",
+  introDurationSeconds: 3,
+  outroDurationSeconds: 3,
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -192,6 +219,9 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
 
+  const updateFields = (changes: Partial<AppSettings>) =>
+    setDraft((prev) => ({ ...prev, ...changes }));
+
   const handleLogo = async (file?: File) => {
     if (!file) return;
     setLogoState("uploading");
@@ -238,6 +268,164 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   };
 
   const handleSave = () => { onSave(draft); onClose(); };
+
+
+  const renderPresentationEditor = (kind: "intro" | "outro") => {
+    const isIntro = kind === "intro";
+    const mode = isIntro ? draft.introMode : draft.outroMode;
+    const title = isIntro ? draft.introTitle : draft.outroTitle;
+    const subtitle = isIntro ? draft.introSubtitle : draft.outroSubtitle;
+    const template = isIntro ? draft.introTemplate : draft.outroTemplate;
+    const background = isIntro ? draft.introBackground : draft.outroBackground;
+    const duration = isIntro ? draft.introDurationSeconds : draft.outroDurationSeconds;
+    const url = isIntro ? draft.introUrl : draft.outroUrl;
+    const uploadState = isIntro ? introState : outroState;
+    const uploadError = isIntro ? introError : outroError;
+    const inputRef = isIntro ? introRef : outroRef;
+    const handleUpload = isIntro ? handleIntro : handleOutro;
+    const label = isIntro ? "Intro" : "Outro";
+    const rollLabel = isIntro ? "pré-roll" : "post-roll";
+    const updatePresentation = (changes: Partial<AppSettings>) => updateFields(changes);
+
+    return (
+      <div className="rounded-2xl border border-white/10 bg-black/15 p-3">
+        <SectionLabel>{label} ({rollLabel})</SectionLabel>
+        <div className="mb-3 grid grid-cols-2 gap-1.5">
+          <Segment
+            value="template"
+            selected={mode === "template"}
+            label="Texte"
+            sub="Template"
+            onClick={() => updatePresentation(isIntro ? { introMode: "template" } : { outroMode: "template" })}
+          />
+          <Segment
+            value="upload"
+            selected={mode === "upload"}
+            label="Média"
+            sub="Upload"
+            onClick={() => updatePresentation(isIntro ? { introMode: "upload" } : { outroMode: "upload" })}
+          />
+        </div>
+
+        {mode === "template" ? (
+          <div className="space-y-3">
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950">
+              <div
+                className="relative flex min-h-28 flex-col justify-center p-4 text-white"
+                style={{ background: `radial-gradient(circle at 50% 20%, ${PRESENTATION_BACKGROUNDS.find((item) => item.id === background)?.colors[1]}55, transparent 55%), linear-gradient(135deg, ${PRESENTATION_BACKGROUNDS.find((item) => item.id === background)?.colors.join(", ")})` }}
+              >
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/55">{label}</p>
+                <p className="mt-2 text-[22px] font-black leading-none tracking-[-0.05em]">{title || label}</p>
+                <p className="mt-2 text-[12px] font-semibold text-white/75">{subtitle || "Votre message"}</p>
+              </div>
+            </div>
+
+            <div>
+              <SectionLabel>Texte</SectionLabel>
+              <input
+                value={title}
+                onChange={(e) => updatePresentation(isIntro ? { introTitle: e.target.value } : { outroTitle: e.target.value })}
+                className="mb-2 h-10 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-[13px] font-bold text-white placeholder:text-zinc-600"
+                placeholder="Titre de présentation"
+              />
+              <textarea
+                value={subtitle}
+                onChange={(e) => updatePresentation(isIntro ? { introSubtitle: e.target.value } : { outroSubtitle: e.target.value })}
+                rows={2}
+                className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-zinc-600"
+                placeholder="Sous-titre ou appel à l'action"
+              />
+            </div>
+
+            <div>
+              <SectionLabel>Templates</SectionLabel>
+              <div className="grid grid-cols-3 gap-1.5">
+                {PRESENTATION_TEMPLATES.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => updatePresentation(isIntro ? { introTemplate: item.id } : { outroTemplate: item.id })}
+                    className={`min-h-14 rounded-xl border px-2 py-2 text-left transition-all touch-manipulation ${template === item.id ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
+                    aria-pressed={template === item.id}
+                    title={item.description}
+                  >
+                    <span className="block text-[12px] font-bold leading-none">{item.name}</span>
+                    <span className="mt-1 block text-[9px] opacity-60">{item.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <SectionLabel>Fond</SectionLabel>
+              <div className="grid grid-cols-4 gap-1.5">
+                {PRESENTATION_BACKGROUNDS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => updatePresentation(isIntro ? { introBackground: item.id } : { outroBackground: item.id })}
+                    className={`rounded-xl border p-1.5 transition-all active:scale-95 touch-manipulation ${background === item.id ? "border-white bg-white/10" : "border-white/10 bg-white/5"}`}
+                    aria-label={item.name}
+                    aria-pressed={background === item.id}
+                  >
+                    <span className="block h-8 rounded-lg" style={{ background: `linear-gradient(135deg, ${item.colors.join(", ")})` }} />
+                    <span className="mt-1 block text-[9px] font-bold text-white/70">{item.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <SectionLabel>Durée — {duration}s</SectionLabel>
+              <input
+                type="range"
+                min={1}
+                max={8}
+                step={1}
+                value={duration}
+                onChange={(e) => updatePresentation(isIntro ? { introDurationSeconds: Number(e.target.value) } : { outroDurationSeconds: Number(e.target.value) })}
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-indigo-500"
+                aria-label={`Durée ${label.toLowerCase()} texte`}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
+              {url ? (
+                url.match(/\.(mp4|webm|mov)$/i) ? (
+                  <Video className="h-6 w-6 text-neuro-accent" />
+                ) : (
+                  <img src={url} alt={label} className="h-full w-full object-cover" />
+                )
+              ) : (
+                <Film className="h-6 w-6 text-neuro-muted" />
+              )}
+            </div>
+            <div className="flex-1">
+              <input
+                ref={inputRef}
+                type="file"
+                accept="video/*,image/*"
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                {uploadState === "uploading" ? "Import…" : label}
+              </button>
+              {uploadError && <p className="mt-1.5 text-[11px] text-red-400">{uploadError}</p>}
+              {uploadState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ {label} mis à jour</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -633,82 +821,11 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                           className="overflow-hidden"
                         >
                           <div className="space-y-3 pt-1">
-                            {/* Intro */}
-                            <div>
-                              <SectionLabel>Intro (pré-roll)</SectionLabel>
-                              <div className="flex items-center gap-3">
-                                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                                  {draft.introUrl ? (
-                                    draft.introUrl.match(/\.(mp4|webm|mov)$/i) ? (
-                                      <Video className="h-6 w-6 text-neuro-accent" />
-                                    ) : (
-                                      <img src={draft.introUrl} alt="Intro" className="h-full w-full object-cover" />
-                                    )
-                                  ) : (
-                                    <Film className="h-6 w-6 text-neuro-muted" />
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <input
-                                    ref={introRef}
-                                    type="file"
-                                    accept="video/*,image/*"
-                                    className="hidden"
-                                    onChange={(e) => handleIntro(e.target.files?.[0])}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => introRef.current?.click()}
-                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
-                                  >
-                                    <Upload className="h-3.5 w-3.5" />
-                                    {introState === "uploading" ? "Import…" : "Intro"}
-                                  </button>
-                                  {introError && <p className="mt-1.5 text-[11px] text-red-400">{introError}</p>}
-                                  {introState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ Intro mis à jour</p>}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Outro */}
-                            <div>
-                              <SectionLabel>Outro (post-roll)</SectionLabel>
-                              <div className="flex items-center gap-3">
-                                <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                                  {draft.outroUrl ? (
-                                    draft.outroUrl.match(/\.(mp4|webm|mov)$/i) ? (
-                                      <Video className="h-6 w-6 text-neuro-accent" />
-                                    ) : (
-                                      <img src={draft.outroUrl} alt="Outro" className="h-full w-full object-cover" />
-                                    )
-                                  ) : (
-                                    <Film className="h-6 w-6 text-neuro-muted" />
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <input
-                                    ref={outroRef}
-                                    type="file"
-                                    accept="video/*,image/*"
-                                    className="hidden"
-                                    onChange={(e) => handleOutro(e.target.files?.[0])}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => outroRef.current?.click()}
-                                    className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-white text-[13px] font-bold text-black active:scale-[0.98] touch-manipulation"
-                                  >
-                                    <Upload className="h-3.5 w-3.5" />
-                                    {outroState === "uploading" ? "Import…" : "Outro"}
-                                  </button>
-                                  {outroError && <p className="mt-1.5 text-[11px] text-red-400">{outroError}</p>}
-                                  {outroState === "done" && <p className="mt-1.5 text-[11px] text-emerald-400">✓ Outro mis à jour</p>}
-                                </div>
-                              </div>
-                            </div>
+                            {renderPresentationEditor("intro")}
+                            {renderPresentationEditor("outro")}
 
                             <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
-                              Les jingles sont ajoutés automatiquement en pré/post-roll à chaque vidéo. Formats acceptés : MP4, WebM, MOV ou images fixes (JPG, PNG).
+                              Les intros/outros peuvent être générées comme présentations texte avec fond et template, ou importées en MP4, WebM, MOV, JPG ou PNG.
                             </p>
                           </div>
                         </motion.div>

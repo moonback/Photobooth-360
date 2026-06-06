@@ -22,7 +22,24 @@ export function useVideoComposer(): UseVideoComposerReturn {
   const composeWithJingles = useCallback(
     async (videoUrl: string, settings: AppSettings): Promise<string> => {
       // If jingles are disabled or not configured, return video as-is
-      if (!settings.jingleEnabled || (!settings.introUrl && !settings.outroUrl)) {
+      const introSlide = settings.introMode === "template" ? {
+        template: settings.introTemplate,
+        title: settings.introTitle,
+        subtitle: settings.introSubtitle,
+        background: settings.introBackground,
+        durationSeconds: settings.introDurationSeconds,
+      } : undefined;
+      const outroSlide = settings.outroMode === "template" ? {
+        template: settings.outroTemplate,
+        title: settings.outroTitle,
+        subtitle: settings.outroSubtitle,
+        background: settings.outroBackground,
+        durationSeconds: settings.outroDurationSeconds,
+      } : undefined;
+      const introUrl = settings.introMode === "upload" ? settings.introUrl : undefined;
+      const outroUrl = settings.outroMode === "upload" ? settings.outroUrl : undefined;
+
+      if (!settings.jingleEnabled || (!introUrl && !outroUrl && !introSlide && !outroSlide)) {
         return videoUrl;
       }
 
@@ -40,8 +57,10 @@ export function useVideoComposer(): UseVideoComposerReturn {
         const { width, height } = resolutions[settings.resolution || '720p'];
 
         const composedUrl = await composeVideo({
-          introUrl: settings.introUrl,
-          outroUrl: settings.outroUrl,
+          introUrl,
+          outroUrl,
+          introSlide,
+          outroSlide,
           mainVideoUrl: videoUrl,
           width,
           height,
