@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
-import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, RotateCw, Type, Upload, Video, X, BarChart3, ChevronRight, RefreshCw } from "lucide-react";
+import { Camera, Check, Clock, Image, Lock, Mail, Mic, MicOff, Palette, RotateCcw, RotateCw, Type, Upload, Video, X, BarChart3, ChevronRight, RefreshCw, Smartphone } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../lib/uploadLogo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
@@ -14,7 +14,6 @@ export interface AppSettings {
   countdownSeconds: number;
   accentColor: "indigo" | "rose" | "amber" | "emerald" | "cyan";
   recordAudio: boolean;
-  adminPin: string;
   logoUrl?: string;
   emailCaptureEnabled: boolean;
   emailSendEnabled: boolean;
@@ -35,6 +34,10 @@ export interface AppSettings {
   motorSyncMode: "ack" | "delay" | "none";
   /** Fixed delay in ms used when motorSyncMode === 'delay' (default 500 ms) */
   motorSyncDelay: number;
+  // Kiosk mode
+  kioskEnabled: boolean;
+  /** PIN admin — used to access settings via the secret gesture */
+  adminPin: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -45,7 +48,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   countdownSeconds: 3,
   accentColor: "indigo",
   recordAudio: false,
-  adminPin: "1234",
   logoUrl: "",
   emailCaptureEnabled: true,
   emailSendEnabled: true,
@@ -57,6 +59,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   motorAutoStart: true,
   motorSyncMode: "ack",
   motorSyncDelay: 500,
+  kioskEnabled: false,
+  adminPin: "1234",
 };
 
 const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -311,19 +315,9 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                   </div>
                 </Card>
 
-                {/* Audio & PIN — inline sur mobile */}
-                <Card icon={draft.recordAudio ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />} title="Audio & Sécurité">
+                {/* Audio */}
+                <Card icon={draft.recordAudio ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />} title="Audio">
                   <Toggle checked={draft.recordAudio} onChange={() => update("recordAudio", !draft.recordAudio)} label="Enregistrer le micro" />
-                  <SectionLabel>PIN administrateur</SectionLabel>
-                  <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neuro-muted" />
-                    <input
-                      value={draft.adminPin}
-                      onChange={(e) => update("adminPin", e.target.value)}
-                      inputMode="numeric"
-                      className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-[14px] text-white"
-                    />
-                  </div>
                 </Card>
 
                 {/* Email marketing */}
@@ -510,6 +504,59 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                             <p className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2 text-[12px] text-indigo-300">
                               WebSerial / WebUSB nécessite Chrome ou Edge sur desktop. Le panneau de contrôle apparaît sur l'écran de capture.
                             </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </Card>
+
+                {/* Kiosque */}
+                <Card icon={<Smartphone className="h-4 w-4" />} title="Mode Kiosque">
+                  <div className="space-y-2">
+                    <Toggle
+                      checked={draft.kioskEnabled}
+                      onChange={() => update("kioskEnabled", !draft.kioskEnabled)}
+                      label="Activer le mode kiosque"
+                    />
+                    <AnimatePresence>
+                      {draft.kioskEnabled && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3 pt-1">
+                            <SectionLabel>Code PIN d'accès admin</SectionLabel>
+                            <p className="text-[11px] text-white/40 -mt-1">
+                              Requis pour accéder aux réglages via le geste secret (5 taps en haut au centre).
+                            </p>
+                            <div className="relative">
+                              <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neuro-muted" />
+                              <input
+                                value={draft.adminPin}
+                                onChange={(e) => update("adminPin", e.target.value)}
+                                inputMode="numeric"
+                                placeholder="1234"
+                                className="h-11 w-full rounded-xl border border-white/10 bg-white/5 pl-10 pr-4 text-[14px] text-white placeholder:text-zinc-600"
+                              />
+                            </div>
+
+                            <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/10 px-3 py-2.5 space-y-1.5">
+                              <p className="text-[12px] font-bold text-indigo-300">Ce que verrouille le mode kiosque</p>
+                              <ul className="space-y-1 text-[11px] text-indigo-200/70">
+                                <li>• Plein écran natif (Android Chrome / PWA)</li>
+                                <li>• Écran toujours allumé (Wake Lock)</li>
+                                <li>• Touche Retour et geste navigation bloqués</li>
+                                <li>• Pull-to-refresh désactivé</li>
+                                <li>• Menu contextuel supprimé</li>
+                              </ul>
+                              <p className="text-[11px] text-amber-300 pt-1">
+                                iOS : installer l'app via "Sur l'écran d'accueil" pour le vrai plein écran.
+                              </p>
+                            </div>
                           </div>
                         </motion.div>
                       )}

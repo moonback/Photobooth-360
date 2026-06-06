@@ -1,22 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw, Lock } from "lucide-react";
+import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
 
 import SplashScreen from "./components/SplashScreen";
 import CameraView from "./components/CameraView";
-import PinModal from "./components/PinModal";
 import PlaybackView from "./components/PlaybackView";
 import RecordButton from "./components/RecordButton";
 import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
 import EmailCaptureModal from "./components/EmailCaptureModal";
 import MotorControlPanel from "./components/MotorControlPanel";
+import KioskGuard from "./components/KioskGuard";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useMotor } from "./hooks/useMotor";
+import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
@@ -39,9 +40,9 @@ export default function App() {
   const mobile = useMobileOptimizations();
   const haptic = useHapticFeedback();
   const motor = useMotor();
+  const kiosk = useKiosk();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
@@ -228,6 +229,15 @@ export default function App() {
       stream.getAudioTracks().forEach((track) => { track.enabled = next.recordAudio; });
     }
     await handleSave(next);
+
+    // If kiosk was just enabled and we're already in the app, enter it
+    if (next.kioskEnabled && !settings.kioskEnabled && !showSplash) {
+      setTimeout(() => kiosk.enter(), 300);
+    }
+    // If kiosk was disabled, exit it
+    if (!next.kioskEnabled && kiosk.active) {
+      kiosk.exit();
+    }
   };
 
   const handleEmailCapture = async (emailData: EmailCaptureData) => {
@@ -263,36 +273,15 @@ export default function App() {
       {showSplash ? (
         <SplashScreen
           settings={settings}
-          onEnter={() => setShowSplash(false)}
-          onAdmin={() => {
+          onEnter={() => {
             setShowSplash(false);
-            setSettingsOpen(true);
+            if (settings.kioskEnabled) {
+              setTimeout(() => kiosk.enter(), 100);
+            }
           }}
         />
       ) : (
         <>
-          {/* Bouton admin (cadenas) en haut à droite - toujours visible */}
-          <motion.button
-            type="button"
-            onClick={() => {
-              if (settings.adminPin) {
-                setShowPinModal(true);
-              } else {
-                setSettingsOpen(true);
-              }
-              haptic.light();
-            }}
-            className="glass-panel fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-50 grid min-h-11 min-w-11 place-items-center rounded-full text-white shadow-lg transition-all hover:bg-white/20 hover:shadow-[0_0_25px_rgba(255,255,255,0.25)] active:scale-95 touch-manipulation sm:right-5"
-            initial={{ x: 20, opacity: 0, scale: 0.9 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label="Accéder aux réglages admin"
-          >
-            <Lock className="h-[18px] w-[18px]" />
-          </motion.button>
-
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
@@ -443,7 +432,6 @@ export default function App() {
         </>
       )}
 
-      {showPinModal && <PinModal adminPin={settings.adminPin} onUnlock={() => { setShowPinModal(false); setSettingsOpen(true); }} onCancel={() => setShowPinModal(false)} />}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
       
       {/* Modal email capture */}
@@ -454,6 +442,42 @@ export default function App() {
         videoUrl={uploadedUrl || videoUrl}
       />
       
+      {/* Kiosk guard — blocks navigation, shows exit PIN prompt */}
+      <KioskGuard
+        kioskState={kiosk}
+        adminPin={settings.adminPin}
+        onAdminAccess={() => {
+          setSettingsOpen(true);
+          haptic.medium();
+        }}
+        onReEnterFullscreen={() => kiosk.enter()}
+        onExitKiosk={async () => {
+          // Disable kiosk in settings and exit
+          await handleSave({ ...settings, kioskEnabled: false });
+          kiosk.exit();
+          haptic.medium();
+        }}
+      />
+
+      {/* iOS kiosk install hint */}
+      {settings.kioskEnabled && kiosk.installRequired && !showSplash && (
+        <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-[198] mx-4">
+          <motion.div
+            className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 backdrop-blur-xl"
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+          >
+            <p className="text-[12px] font-bold text-amber-300">
+              Mode kiosque complet sur iOS
+            </p>
+            <p className="mt-0.5 text-[11px] text-amber-200/60">
+              Appuyez sur <span className="font-mono">Partager →</span> puis{" "}
+              <span className="font-mono">"Sur l'écran d'accueil"</span> pour activer le plein écran.
+            </p>
+          </motion.div>
+        </div>
+      )}
+
       {/* Composants PWA */}
       <PWAInstallPrompt />
       <PWAUpdatePrompt />
