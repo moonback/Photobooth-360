@@ -1,11 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, Check, Film, Mail, Music, Palette, RefreshCw, RotateCcw, Smartphone, Type, Video, X,
+  ArrowLeft, BarChart3, Check, Download, Film, Mail, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../../lib/uploadLogo";
 import { uploadJingle } from "../../lib/uploadJingle";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
+import { listVideosFromBucket, clearAllVideosFromBucket } from "../../lib/uploadVideo";
+import { exportAllVideosFromBucket } from "../../lib/exportVideos";
 import { AnalyticsDashboard } from "../AnalyticsDashboard";
 import EmailListDashboard from "../EmailListDashboard";
 import {
@@ -49,6 +51,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [outroImageError, setOutroImageError] = useState("");
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showEmailList, setShowEmailList] = useState(false);
+  const [clearingStorage, setClearingStorage] = useState(false);
+  const [exportingVideos, setExportingVideos] = useState(false);
+  const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
+  const [videoCount, setVideoCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -65,6 +71,12 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       setIntroImageError("");
       setOutroImageState("idle");
       setOutroImageError("");
+      // Load video count from Supabase bucket
+      if (SUPABASE_CONFIGURED) {
+        listVideosFromBucket().then(videos => setVideoCount(videos.length)).catch(() => setVideoCount(0));
+      } else {
+        setVideoCount(0);
+      }
     }
   }, [isOpen, settings]);
 
@@ -125,6 +137,65 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   };
 
   const handleSave = () => { onSave(draft); onClose(); };
+
+  const handleClearStorage = async () => {
+    if (!SUPABASE_CONFIGURED) {
+      alert('⚠️ Supabase non configuré');
+      return;
+    }
+    if (videoCount === 0) {
+      alert('ℹ️ Aucune vidéo à supprimer');
+      return;
+    }
+    if (!confirm(`⚠️ Effacer ${videoCount} vidéo${videoCount > 1 ? 's' : ''} du bucket Supabase ?\n\nCette action est irréversible.`)) {
+      return;
+    }
+    setClearingStorage(true);
+    try {
+      const result = await clearAllVideosFromBucket();
+      if (result.success) {
+        setVideoCount(0);
+        alert(`✅ ${result.count} vidéo${result.count > 1 ? 's' : ''} supprimée${result.count > 1 ? 's' : ''} avec succès`);
+      } else {
+        alert(`❌ Erreur lors de la suppression :\n${result.errors.join('\n')}`);
+      }
+    } catch (error) {
+      console.error('Error clearing storage:', error);
+      alert('❌ Erreur lors de l\'effacement du stockage');
+    } finally {
+      setClearingStorage(false);
+    }
+  };
+
+  const handleExportVideos = async () => {
+    if (!SUPABASE_CONFIGURED) {
+      alert('⚠️ Supabase non configuré');
+      return;
+    }
+    if (videoCount === 0) {
+      alert('ℹ️ Aucune vidéo à exporter.\n\nCapturez des vidéos d\'abord !');
+      return;
+    }
+    setExportingVideos(true);
+    setExportProgress({ current: 0, total: 0 });
+    try {
+      await exportAllVideosFromBucket((progress) => {
+        setExportProgress({ current: progress.current, total: progress.total });
+      });
+      alert('✅ Export terminé avec succès');
+    } catch (error) {
+      console.error('Error exporting videos:', error);
+      if (error instanceof Error && error.message === 'NO_VIDEOS') {
+        alert('ℹ️ Aucune vidéo à exporter');
+      } else {
+        const message = error instanceof Error ? error.message : 'Erreur inconnue';
+        alert(`❌ Erreur lors de l'export : ${message}`);
+      }
+    } finally {
+      setExportingVideos(false);
+      setExportProgress({ current: 0, total: 0 });
+    }
+  };
 
   const goBack = () => {
     if (panel === "intro" || panel === "outro") setPanel("jingle");
@@ -308,7 +379,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                             <button
                               type="button"
                               onClick={() => setShowEmailList(true)}
-                              className="flex min-h-[3.25rem] w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-white/5 touch-manipulation"
+                              className="flex min-h-[3.25rem] w-full items-center gap-3 border-b border-white/6 px-3.5 py-2.5 text-left active:bg-white/5 touch-manipulation"
                             >
                               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-300">
                                 <Mail className="h-4 w-4" />
@@ -323,6 +394,44 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                           <p className="px-3.5 py-3 text-[11px] text-neuro-muted">Stats & emails disponibles avec Supabase configuré.</p>
                         )}
                       </PanelBlock>
+
+                      {/* Storage management */}
+                      {SUPABASE_CONFIGURED && (
+                        <PanelBlock>
+                          <button
+                            type="button"
+                            onClick={handleExportVideos}
+                            disabled={exportingVideos || videoCount === 0}
+                            className="flex min-h-[3.25rem] w-full items-center gap-3 border-b border-white/6 px-3.5 py-2.5 text-left active:bg-white/5 touch-manipulation disabled:opacity-50"
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500/20 text-green-300">
+                              <Download className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-[13px] font-semibold text-white">
+                                {exportingVideos ? `Export en cours... (${exportProgress.current}/${exportProgress.total})` : `Exporter toutes les vidéos${videoCount > 0 ? ` (${videoCount})` : ''}`}
+                              </p>
+                              <p className="text-[11px] text-neuro-muted">Télécharger un ZIP depuis Supabase</p>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearStorage}
+                            disabled={clearingStorage || videoCount === 0}
+                            className="flex min-h-[3.25rem] w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-white/5 touch-manipulation disabled:opacity-50"
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20 text-red-300">
+                              <Trash2 className="h-4 w-4" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-[13px] font-semibold text-white">
+                                {clearingStorage ? 'Suppression...' : `Effacer le bucket${videoCount > 0 ? ` (${videoCount})` : ''}`}
+                              </p>
+                              <p className="text-[11px] text-neuro-muted">Supprimer toutes les vidéos Supabase</p>
+                            </div>
+                          </button>
+                        </PanelBlock>
+                      )}
 
                       <button
                         type="button"
