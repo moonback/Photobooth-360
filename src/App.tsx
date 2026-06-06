@@ -13,8 +13,6 @@ import SettingsModal, { AppSettings } from "./components/SettingsModal";
 import ShareSection from "./components/ShareSection";
 import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
-import { LiveStatsBadge } from "./components/LiveStatsBadge";
-import { SwipeIndicator } from "./components/SwipeIndicator";
 import { useCamera } from "./hooks/useCamera";
 import { useRecorder } from "./hooks/useRecorder";
 import { useSettings } from "./hooks/useSettings";
@@ -248,16 +246,6 @@ export default function App() {
         />
       ) : (
         <>
-          {/* Badge de statistiques live */}
-          <LiveStatsBadge show={!isReviewing && !isFullscreen} />
-          
-          {/* Indicateur de swipe pour naviguer entre vidéos */}
-          <SwipeIndicator 
-            show={isReviewing && !isFullscreen} 
-            currentIndex={gallery.indexOf(videoUrl)}
-            totalCount={gallery.length}
-          />
-          
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
