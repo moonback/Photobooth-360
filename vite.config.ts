@@ -108,6 +108,20 @@ export default defineConfig(() => {
                 },
                 rangeRequests: true
               }
+            },
+            {
+              urlPattern: /\/song\/.*\.mp3$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'songs-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 jours
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
             }
           ],
           cleanupOutdatedCaches: true,

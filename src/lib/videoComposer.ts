@@ -2,6 +2,7 @@
  * Video composition utility for adding intro/outro to recorded videos
  */
 
+import type { ExportFormat } from "./exportFormat";
 import { getPresentationBackground, type PresentationSlideConfig } from "./presentationTemplates";
 
 export interface ComposerOptions {
@@ -12,6 +13,7 @@ export interface ComposerOptions {
   mainVideoUrl: string;
   width: number;
   height: number;
+  format?: ExportFormat;
   recordAudio: boolean;
   onProgress?: (stage: 'intro' | 'main' | 'outro' | 'finalizing', progress: number) => void;
 }
@@ -21,7 +23,10 @@ export interface ComposerOptions {
  * Returns a blob URL of the composed video
  */
 export async function composeVideo(options: ComposerOptions): Promise<string> {
-  const { introUrl, outroUrl, introSlide, outroSlide, mainVideoUrl, width, height, recordAudio, onProgress } = options;
+  const {
+    introUrl, outroUrl, introSlide, outroSlide, mainVideoUrl,
+    width, height, format = '16:9', recordAudio, onProgress,
+  } = options;
 
   // If no intro/outro, return the main video as-is
   if (!introUrl && !outroUrl && !introSlide && !outroSlide) {
@@ -86,7 +91,7 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
 
   for (const item of sequence) {
     if (item.slide) {
-      await renderPresentationSlide(ctx, item.slide, canvas.width, canvas.height, (progress) => {
+      await renderPresentationSlide(ctx, item.slide, canvas.width, canvas.height, format, (progress) => {
         onProgress?.(item.type, progress);
       });
       continue;
@@ -117,6 +122,7 @@ async function renderPresentationSlide(
   slide: PresentationSlideConfig,
   width: number,
   height: number,
+  format: ExportFormat,
   onProgress: (progress: number) => void,
 ): Promise<void> {
   const frames = Math.max(1, Math.round(slide.durationSeconds * 30));
@@ -132,7 +138,7 @@ async function renderPresentationSlide(
 
   for (let i = 0; i < frames; i++) {
     const progress = i / frames;
-    drawPresentationSlide(ctx, slide, width, height, progress, slideImage);
+    drawPresentationSlide(ctx, slide, width, height, format, progress, slideImage);
     onProgress(Math.round(progress * 100));
     await delay(1000 / 30);
   }
@@ -145,6 +151,7 @@ function drawPresentationSlide(
   slide: PresentationSlideConfig,
   width: number,
   height: number,
+  format: ExportFormat,
   progress: number,
   slideImage?: HTMLImageElement,
 ): void {
@@ -169,11 +176,11 @@ function drawPresentationSlide(
   ctx.translate(0, (1 - eased) * 36);
 
   if (slide.template === 'minimal') {
-    drawMinimalTemplate(ctx, title, subtitle, width, height, accent, slideImage);
+    drawMinimalTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
   } else if (slide.template === 'gradient') {
-    drawGradientTemplate(ctx, title, subtitle, width, height, slideImage);
+    drawGradientTemplate(ctx, title, subtitle, width, height, format, slideImage);
   } else {
-    drawSpotlightTemplate(ctx, title, subtitle, width, height, accent, slideImage);
+    drawSpotlightTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
   }
 
   ctx.restore();
@@ -185,29 +192,48 @@ function drawSpotlightTemplate(
   subtitle: string,
   width: number,
   height: number,
+  format: ExportFormat,
   accent: string,
   slideImage?: HTMLImageElement,
 ): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const cardX = width * (isVertical ? 0.08 : isSquare ? 0.12 : 0.16);
+  const cardY = height * (isVertical ? 0.18 : isSquare ? 0.22 : 0.24);
+  const cardW = width * (isVertical ? 0.84 : isSquare ? 0.76 : 0.68);
+  const cardH = height * (isVertical ? 0.58 : isSquare ? 0.56 : 0.52);
+  const imageSize = width * (isVertical ? 0.2 : isSquare ? 0.16 : 0.14);
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255,255,255,0.16)';
-  roundRect(ctx, width * 0.16, height * 0.24, width * 0.68, height * 0.52, 48);
+  roundRect(ctx, cardX, cardY, cardW, cardH, isVertical ? 36 : 48);
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.22)';
   ctx.lineWidth = 2;
   ctx.stroke();
 
+  const imageY = isVertical ? height * 0.24 : isSquare ? height * 0.28 : height * 0.28;
   if (slideImage) {
-    drawRoundedImage(ctx, slideImage, width * 0.43, height * 0.28, width * 0.14, width * 0.14, 24);
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 24);
   } else {
     ctx.fillStyle = accent;
     ctx.beginPath();
-    ctx.arc(width * 0.5, height * 0.32, 10, 0, Math.PI * 2);
+    ctx.arc(width * 0.5, imageY + imageSize / 2, 10, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  drawWrappedText(ctx, title, width / 2, height * (slideImage ? 0.54 : 0.48), width * 0.68, Math.round(width * 0.07), 0.92, '#fff', '900');
-  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * (slideImage ? 0.7 : 0.64), width * 0.58, Math.round(width * 0.026), 1.35, 'rgba(255,255,255,0.78)', '700');
+  const titleY = slideImage
+    ? height * (isVertical ? 0.52 : isSquare ? 0.54 : 0.54)
+    : height * (isVertical ? 0.46 : isSquare ? 0.48 : 0.48);
+  const subtitleY = slideImage
+    ? height * (isVertical ? 0.68 : isSquare ? 0.7 : 0.7)
+    : height * (isVertical ? 0.62 : isSquare ? 0.64 : 0.64);
+
+  drawWrappedText(ctx, title, width / 2, titleY, cardW * 0.9, Math.round(width * (isVertical ? 0.085 : 0.07)), 0.92, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, cardW * 0.82, Math.round(width * (isVertical ? 0.03 : 0.026)), 1.35, 'rgba(255,255,255,0.78)', '700');
+  }
 }
 
 function drawGradientTemplate(
@@ -216,17 +242,40 @@ function drawGradientTemplate(
   subtitle: string,
   width: number,
   height: number,
+  format: ExportFormat,
   slideImage?: HTMLImageElement,
 ): void {
-  ctx.textAlign = 'left';
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const useCentered = isVertical || isSquare;
+
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillRect(width * 0.08, height * 0.16, 4, height * 0.68);
-  if (slideImage) {
-    drawRoundedImage(ctx, slideImage, width * 0.68, height * 0.24, width * 0.22, width * 0.22, 32);
+  ctx.textAlign = useCentered ? 'center' : 'left';
+
+  if (!useCentered) {
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(width * 0.08, height * 0.16, 4, height * 0.68);
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(width * 0.5 - 2, height * 0.14, 4, height * 0.72);
   }
-  drawWrappedText(ctx, title, width * 0.14, height * 0.44, width * 0.76, Math.round(width * 0.082), 0.9, '#fff', '900', 'left');
-  if (subtitle) drawWrappedText(ctx, subtitle, width * 0.14, height * 0.66, width * 0.62, Math.round(width * 0.027), 1.35, 'rgba(255,255,255,0.78)', '700', 'left');
+
+  const imageSize = width * (isVertical ? 0.28 : isSquare ? 0.24 : 0.22);
+  if (slideImage) {
+    const imageX = useCentered ? width * 0.5 - imageSize / 2 : width * 0.68;
+    const imageY = useCentered ? height * 0.18 : height * 0.24;
+    drawRoundedImage(ctx, slideImage, imageX, imageY, imageSize, imageSize, 32);
+  }
+
+  const textX = useCentered ? width / 2 : width * 0.14;
+  const titleY = useCentered ? height * (slideImage ? 0.56 : 0.48) : height * 0.44;
+  const subtitleY = useCentered ? height * (slideImage ? 0.72 : 0.64) : height * 0.66;
+  const maxTextWidth = width * (useCentered ? 0.82 : 0.76);
+
+  drawWrappedText(ctx, title, textX, titleY, maxTextWidth, Math.round(width * (isVertical ? 0.09 : 0.082)), 0.9, '#fff', '900', useCentered ? 'center' : 'left');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, textX, subtitleY, maxTextWidth * 0.92, Math.round(width * (isVertical ? 0.032 : 0.027)), 1.35, 'rgba(255,255,255,0.78)', '700', useCentered ? 'center' : 'left');
+  }
 }
 
 function drawMinimalTemplate(
@@ -235,23 +284,44 @@ function drawMinimalTemplate(
   subtitle: string,
   width: number,
   height: number,
+  format: ExportFormat,
   accent: string,
   slideImage?: HTMLImageElement,
 ): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const cardX = width * (isVertical ? 0.1 : isSquare ? 0.14 : 0.2);
+  const cardY = height * (isVertical ? 0.24 : isSquare ? 0.28 : 0.3);
+  const cardW = width * (isVertical ? 0.8 : isSquare ? 0.72 : 0.6);
+  const cardH = height * (isVertical ? 0.48 : isSquare ? 0.44 : 0.4);
+  const imageSize = width * (isVertical ? 0.14 : isSquare ? 0.12 : 0.09);
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(0,0,0,0.32)';
-  roundRect(ctx, width * 0.2, height * 0.3, width * 0.6, height * 0.4, 28);
+  roundRect(ctx, cardX, cardY, cardW, cardH, isVertical ? 24 : 28);
   ctx.fill();
+
+  const imageY = isVertical ? height * 0.3 : isSquare ? height * 0.34 : height * 0.34;
   if (slideImage) {
-    drawRoundedImage(ctx, slideImage, width * 0.455, height * 0.34, width * 0.09, width * 0.09, 18);
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 18);
   } else {
     ctx.fillStyle = accent;
-    roundRect(ctx, width * 0.44, height * 0.36, width * 0.12, 8, 4);
+    roundRect(ctx, width * 0.5 - width * 0.06, imageY + imageSize * 0.35, width * 0.12, 8, 4);
     ctx.fill();
   }
-  drawWrappedText(ctx, title, width / 2, height * (slideImage ? 0.54 : 0.5), width * 0.5, Math.round(width * 0.055), 1.0, '#fff', '900');
-  if (subtitle) drawWrappedText(ctx, subtitle, width / 2, height * (slideImage ? 0.66 : 0.62), width * 0.46, Math.round(width * 0.023), 1.35, 'rgba(255,255,255,0.72)', '700');
+
+  const titleY = slideImage
+    ? height * (isVertical ? 0.52 : isSquare ? 0.54 : 0.54)
+    : height * (isVertical ? 0.48 : isSquare ? 0.5 : 0.5);
+  const subtitleY = slideImage
+    ? height * (isVertical ? 0.64 : isSquare ? 0.66 : 0.66)
+    : height * (isVertical ? 0.6 : isSquare ? 0.62 : 0.62);
+
+  drawWrappedText(ctx, title, width / 2, titleY, cardW * 0.82, Math.round(width * (isVertical ? 0.065 : 0.055)), 1.0, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, cardW * 0.78, Math.round(width * (isVertical ? 0.028 : 0.023)), 1.35, 'rgba(255,255,255,0.72)', '700');
+  }
 }
 
 

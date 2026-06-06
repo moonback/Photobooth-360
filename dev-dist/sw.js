@@ -81,7 +81,7 @@ define(['./workbox-4cacea4d'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.1vg852i3hq4"
+    "revision": "0.e49ar96454k"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -117,6 +117,15 @@ define(['./workbox-4cacea4d'], (function (workbox) { 'use strict';
       maxEntries: 20,
       maxAgeSeconds: 604800
     }), new workbox.RangeRequestsPlugin()]
+  }), 'GET');
+  workbox.registerRoute(/\/song\/.*\.mp3$/i, new workbox.CacheFirst({
+    "cacheName": "songs-cache",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 10,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
   }), 'GET');
 
 }));
