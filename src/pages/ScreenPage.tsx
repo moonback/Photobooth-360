@@ -72,6 +72,7 @@ export default function ScreenPage() {
   const [hasCloudError, setHasCloudError] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [showActivation, setShowActivation] = useState(false);
+  const [hasNoVideos, setHasNoVideos] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
@@ -107,6 +108,13 @@ export default function ScreenPage() {
       try {
         const videos = await listVideosFromBucket();
         if (cancelled) return;
+        
+        if (videos.length === 0) {
+          setHasNoVideos(true);
+        } else {
+          setHasNoVideos(false);
+        }
+        
         const latest = videos[0];
         if (latest?.url) {
           setCapture((current) => {
@@ -418,6 +426,8 @@ export default function ScreenPage() {
                   >
                     {isPolling ? (
                       <Loader2 className="h-14 w-14 animate-spin" style={{ color: accentColors.primary }} />
+                    ) : hasNoVideos ? (
+                      <Film className="h-14 w-14" style={{ color: accentColors.primary }} />
                     ) : (
                       <RefreshCw className="h-14 w-14" style={{ color: accentColors.primary }} />
                     )}
@@ -425,22 +435,32 @@ export default function ScreenPage() {
                 </div>
               </motion.div>
               
-              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-white/50 mb-4">En attente de capture</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-white/50 mb-4">
+                {hasNoVideos ? "Aucune vidéo trouvée" : "En attente de capture"}
+              </p>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight mb-6">
-                Lancez une<br />capture sur la borne !
+                {hasNoVideos 
+                  ? "Aucune vidéo en mémoires !"
+                  : "Lancez une<br />capture sur la borne !"
+                }
               </h2>
               <p className="text-lg text-white/60 max-w-lg mx-auto mb-10">
-                Votre vidéo et son QR code apparaîtront automatiquement ici dès qu'ils seront prêts.
+                {hasNoVideos 
+                  ? "Videz la mémoires via les paramètres de la borne, puis capturez une nouvelle vidéo pour commencer."
+                  : "Votre vidéo et son QR code apparaîtront automatiquement ici dès qu'ils seront prêts."
+                }
               </p>
               
-              <motion.div 
-                className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-black/30 backdrop-blur-xl px-6 py-3"
-                animate={{ y: [0, 8, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <ArrowRight className="h-5 w-5 text-white/50" />
-                <span className="text-sm font-medium text-white/70">La magie arrive...</span>
-              </motion.div>
+              {!hasNoVideos && (
+                <motion.div 
+                  className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-black/30 backdrop-blur-xl px-6 py-3"
+                  animate={{ y: [0, 8, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <ArrowRight className="h-5 w-5 text-white/50" />
+                  <span className="text-sm font-medium text-white/70">La magie arrive...</span>
+                </motion.div>
+              )}
             </div>
           </motion.section>
         )}
