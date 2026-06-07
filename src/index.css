@@ -1,13 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  --color-neuro-bg: #09090B;
-  --color-neuro-surface: #18181B;
-  --color-neuro-elevated: #27272A;
-  --color-neuro-text: #FAFAFA;
-  --color-neuro-muted: #A1A1AA;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  --font-display: "Syne", var(--font-sans);
+  --color-neuro-bg: #070709;
+  --color-neuro-surface: #111114;
+  --color-neuro-elevated: #1C1C21;
+  --color-neuro-text: #F4F4F5;
+  --color-neuro-muted: #9CA3AF;
   --color-neuro-accent: #6366F1;
   --color-neuro-violet: #8B5CF6;
   --color-neuro-success: #10B981;
@@ -16,6 +17,7 @@
   --animate-breathe: breathe 2.8s ease-in-out infinite;
   --animate-record-ring: record-ring 1.15s ease-out infinite;
   --animate-slow-pulse: slow-pulse 3.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.4s ease-in-out infinite;
 
   @keyframes flash {
     0% { opacity: 1; }
@@ -24,7 +26,7 @@
 
   @keyframes breathe {
     0%, 100% { transform: scale(1); opacity: 0.85; }
-    50% { transform: scale(1.08); opacity: 1; }
+    50% { transform: scale(1.06); opacity: 1; }
   }
 
   @keyframes record-ring {
@@ -36,23 +38,31 @@
     0%, 100% { opacity: 0.55; transform: scale(0.98); }
     50% { opacity: 1; transform: scale(1.04); }
   }
+
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
 }
 
 :root {
   color-scheme: dark;
   font-family: var(--font-sans);
-  background: #09090B;
-  color: #FAFAFA;
+  background: #070709;
+  color: #F4F4F5;
   font-synthesis: none;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  
-  /* Variables pour safe-area-inset */
+
   --sat: env(safe-area-inset-top);
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
   --sar: env(safe-area-inset-right);
+
+  --nav-height: 3.75rem;
+  --nav-offset: calc(var(--nav-height) + env(safe-area-inset-bottom) + 0.5rem);
+  --record-offset: calc(var(--nav-offset) + 5.5rem);
 }
 
 html,
@@ -63,16 +73,17 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #09090B;
-  
-  /* Optimisations mobile */
+  background: #070709;
   touch-action: pan-x pan-y;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* Optimisations spécifiques iOS */
+.font-display {
+  font-family: var(--font-display);
+}
+
 .is-ios {
   -webkit-overflow-scrolling: touch;
 }
@@ -80,16 +91,14 @@ body,
 .is-ios input,
 .is-ios textarea,
 .is-ios select {
-  font-size: 16px !important; /* Empêche le zoom automatique sur focus */
+  font-size: 16px !important;
 }
 
-/* Optimisations spécifiques Android */
 .is-android {
   -webkit-text-size-adjust: none;
   text-size-adjust: none;
 }
 
-/* Styles pour appareils mobiles */
 .is-mobile button,
 .is-mobile a {
   cursor: pointer;
@@ -118,7 +127,6 @@ a {
   -webkit-user-drag: none;
 }
 
-/* Amélioration des zones tactiles sur mobile */
 @media (hover: none) and (pointer: coarse) {
   button,
   a {
@@ -136,12 +144,10 @@ textarea:focus-visible {
   outline-offset: 3px;
 }
 
-/* Touch manipulation pour meilleure réactivité */
 .touch-manipulation {
   touch-action: manipulation;
 }
 
-/* Désactiver la sélection de texte sur éléments interactifs */
 button,
 a,
 .no-select {
@@ -150,18 +156,15 @@ a,
   user-select: none;
 }
 
-/* Améliorer le scroll momentum sur iOS */
 .smooth-scroll {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
 }
 
-/* Empêcher le rebond sur iOS */
 .no-bounce {
   overscroll-behavior: contain;
 }
 
-/* Désactiver le zoom sur double tap */
 * {
   touch-action: manipulation;
 }
@@ -172,25 +175,115 @@ a,
 .pt-safe-top { padding-top: env(safe-area-inset-top); }
 
 .glass-panel {
-  background: rgb(255 255 255 / 0.05);
+  background: rgb(255 255 255 / 0.06);
   border: 1px solid rgb(255 255 255 / 0.10);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.08);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-panel-strong {
+  background: rgb(255 255 255 / 0.10);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.10);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
 }
 
 .premium-gradient {
   background:
-    radial-gradient(circle at 18% 12%, rgba(99, 102, 241, 0.34), transparent 34%),
-    radial-gradient(circle at 85% 26%, rgba(139, 92, 246, 0.30), transparent 32%),
-    linear-gradient(180deg, #18181B 0%, #09090B 48%, #050507 100%);
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.28), transparent 60%),
+    radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.18), transparent 40%),
+    linear-gradient(180deg, #131318 0%, #070709 55%, #040406 100%);
 }
 
-.text-title-xl { font-size: 32px; line-height: 1.05; letter-spacing: -0.045em; }
-.text-title { font-size: 24px; line-height: 1.12; letter-spacing: -0.035em; }
-.text-subtitle { font-size: 18px; line-height: 1.35; }
-.text-body { font-size: 16px; line-height: 1.5; }
-.text-caption { font-size: 13px; line-height: 1.35; }
+.grain-overlay::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #070709;
+  background: #F4F4F5;
+  box-shadow: 0 4px 24px rgb(255 255 255 / 0.12), 0 1px 0 rgb(255 255 255 / 0.20) inset;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  background: #E4E4E7;
+}
+
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 9999px;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-neuro-accent, #6366F1);
+  box-shadow: 0 4px 24px rgb(99 102 241 / 0.30);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.btn-accent:active {
+  transform: scale(0.97);
+  filter: brightness(1.08);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #F4F4F5;
+  background: rgb(255 255 255 / 0.08);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.btn-secondary:active {
+  transform: scale(0.97);
+  background: rgb(255 255 255 / 0.12);
+}
+
+.nav-bar {
+  background: rgb(17 17 20 / 0.88);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  box-shadow: 0 -8px 40px rgb(0 0 0 / 0.40), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.text-title-xl { font-family: var(--font-display); font-size: clamp(1.75rem, 5vw, 2.25rem); line-height: 1.05; letter-spacing: -0.04em; font-weight: 800; }
+.text-title { font-family: var(--font-display); font-size: clamp(1.375rem, 4vw, 1.625rem); line-height: 1.12; letter-spacing: -0.035em; font-weight: 700; }
+.text-subtitle { font-size: 1rem; line-height: 1.4; font-weight: 500; }
+.text-body { font-size: 0.9375rem; line-height: 1.5; }
+.text-caption { font-size: 0.75rem; line-height: 1.35; letter-spacing: 0.02em; }
+.text-label { font-size: 0.6875rem; line-height: 1.2; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
 
 .scrollbar-none {
   scrollbar-width: none;

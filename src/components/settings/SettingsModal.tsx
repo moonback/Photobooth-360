@@ -279,33 +279,33 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
               transition={{ type: "spring", stiffness: 340, damping: 38 }}
             >
               {/* Header */}
-              <header className="shrink-0 border-b border-white/8 pt-[env(safe-area-inset-top)]">
-                <div className="flex items-center gap-2 px-3 py-2.5">
+              <header className="shrink-0 border-b border-white/6 bg-neuro-bg/95 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
+                <div className="flex items-center gap-2.5 px-4 py-3">
                   {isSubPanel ? (
                     <button
                       type="button"
                       onClick={goBack}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-white active:scale-90 touch-manipulation"
+                      className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-white active:scale-92 touch-manipulation"
                       aria-label="Retour"
                     >
-                      <ArrowLeft className="h-4 w-4" />
+                      <ArrowLeft className="h-[18px] w-[18px]" />
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={onClose}
-                      className="grid h-9 w-9 place-items-center rounded-full bg-white/5 text-neuro-muted active:scale-90 touch-manipulation"
+                      className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-neuro-muted active:scale-92 touch-manipulation"
                       aria-label="Fermer"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-[18px] w-[18px]" />
                     </button>
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-neuro-accent">
+                    <p className="text-label text-neuro-accent">
                       {isSubPanel ? "Réglage" : "Administration"}
                     </p>
-                    <h2 className="truncate text-[17px] font-black text-white leading-tight">
+                    <h2 className="font-display truncate text-[17px] font-bold text-white leading-tight">
                       {isSubPanel ? PANEL_TITLES[panel] : "Configuration borne"}
                     </h2>
                   </div>
@@ -314,7 +314,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                     <button
                       type="button"
                       onClick={handleSave}
-                      className="flex h-9 items-center gap-1.5 rounded-full bg-neuro-accent px-3.5 text-[12px] font-black text-white shadow-[0_0_16px_rgba(99,102,241,0.35)] active:scale-95 touch-manipulation"
+                      className="flex h-10 items-center gap-1.5 rounded-xl bg-neuro-accent px-3.5 text-[12px] font-bold text-white shadow-[0_0_16px_rgba(99,102,241,0.30)] active:scale-95 touch-manipulation"
                     >
                       <Check className="h-3.5 w-3.5" /> OK
                     </button>
@@ -335,13 +335,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                       className="space-y-3"
                     >
                       {/* Event preview chip */}
-                      <div className="flex items-center gap-2.5 rounded-xl border border-white/8 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 px-3 py-2.5">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neuro-accent/20 text-neuro-accent">
-                          <Palette className="h-4 w-4" />
+                      <div className="glass-panel-strong flex items-center gap-3 rounded-2xl px-4 py-3.5">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neuro-accent/18 text-neuro-accent">
+                          <Palette className="h-[18px] w-[18px]" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[14px] font-bold text-white">{draft.eventName}</p>
-                          <p className="text-[10px] text-neuro-muted">Borne photobooth 360°</p>
+                          <p className="truncate font-display text-[15px] font-bold text-white">{draft.eventName}</p>
+                          <p className="text-caption text-neuro-muted mt-0.5">Borne photobooth 360°</p>
                         </div>
                       </div>
 
@@ -453,7 +453,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                       <button
                         type="button"
                         onClick={() => setDraft(DEFAULT_SETTINGS)}
-                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 text-[12px] font-bold text-neuro-muted active:scale-[0.98] touch-manipulation"
+                        className="btn-secondary w-full gap-2 rounded-xl text-[12px] touch-manipulation"
                       >
                         <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser tous les réglages
                       </button>
@@ -474,11 +474,11 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
               {/* Footer — sub-panels only */}
               {isSubPanel && (
-                <footer className="shrink-0 border-t border-white/8 bg-neuro-bg px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
+                <footer className="shrink-0 border-t border-white/6 bg-neuro-bg/95 backdrop-blur-xl px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
                   <button
                     type="button"
                     onClick={goBack}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-neuro-accent text-[14px] font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.35)] active:scale-[0.98] touch-manipulation"
+                    className="btn-accent w-full touch-manipulation"
                   >
                     <Check className="h-4 w-4" /> Appliquer
                   </button>
@@ -487,19 +487,19 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
               {/* Hub footer — cancel */}
               {!isSubPanel && (
-                <footer className="shrink-0 border-t border-white/8 bg-neuro-bg px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
-                  <div className="grid grid-cols-2 gap-2">
+                <footer className="shrink-0 border-t border-white/6 bg-neuro-bg/95 backdrop-blur-xl px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="h-11 rounded-xl border border-white/10 bg-white/5 text-[13px] font-bold text-neuro-muted active:scale-[0.98] touch-manipulation"
+                      className="btn-secondary rounded-xl text-[13px] touch-manipulation"
                     >
                       Annuler
                     </button>
                     <button
                       type="button"
                       onClick={handleSave}
-                      className="flex h-11 items-center justify-center gap-2 rounded-xl bg-neuro-accent text-[13px] font-black text-white shadow-[0_0_20px_rgba(99,102,241,0.35)] active:scale-[0.98] touch-manipulation"
+                      className="btn-accent touch-manipulation"
                     >
                       <Check className="h-4 w-4" /> Sauvegarder
                     </button>

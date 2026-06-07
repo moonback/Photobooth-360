@@ -24,27 +24,27 @@ interface UploadProps extends PanelProps {
 export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fileRef }: UploadProps) {
   return (
     <div className="space-y-3">
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Événement</SectionLabel>
         <FieldInput value={draft.eventName} onChange={(v) => update("eventName", v)} placeholder="Nom de l'événement" />
       </PanelBlock>
 
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Logo</SectionLabel>
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg border border-white/10 bg-white/5">
+        <div className="flex items-center gap-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
             {draft.logoUrl ? <img src={draft.logoUrl} alt="Logo" className="h-full w-full object-contain p-1" /> : <Image className="h-5 w-5 text-neuro-muted" />}
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onLogo(e.target.files?.[0])} />
-          <button type="button" onClick={() => fileRef.current?.click()} className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white text-[12px] font-bold text-black touch-manipulation">
+          <button type="button" onClick={() => fileRef.current?.click()} className="btn-primary flex-1 h-10 min-h-0 gap-1.5 rounded-xl text-[12px] touch-manipulation">
             <Upload className="h-3.5 w-3.5" />{logoState === "uploading" ? "Import…" : "Importer logo"}
           </button>
         </div>
-        {!SUPABASE_CONFIGURED && <p className="mt-1.5 text-[10px] text-amber-300">Supabase non configuré</p>}
-        {logoError && <p className="mt-1 text-[10px] text-red-400">{logoError}</p>}
+        {!SUPABASE_CONFIGURED && <p className="mt-2 text-caption text-amber-300">Supabase non configuré</p>}
+        {logoError && <p className="mt-1.5 text-caption text-red-400">{logoError}</p>}
       </PanelBlock>
 
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Couleur d'accent</SectionLabel>
         <div className="flex gap-2">
           {ACCENT_COLORS.map((c) => (
@@ -52,11 +52,13 @@ export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fil
               key={c.value}
               type="button"
               onClick={() => update("accentColor", c.value)}
-              className={`flex h-10 flex-1 items-center justify-center rounded-lg border touch-manipulation ${draft.accentColor === c.value ? "border-white bg-white/10" : "border-white/10 bg-white/5"}`}
+              className={`flex h-11 flex-1 items-center justify-center rounded-xl border touch-manipulation transition-all active:scale-95 ${
+                draft.accentColor === c.value ? "border-white/30 bg-white/10 ring-2 ring-white/20" : "border-white/10 bg-white/[0.04]"
+              }`}
               aria-label={c.label}
               aria-pressed={draft.accentColor === c.value}
             >
-              <span className={`h-4 w-4 rounded-full ${c.bg}`} />
+              <span className={`h-5 w-5 rounded-full ${c.bg} shadow-sm`} />
             </button>
           ))}
         </div>
@@ -68,7 +70,7 @@ export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fil
 export function CapturePanel({ draft, update }: PanelProps) {
   return (
     <div className="space-y-3">
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Durée</SectionLabel>
         <div className="grid grid-cols-5 gap-1">
           {DURATIONS.map((d) => (
@@ -79,7 +81,7 @@ export function CapturePanel({ draft, update }: PanelProps) {
         </div>
       </PanelBlock>
 
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Countdown</SectionLabel>
         <div className="grid grid-cols-4 gap-1">
           {COUNTDOWNS.map((c) => (
@@ -90,7 +92,7 @@ export function CapturePanel({ draft, update }: PanelProps) {
         </div>
       </PanelBlock>
 
-      <PanelBlock className="p-3">
+      <PanelBlock className="p-4">
         <SectionLabel>Caméra</SectionLabel>
         <div className="mb-2 grid grid-cols-2 gap-1">
           <Segment compact value="user" selected={draft.facingMode === "user"} label="Selfie" sub="Avant" onClick={(v) => update("facingMode", v)} />
@@ -145,7 +147,7 @@ export function MotorPanel({ draft, update }: PanelProps) {
             <Toggle checked={draft.motorAutoStart} onChange={() => update("motorAutoStart", !draft.motorAutoStart)} label="Démarrage auto à l'enregistrement" compact />
           </PanelBlock>
 
-          <PanelBlock className="p-3">
+          <PanelBlock className="p-4">
             <SectionLabel>Interface</SectionLabel>
             <div className="mb-3 grid grid-cols-2 gap-1">
               <Segment compact value="serial" selected={draft.motorBackend === "serial"} label="WebSerial" sub="USB-Série" onClick={(v) => update("motorBackend", v)} />
@@ -220,7 +222,7 @@ export function KioskPanel({ draft, update }: PanelProps) {
 
       {draft.kioskEnabled && (
         <>
-          <PanelBlock className="p-3">
+          <PanelBlock className="p-4">
             <SectionLabel>Code PIN admin</SectionLabel>
             <p className="mb-2 text-[10px] text-white/40">5 taps en haut au centre pour accéder aux réglages.</p>
             <div className="relative">
@@ -266,7 +268,7 @@ export function MusicPanel({ draft, update }: PanelProps) {
 
       {draft.backgroundMusicEnabled && (
         <>
-          <PanelBlock className="p-3">
+          <PanelBlock className="p-4">
             <SectionLabel>Piste par défaut</SectionLabel>
             <p className="mb-2 text-[10px] text-white/40">
               Proposée par défaut sur la page de partage. L'invité peut la changer ou la désactiver.
@@ -300,7 +302,7 @@ export function MusicPanel({ draft, update }: PanelProps) {
             </div>
           </PanelBlock>
 
-          <PanelBlock className="p-3">
+          <PanelBlock className="p-4">
             <SectionLabel>Volume musique — {draft.backgroundMusicVolume}%</SectionLabel>
             <input
               type="range"

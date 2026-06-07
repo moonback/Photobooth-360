@@ -337,23 +337,23 @@ export default function GalleryPage() {
     <div className="h-dvh overflow-hidden flex flex-col bg-neuro-bg text-neuro-text font-sans">
 
       {/* Header */}
-      <header className="shrink-0 flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 border-b border-white/8 bg-neuro-bg/90 backdrop-blur-xl">
+      <header className="shrink-0 flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.625rem)] pb-3 border-b border-white/6 bg-neuro-bg/95 backdrop-blur-xl">
         <button
           type="button"
           onClick={() => navigate("/")}
-          className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-white active:scale-90 touch-manipulation"
+          className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-white active:scale-92 touch-manipulation"
           aria-label="Retour"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neuro-accent">NeuroBooth</p>
-          <h1 className="text-[18px] font-black text-white leading-tight truncate">
+          <p className="text-label text-neuro-accent">NeuroBooth</p>
+          <h1 className="font-display text-[17px] font-bold text-white leading-tight truncate">
             Galerie
             {!loading && (
-              <span className="ml-2 text-[14px] font-semibold text-white/40">
-                {videos.length} vidéo{videos.length !== 1 ? "s" : ""}
+              <span className="ml-1.5 text-[13px] font-medium text-white/40">
+                · {videos.length}
               </span>
             )}
           </h1>
@@ -363,10 +363,10 @@ export default function GalleryPage() {
           type="button"
           onClick={loadVideos}
           disabled={loading}
-          className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-white active:scale-90 disabled:opacity-40 touch-manipulation"
+          className="grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-white active:scale-92 disabled:opacity-40 touch-manipulation"
           aria-label="Actualiser"
         >
-          <RefreshCw className={`h-4.5 w-4.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-[18px] w-[18px] ${loading ? "animate-spin" : ""}`} />
         </button>
       </header>
 
@@ -397,17 +397,17 @@ export default function GalleryPage() {
 
         {/* Empty */}
         {!loading && !error && videos.length === 0 && (
-          <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 px-8 text-center">
-            <div className="grid h-20 w-20 place-items-center rounded-[1.5rem] border border-white/10 bg-white/5">
-              <Camera className="h-9 w-9 text-neuro-muted" />
+          <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-5 px-8 text-center">
+            <div className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-2xl border border-white/10 bg-white/[0.04]">
+              <Camera className="h-8 w-8 text-neuro-muted" />
             </div>
             <div>
-              <p className="text-[16px] font-bold text-white">Aucune capture</p>
-              <p className="mt-1 text-[13px] text-neuro-muted">Vos vidéos apparaîtront ici.</p>
+              <p className="font-display text-[17px] font-bold text-white">Aucune capture</p>
+              <p className="mt-1.5 text-body text-neuro-muted">Vos vidéos apparaîtront ici après chaque session.</p>
             </div>
             <button
               onClick={() => navigate("/")}
-              className="mt-1 rounded-xl bg-neuro-accent px-6 py-3 text-[14px] font-bold text-white active:scale-95"
+              className="btn-primary px-8 touch-manipulation"
             >
               Faire une capture
             </button>

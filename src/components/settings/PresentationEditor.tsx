@@ -61,7 +61,7 @@ export function PresentationEditor({
               value={subtitle}
               onChange={(e) => set(isIntro ? { introSubtitle: e.target.value } : { outroSubtitle: e.target.value })}
               rows={2}
-              className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[16px] text-white placeholder:text-zinc-600 sm:text-[13px]"
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[16px] text-white placeholder:text-neuro-muted/50 transition-colors focus:border-neuro-accent/50 focus:outline-none sm:text-[13px]"
               placeholder="Sous-titre"
             />
           </div>

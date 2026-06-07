@@ -302,8 +302,8 @@ export default function App() {
     return (
       <div className="fixed inset-0 grid place-items-center bg-neuro-bg text-neuro-muted">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-11 w-11 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
-          <p className="text-caption font-semibold uppercase tracking-[0.18em]">Chargement des réglages</p>
+          <div className="h-10 w-10 rounded-full border-[3px] border-white/10 border-t-neuro-accent animate-spin" />
+          <p className="text-label text-neuro-muted">Chargement…</p>
         </div>
       </div>
     );
@@ -354,13 +354,13 @@ export default function App() {
             )}
 
             {!isReviewing && (
-              <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-40 -translate-x-1/2 md:bottom-8">
+              <div className="absolute bottom-[var(--record-offset)] left-1/2 z-40 -translate-x-1/2">
                 <RecordButton isRecording={isRecording} isCountingDown={countdown !== null} hasStream={Boolean(stream)} durationSeconds={settings.duration / 1000} onStart={handleStart} onStop={stopRecording} />
               </div>
             )}
 
             {isReviewing && (
-              <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.9rem)] z-30 md:bottom-0">
+              <div className="absolute inset-x-0 bottom-[var(--nav-offset)] z-30">
                 <ShareSection 
                   cloudEnabled={cloudEnabled} 
                   uploadStatus={uploadStatus} 
@@ -374,38 +374,25 @@ export default function App() {
                     haptic.light();
                   } : undefined}
                 />
-                
-                {/* Boutons Refaire/Sauver repositionnés sous le QR code */}
+
                 <motion.div 
-                  className="flex gap-2.5 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 sm:px-6"
-                  initial={{ y: 20, opacity: 0 }}
+                  className="flex gap-2 px-3 pb-2 pt-1.5 sm:px-4"
+                  initial={{ y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
                 >
-                  {/* Bouton Refaire */}
-                  <motion.button 
+                  <button 
                     type="button" 
                     onClick={handleReset} 
-                    className="glass-panel group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-lg hover:bg-white/15 active:scale-[0.98] touch-manipulation" 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }} 
+                    className="btn-secondary flex-1 rounded-xl text-[13px] touch-manipulation"
                     aria-label="Refaire une capture"
                     onTouchStart={() => haptic.light()}
                   >
-                    {/* Effet de brillance au hover */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100"
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: "200%" }}
-                      transition={{ duration: 0.6 }}
-                    />
-                    
-                    <RefreshCcw className="relative h-5 w-5" /> 
-                    <span className="relative">Refaire</span>
-                  </motion.button>
-                  
-                  {/* Bouton Sauver avec gradient accent */}
-                  <motion.a 
+                    <RefreshCcw className="h-4 w-4" /> 
+                    Refaire
+                  </button>
+
+                  <a 
                     href={videoUrl} 
                     download="neurobooth360.webm"
                     onClick={() => {
@@ -413,62 +400,49 @@ export default function App() {
                       trackDownload(videoId);
                       haptic.medium();
                     }}
-                    className={`group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.98] touch-manipulation ${accent.bg}`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }} 
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl text-[13px] font-bold text-white shadow-lg active:scale-[0.97] touch-manipulation min-h-[3.25rem] ${accent.bg}`}
                     aria-label="Télécharger la vidéo"
                     onTouchStart={() => haptic.light()}
                   >
-                    {/* Effet de brillance au hover */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100"
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: "200%" }}
-                      transition={{ duration: 0.6 }}
-                    />
-                    
-                    {/* Glow ring animé */}
-                    <motion.div
-                      className="absolute inset-0 rounded-[1.2rem] opacity-50"
-                      animate={{
-                        boxShadow: [
-                          "inset 0 0 10px rgba(255,255,255,0.2)",
-                          "inset 0 0 20px rgba(255,255,255,0.3)",
-                          "inset 0 0 10px rgba(255,255,255,0.2)",
-                        ]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    
-                    <Download className="relative h-5 w-5" /> 
-                    <span className="relative">Sauver</span>
-                  </motion.a>
+                    <Download className="h-4 w-4" /> 
+                    Sauver
+                  </a>
                 </motion.div>
               </div>
             )}
           </main>
 
           {!isFullscreen && (
-            <nav className="glass-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-50 grid min-h-14 grid-cols-2 rounded-[1.25rem] p-1 md:left-1/2 md:max-w-xs md:-translate-x-1/2" aria-label="Navigation principale">
+            <nav
+              className="nav-bar fixed inset-x-0 bottom-0 z-50 flex min-h-[var(--nav-height)] items-stretch px-2 pb-[env(safe-area-inset-bottom)] pt-1 sm:inset-x-auto sm:left-1/2 sm:max-w-sm sm:-translate-x-1/2 sm:rounded-t-2xl sm:border-b-0"
+              aria-label="Navigation principale"
+            >
               <button 
                 type="button" 
                 onClick={isReviewing ? handleReset : undefined} 
-                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 touch-manipulation ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} 
+                className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] font-bold transition-colors touch-manipulation ${!isReviewing ? "text-white" : "text-neuro-muted"}`}
                 aria-label="Capture"
-                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
-                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                aria-current={!isReviewing ? "page" : undefined}
+                onTouchStart={() => haptic.light()}
               >
-                <Camera className="h-[18px] w-[18px]" /> Capture
+                {!isReviewing && (
+                  <span className="absolute inset-x-2 inset-y-1 rounded-xl bg-white/10" />
+                )}
+                <Camera className="relative h-[20px] w-[20px]" strokeWidth={!isReviewing ? 2.5 : 2} />
+                <span className="relative">Capture</span>
               </button>
+
+              <div className="my-2 w-px bg-white/8" aria-hidden="true" />
+
               <button 
                 type="button" 
                 onClick={() => navigate("/gallery")} 
-                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
+                className="relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[10px] font-bold text-neuro-muted transition-colors active:text-white touch-manipulation" 
                 aria-label="Galerie"
-                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
-                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                onTouchStart={() => haptic.light()}
               >
-                <GalleryHorizontal className="h-[18px] w-[18px]" /> Galerie
+                <GalleryHorizontal className="h-[20px] w-[20px]" />
+                <span>Galerie</span>
               </button>
             </nav>
           )}

@@ -106,16 +106,17 @@ export default function EmailCaptureModal({ isOpen, onClose, onSubmit, videoUrl 
             </div>
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/10 p-5 pb-4">
+            <div className="flex items-center justify-between border-b border-white/6 px-5 pb-4 pt-2">
               <div>
-                <h2 className="text-xl font-black text-white">Recevoir ma vidéo</h2>
-                <p className="mt-1 text-sm text-neuro-muted">Nous vous l'enverrons par email</p>
+                <p className="text-label text-neuro-accent">Partage</p>
+                <h2 className="font-display text-[18px] font-bold text-white mt-0.5">Recevoir ma vidéo</h2>
+                <p className="mt-1 text-caption text-neuro-muted">Envoi par email</p>
               </div>
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="grid h-10 w-10 place-items-center rounded-full text-neuro-muted transition-all hover:bg-white/10 hover:text-white active:scale-95 disabled:opacity-50 touch-manipulation"
+                className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-neuro-muted active:scale-92 disabled:opacity-50 touch-manipulation"
                 aria-label="Fermer"
               >
                 <X className="h-5 w-5" />
@@ -261,7 +262,7 @@ export default function EmailCaptureModal({ isOpen, onClose, onSubmit, videoUrl 
                 <button
                   type="submit"
                   disabled={isSubmitting || !email}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-indigo-500 to-purple-500 py-4 text-base font-bold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation"
+                  className="btn-accent mt-6 w-full disabled:opacity-50 touch-manipulation"
                 >
                   {isSubmitting ? (
                     <>
