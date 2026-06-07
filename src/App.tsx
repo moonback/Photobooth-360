@@ -27,6 +27,7 @@ import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 import { saveEmailCapture } from "./lib/emailCapture";
 import { getPresentationBackground } from "./lib/presentationTemplates";
+import { playTriggerSound } from "./lib/triggerSounds";
 import { logger } from "./shared/utils/logger";
 import type { EmailCaptureData } from "./components/EmailCaptureModal";
 
@@ -144,6 +145,11 @@ export default function App() {
       setShowFlash(true);
       setTimeout(() => setShowFlash(false), 500);
       haptic.medium();
+      
+      // Play trigger sound
+      if (settings.triggerSoundEnabled) {
+        playTriggerSound(settings.triggerSound, settings.triggerSoundVolume);
+      }
     },
 
     onRecordingComplete: async (url, blob) => {

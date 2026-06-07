@@ -1,4 +1,5 @@
 import type { MusicSelection } from "../../lib/backgroundMusic";
+import type { TriggerSoundId } from "../../lib/triggerSounds";
 import type { PresentationBackgroundId, PresentationTemplateId } from "../../lib/presentationTemplates";
 
 export interface AppSettings {
@@ -44,6 +45,10 @@ export interface AppSettings {
   backgroundMusicVolume: number;
   appBackground: PresentationBackgroundId;
   appBackgroundUrl?: string;
+  triggerSoundEnabled: boolean;
+  triggerSound: TriggerSoundId;
+  triggerSoundVolume: number;
+  triggerSoundUrl?: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -89,6 +94,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backgroundMusicVolume: 35,
   appBackground: "midnight",
   appBackgroundUrl: "",
+  triggerSoundEnabled: true,
+  triggerSound: "beep",
+  triggerSoundVolume: 70,
+  triggerSoundUrl: "",
 };
 
 export const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -120,5 +129,6 @@ export type SettingsPanel =
   | "kiosk"
   | "jingle"
   | "music"
+  | "trigger-sound"
   | "intro"
   | "outro";

@@ -1,6 +1,7 @@
 import { Fragment, type RefObject } from "react";
-import { Image, Lock, Mail, Music, RefreshCw, RotateCcw, RotateCw, Smartphone, Upload } from "lucide-react";
+import { Image, Lock, Mail, Music, Play, RefreshCw, RotateCcw, RotateCw, Smartphone, Upload, Volume2 } from "lucide-react";
 import { BACKGROUND_TRACKS } from "../../lib/backgroundMusic";
+import { TRIGGER_SOUNDS } from "../../lib/triggerSounds";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { PRESENTATION_BACKGROUNDS } from "../../lib/presentationTemplates";
 import { PresentationEditor } from "./PresentationEditor";
@@ -383,6 +384,56 @@ export function MusicPanel({ draft, update }: PanelProps) {
   );
 }
 
+export function TriggerSoundPanel({ draft, update }: PanelProps) {
+  return (
+    <div className="space-y-3">
+      <PanelBlock>
+        <Toggle checked={draft.triggerSoundEnabled} onChange={() => update("triggerSoundEnabled", !draft.triggerSoundEnabled)} label="Son de déclenchement" compact />
+      </PanelBlock>
+
+      {draft.triggerSoundEnabled && (
+        <>
+          <PanelBlock className="p-3">
+            <SectionLabel>Choisir le son</SectionLabel>
+            <div className="mb-3 grid gap-1">
+              {TRIGGER_SOUNDS.map((sound) => (
+                <button
+                  key={sound.id}
+                  type="button"
+                  onClick={() => update("triggerSound", sound.id)}
+                  className={`flex h-10 items-center justify-between rounded-lg border px-3 text-[12px] font-bold touch-manipulation ${
+                    draft.triggerSound === sound.id
+                      ? "border-neuro-accent bg-neuro-accent/15 text-white"
+                      : "border-white/10 bg-white/5 text-neuro-muted"
+                  }`}
+                >
+                  {sound.label}
+                  {sound.id !== "none" && <Play className="h-3.5 w-3.5" />}
+                </button>
+              ))}
+            </div>
+
+            <SectionLabel>Volume — {draft.triggerSoundVolume}%</SectionLabel>
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={5}
+              value={draft.triggerSoundVolume}
+              onChange={(e) => update("triggerSoundVolume", Number(e.target.value))}
+              className="h-1.5 w-full appearance-none rounded-full bg-white/10 accent-indigo-500"
+            />
+          </PanelBlock>
+
+          <InfoNote>
+            Placez les fichiers MP3 dans <span className="font-mono opacity-70">public/sounds/</span> : flash.mp3, beep.mp3, short-music.mp3.
+          </InfoNote>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function JinglePanel({ draft, update, onOpenIntro, onOpenOutro }: JinglePanelProps) {
   const introSummary = draft.introMode === "template" ? (draft.introTitle || "Template texte") : "Média importé";
   const outroSummary = draft.outroMode === "template" ? (draft.outroTitle || "Template texte") : "Média importé";
@@ -469,6 +520,11 @@ export function hubSummaries(draft: AppSettings) {
       ? (draft.backgroundMusicDefault === "none"
         ? "Activé · sans défaut"
         : `Activé · ${BACKGROUND_TRACKS.find((t) => t.id === draft.backgroundMusicDefault)?.label ?? "Piste"}`)
+      : "Désactivé",
+    "trigger-sound": draft.triggerSoundEnabled
+      ? (draft.triggerSound === "none"
+        ? "Activé · sans son"
+        : `Activé · ${TRIGGER_SOUNDS.find((s) => s.id === draft.triggerSound)?.label ?? "Son"}`)
       : "Désactivé",
   };
 }
