@@ -30,12 +30,24 @@ interface UseSlowMotionReturn {
   cancel: () => void;
 }
 
+function getSlowMotionVideoFilter(speed: 1 | SlowMotionSpeed): string | null {
+  return speed === 1 ? null : `setpts=${(1 / speed).toFixed(1)}*PTS`;
+}
+
+function getSlowMotionAudioFilter(speed: SlowMotionSpeed): string {
+  return speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`;
+}
+
+function buildBackgroundMusicFilter(volume: number): string {
+  return `[1:a]volume=${(volume / 100).toFixed(2)}[a]`;
+}
+
 function buildAudioFilter(volume: number, mixWithVideoAudio: boolean): string {
   const vol = (volume / 100).toFixed(2);
   if (mixWithVideoAudio) {
     return `[1:a]volume=${vol}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`;
   }
-  return `[1:a]volume=${vol}[a]`;
+  return buildBackgroundMusicFilter(volume);
 }
 
 function buildMusicInputArgs(startOffsetSec: number): string[] {
@@ -49,13 +61,15 @@ async function resolveMusicStartOffset(
   videoUrl: string,
   trackFile: string,
   highlightAt: number,
+  speed: 1 | SlowMotionSpeed,
 ): Promise<number> {
   try {
     const [videoDuration, musicDuration] = await Promise.all([
       getMediaDuration(videoUrl),
       getMediaDuration(trackFile),
     ]);
-    return computeMusicStartOffset(videoDuration, musicDuration, highlightAt);
+    const processedVideoDuration = speed === 1 ? videoDuration : videoDuration / speed;
+    return computeMusicStartOffset(processedVideoDuration, musicDuration, highlightAt);
   } catch (err) {
     console.warn('[useSlowMotion] Impossible de caler la musique, départ à 0s:', err);
     return 0;
@@ -116,7 +130,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
       if (hasMusic) {
         const track = getTrackById(music);
         await ff.writeFile('music.mp3', await fetchFile(track.file));
-        musicStartOffset = await resolveMusicStartOffset(inputUrl, track.file, track.highlightAt);
+        musicStartOffset = await resolveMusicStartOffset(inputUrl, track.file, track.highlightAt, speed);
       }
 
       if (cancelledRef.current) {
@@ -128,7 +142,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       const videoFilters = [
         ...(format !== '16:9' ? [buildCropFilter(format)] : []),
-        ...(speed === 1 ? [] : [`setpts=${(1 / speed).toFixed(1)}*PTS`]),
+        ...(getSlowMotionVideoFilter(speed) ? [getSlowMotionVideoFilter(speed) as string] : []),
       ];
       const videoFilter = videoFilters.length > 0 ? videoFilters.join(',') : null;
 
@@ -147,16 +161,16 @@ export function useSlowMotion(): UseSlowMotionReturn {
           'output.webm',
         ];
       } else if (hasMusic && speed !== 1 && format === '16:9') {
-        const audioTempo = speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`;
+        const audioTempo = getSlowMotionAudioFilter(speed);
         const vol = (musicVolume / 100).toFixed(2);
         const audioFilter = mixWithVideoAudio
           ? `[1:a]volume=${vol}[bg];[0:a]${audioTempo}[va];[va][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`
-          : `[1:a]volume=${vol},${audioTempo}[a]`;
+          : buildBackgroundMusicFilter(musicVolume);
 
         outputArgs = [
           '-i', 'input.webm',
           ...musicInputArgs,
-          '-filter:v', `setpts=${(1 / speed).toFixed(1)}*PTS`,
+          '-filter:v', getSlowMotionVideoFilter(speed) as string,
           '-filter_complex', audioFilter,
           '-map', '0:v:0',
           '-map', '[a]',
@@ -167,7 +181,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           'output.webm',
         ];
       } else if (hasMusic) {
-        const audioTempo = speed === 1 ? null : (speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`);
+        const audioTempo = speed === 1 ? null : getSlowMotionAudioFilter(speed);
         const vol = (musicVolume / 100).toFixed(2);
         let audioFilter: string;
 
@@ -177,9 +191,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
             ? `${va};[1:a]volume=${vol}[bg];[va][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`
             : `[1:a]volume=${vol}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`;
         } else {
-          audioFilter = audioTempo
-            ? `[1:a]volume=${vol},${audioTempo}[a]`
-            : `[1:a]volume=${vol}[a]`;
+          audioFilter = buildBackgroundMusicFilter(musicVolume);
         }
 
         outputArgs = [
@@ -210,7 +222,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
         outputArgs = [
           '-i', 'input.webm',
           '-filter_complex',
-          `[0:v]${videoFilter}[v];[0:a]${speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`}[a]`,
+          `[0:v]${videoFilter}[v];[0:a]${getSlowMotionAudioFilter(speed)}[a]`,
           '-map', '[v]',
           '-map', '[a]',
           '-c:v', 'libvpx',
@@ -221,8 +233,8 @@ export function useSlowMotion(): UseSlowMotionReturn {
       } else {
         outputArgs = [
           '-i', 'input.webm',
-          '-filter:v', `setpts=${(1 / speed).toFixed(1)}*PTS`,
-          '-filter:a', speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`,
+          '-filter:v', getSlowMotionVideoFilter(speed) as string,
+          '-filter:a', getSlowMotionAudioFilter(speed),
           '-c:v', 'libvpx',
           '-b:v', '2M',
           '-c:a', 'libvorbis',
@@ -230,7 +242,61 @@ export function useSlowMotion(): UseSlowMotionReturn {
         ];
       }
 
-      await ff.exec(outputArgs);
+      const buildVideoOnlySlowMotionArgs = (): string[] => [
+        '-i', 'input.webm',
+        '-vf', videoFilter ?? (getSlowMotionVideoFilter(speed) as string),
+        '-an',
+        '-c:v', 'libvpx',
+        '-b:v', '2M',
+        'output.webm',
+      ];
+
+      const buildMusicOnlyArgs = (): string[] => {
+        const musicFilter = buildBackgroundMusicFilter(musicVolume);
+
+        if (!videoFilter) {
+          return [
+            '-i', 'input.webm',
+            ...musicInputArgs,
+            '-filter_complex', musicFilter,
+            '-map', '0:v:0',
+            '-map', '[a]',
+            '-c:v', 'copy',
+            '-c:a', 'libvorbis',
+            '-shortest',
+            'output.webm',
+          ];
+        }
+
+        return [
+          '-i', 'input.webm',
+          ...musicInputArgs,
+          '-filter_complex', `[0:v]${videoFilter}[v];${musicFilter}`,
+          '-map', '[v]',
+          '-map', '[a]',
+          '-c:v', 'libvpx',
+          '-b:v', '2M',
+          '-c:a', 'libvorbis',
+          '-shortest',
+          'output.webm',
+        ];
+      };
+
+      try {
+        await ff.exec(outputArgs);
+      } catch (execError) {
+        if (cancelledRef.current) {
+          setStatus('idle');
+          return null;
+        }
+
+        const canRetryWithoutSourceAudio = (hasMusic && mixWithVideoAudio) || (!hasMusic && speed !== 1);
+        if (!canRetryWithoutSourceAudio) throw execError;
+
+        console.warn('[useSlowMotion] Piste audio source indisponible, nouvel essai sans audio caméra:', execError);
+        await cleanupFiles(ff, ['output.webm']);
+        await ff.exec(hasMusic ? buildMusicOnlyArgs() : buildVideoOnlySlowMotionArgs());
+      }
 
       if (cancelledRef.current) {
         setStatus('idle');
