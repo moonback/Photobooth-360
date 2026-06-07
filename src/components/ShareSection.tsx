@@ -1,7 +1,8 @@
 import { QRCodeSVG } from "qrcode.react";
-import { CheckCircle2, CloudUpload, Loader2, QrCode, Wifi, WifiOff, ChevronDown, ChevronUp, Mail } from "lucide-react";
+import { CheckCircle2, CloudUpload, Loader2, QrCode, Wifi, WifiOff, ChevronDown, Mail, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { UploadStatus } from "../lib/uploadVideo";
+import type { UploadQueueStats } from "../lib/videoStore";
 import { useEffect, useRef, useState } from "react";
 import { trackShare } from "../lib/analytics";
 
@@ -19,6 +20,11 @@ interface ShareSectionProps {
   isSavingShare: boolean;
   accent: AccentStyle;
   onOpenEmailCapture?: () => void;
+  isOnline?: boolean;
+  isPersistent?: boolean;
+  queueStats?: UploadQueueStats;
+  activeSyncId?: string;
+  lastSyncError?: string;
 }
 
 function buildCloudShareUrl(uploadedUrl: string) {
@@ -34,6 +40,11 @@ export default function ShareSection({
   isSavingShare,
   accent,
   onOpenEmailCapture,
+  isOnline = true,
+  isPersistent = false,
+  queueStats,
+  activeSyncId,
+  lastSyncError = "",
 }: ShareSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const showLocal = !cloudEnabled || uploadStatus === "error";
@@ -43,7 +54,17 @@ export default function ShareSection({
       ? `${window.location.origin}/share/${shareId}`
       : "";
   const isReady = Boolean(qrValue);
-  const isUploading = cloudEnabled && (uploadStatus === "idle" || uploadStatus === "uploading");
+  const isUploading = cloudEnabled && !isReady && (uploadStatus === "idle" || uploadStatus === "uploading");
+  const pendingCount = (queueStats?.queued ?? 0) + (queueStats?.uploading ?? 0) + (queueStats?.error ?? 0);
+  const syncLabel = !cloudEnabled
+    ? "Local"
+    : !isOnline
+      ? `${pendingCount || 1} en attente`
+      : uploadStatus === "uploading"
+        ? "Sync…"
+        : pendingCount > 0
+          ? `${pendingCount} à synchroniser`
+          : "Cloud";
   
   // Ref pour tracker uniquement une fois par vidéo
   const trackedVideoRef = useRef<string>("");
@@ -53,9 +74,9 @@ export default function ShareSection({
     if (isReady && qrValue && qrValue !== trackedVideoRef.current) {
       trackedVideoRef.current = qrValue;
       const videoId = shareId || uploadedUrl || `video_${Date.now()}`;
-      trackShare(videoId, cloudEnabled ? 'qr_cloud' : 'qr_local');
+      trackShare(videoId, cloudEnabled && uploadStatus === "done" && uploadedUrl ? 'qr_cloud' : 'qr_local');
     }
-  }, [isReady, qrValue, shareId, uploadedUrl, cloudEnabled]);
+  }, [isReady, qrValue, shareId, uploadedUrl, cloudEnabled, uploadStatus]);
 
   return (
     <div className="px-4 pb-2 pt-1 sm:px-6">
@@ -102,8 +123,8 @@ export default function ShareSection({
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
             >
-              {cloudEnabled ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-              {cloudEnabled ? "Cloud" : "Local"}
+              {cloudEnabled && isOnline ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+              {syncLabel}
             </motion.span>
             
             {/* Icône chevron */}
@@ -142,7 +163,28 @@ export default function ShareSection({
           </div>
         )}
 
-        {cloudEnabled && uploadStatus === "error" && (
+
+        {cloudEnabled && isReady && (
+          <div className="mb-3 w-full rounded-2xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-left text-caption font-semibold text-amber-100">
+            <div className="flex items-center gap-2">
+              {uploadStatus === "uploading" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+              <span>
+                {uploadStatus === "done" && uploadedUrl
+                  ? "Synchronisé dans le cloud — copie locale conservée."
+                  : isOnline
+                    ? "QR local disponible, synchronisation différée en cours."
+                    : "Hors-ligne : média protégé localement, upload automatique au retour réseau."}
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] font-medium text-amber-100/80">
+              File: {queueStats?.queued ?? 0} attente · {queueStats?.uploading ?? 0} envoi · {queueStats?.error ?? 0} erreur · Stockage {isPersistent ? "persistant" : "navigateur"}
+              {activeSyncId ? ` · ${activeSyncId}` : ""}
+              {lastSyncError ? ` · ${lastSyncError}` : ""}
+            </div>
+          </div>
+        )}
+
+        {cloudEnabled && uploadStatus === "error" && !isReady && (
           <div className="mb-3 w-full rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-caption font-semibold text-red-200">
             Upload échoué — QR local.
           </div>

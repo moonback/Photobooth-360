@@ -1,6 +1,6 @@
 import { supabase, BUCKET, SUPABASE_CONFIGURED } from './supabase';
 
-export type UploadStatus = 'idle' | 'uploading' | 'done' | 'error';
+export type UploadStatus = 'idle' | 'queued' | 'uploading' | 'done' | 'error';
 
 export interface UploadResult {
   /** Public URL of the uploaded video, usable cross-device */
@@ -113,23 +113,22 @@ export async function clearAllVideosFromBucket(): Promise<{ success: boolean; co
  * Reports progress via `onProgress(0–100)`.
  * Returns null if Supabase is not configured (env vars missing).
  */
-export async function uploadVideo(
-  blobUrl: string,
+export async function uploadVideoBlob(
+  blob: Blob,
   onProgress: (pct: number) => void,
+  preferredName?: string,
 ): Promise<UploadResult | null> {
   if (!SUPABASE_CONFIGURED || !supabase) return null;
 
-  // Fetch the blob
-  const blob = await fetch(blobUrl).then((r) => r.blob());
-  const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webm`;
+  const safeName = preferredName?.replace(/[^a-zA-Z0-9._-]/g, '-') || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webm`;
+  const filename = safeName.endsWith('.webm') ? safeName : `${safeName}.webm`;
   const path = `videos/${filename}`;
 
-  // Supabase Storage upload URL
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   void sessionData; // not needed for anon uploads
 
   if (sessionError) {
-    console.warn('[uploadVideo] Auth session error (ignored for anon):', sessionError);
+    console.warn('[uploadVideoBlob] Auth session error (ignored for anon):', sessionError);
   }
 
   // Use XHR for real upload progress — the Supabase fetch-based client doesn't expose it
@@ -140,6 +139,7 @@ export async function uploadVideo(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', storageUrl);
     xhr.setRequestHeader('Authorization', `Bearer ${anonKey}`);
+    xhr.setRequestHeader('Content-Type', blob.type || 'video/webm');
     xhr.setRequestHeader('x-upsert', 'true');
 
     xhr.upload.onprogress = (e) => {
@@ -158,16 +158,20 @@ export async function uploadVideo(
     };
 
     xhr.onerror = () => reject(new Error('Network error during upload'));
-
-    const formData = new FormData();
-    formData.append('', blob, filename);
-    xhr.send(formData);
+    xhr.send(blob);
   });
 
-  // Get the public URL
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
 
   return { publicUrl: data.publicUrl, path };
+}
+
+export async function uploadVideo(
+  blobUrl: string,
+  onProgress: (pct: number) => void,
+): Promise<UploadResult | null> {
+  const blob = await fetch(blobUrl).then((r) => r.blob());
+  return uploadVideoBlob(blob, onProgress);
 }
 
 /**

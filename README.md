@@ -46,7 +46,10 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 - Upload automatique vers Supabase Storage avec barre de progression
 - QR Code instantané après chaque prise
 - Page de récupération mobile (téléchargement iOS/Android)
-- Stockage local IndexedDB comme fallback hors-ligne
+- **Mode offline robuste** : chaque capture est d’abord protégée dans IndexedDB avant tout upload
+- File d’upload différée avec reprise automatique dès que `navigator.onLine` repasse à `true`
+- Indicateurs de synchronisation : état réseau, file en attente, erreurs, upload actif et stockage persistant
+- Protection anti-perte : copie locale conservée même après synchronisation cloud
 - Capture email opt-in avec envoi automatique de la vidéo
 
 ### 🎨 Interface & UX
@@ -85,6 +88,22 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 
 ---
 
+## 📴 Mode offline robuste & synchronisation différée
+
+Le flux d’enregistrement est conçu pour continuer pendant une coupure réseau :
+
+1. **Protection locale immédiate** — à la fin d’une capture, la vidéo est enregistrée dans IndexedDB avec son identifiant avant toute tentative cloud.
+2. **QR local instantané** — le participant peut scanner un lien local immédiatement, même si l’upload n’a pas encore démarré.
+3. **File d’upload différée** — si Supabase est configuré, la capture est ajoutée à une file locale (`queued`, `uploading`, `synced`, `error`).
+4. **Reprise automatique** — l’app écoute les événements `online/offline` et relance la file quand la connexion revient.
+5. **Retry progressif** — les échecs réseau restent dans la file avec délai de reprise exponentiel, sans supprimer le média.
+6. **Indicateurs opérateur** — le panneau de partage affiche l’état réseau, le nombre de médias en attente, l’upload actif, les erreurs et si le navigateur a accordé le stockage persistant.
+7. **Anti-perte média** — une synchronisation cloud réussie ne supprime pas la copie locale ; l’opérateur garde une sauvegarde exportable depuis la galerie.
+
+> Recommandation événement : installer la PWA et accorder le stockage persistant quand le navigateur le propose pour réduire le risque d’éviction automatique des vidéos locales.
+
+---
+
 ## 🛠 Stack Technique
 
 | Couche | Technologie |
@@ -94,7 +113,7 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 | Style | Tailwind CSS 4 |
 | Animations | Motion 12 |
 | Backend | Supabase (DB + Storage + Auth) |
-| Stockage local | IndexedDB |
+| Stockage local | IndexedDB + Storage Persistence API |
 | Navigation | React Router DOM 6 |
 | QR Code | qrcode.react |
 | Icônes | Lucide React |
@@ -123,7 +142,7 @@ VITE_SUPABASE_URL=votre_url_supabase
 VITE_SUPABASE_ANON_KEY=votre_cle_anonyme
 ```
 
-> Sans Supabase, l'app fonctionne en mode local avec IndexedDB.
+> Sans Supabase, l'app fonctionne en mode local avec IndexedDB. Avec Supabase configuré, les captures restent aussi stockées localement, puis sont synchronisées automatiquement quand la connexion revient.
 
 ### Commandes
 
@@ -160,14 +179,15 @@ photobooth-360/
 │   │   ├── useMotor.ts           # Contrôle moteur
 │   │   ├── useKiosk.ts           # Mode kiosque
 │   │   ├── useSettings.ts        # Persistance réglages
-│   │   ├── useUpload.ts          # Upload cloud
+│   │   ├── useUpload.ts          # Upload cloud + synchronisation différée
 │   │   ├── useAnalytics.ts       # Métriques
 │   │   └── useSlowMotion.ts      # Slow motion
 │   ├── lib/
 │   │   ├── supabase.ts           # Client Supabase
-│   │   ├── videoStore.ts         # IndexedDB vidéos
+│   │   ├── videoStore.ts         # IndexedDB vidéos + file upload
 │   │   ├── settingsStore.ts      # Stockage réglages
 │   │   ├── uploadVideo.ts        # Upload vidéo
+│   │   ├── offlineSync.ts        # Reprise automatique des uploads
 │   │   ├── emailCapture.ts       # Capture emails
 │   │   └── analytics.ts          # Tracking
 │   ├── pages/

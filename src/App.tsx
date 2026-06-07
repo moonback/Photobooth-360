@@ -22,7 +22,7 @@ import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
-import { saveVideo } from "./lib/videoStore";
+import { loadVideoRecord, saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 import { saveEmailCapture } from "./lib/emailCapture";
@@ -89,7 +89,7 @@ export default function App() {
     recordAudio: settings.recordAudio,
   });
 
-  const { upload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled } = useUpload();
+  const { enqueueLocalUpload, status: uploadStatus, progress: uploadProgress, publicUrl: uploadedUrl, isConfigured: cloudEnabled, isOnline, isPersistent, queueStats, activeSyncId, lastSyncError } = useUpload();
 
   const { isRecording, countdown, isSyncing, startRecording, stopRecording } = useRecorder({
     /**
@@ -165,31 +165,23 @@ export default function App() {
 
       haptic.success();
 
-      if (cloudEnabled) {
-        upload(url).then((publicUrl) => {
-          if (publicUrl) {
-            setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
-            publishScreenCapture({
-              videoUrl: publicUrl,
-              shareUrl: buildCloudShareUrl(publicUrl),
-              source: "cloud",
-            });
+      setIsSavingShare(true);
+      saveVideo(url, videoId)
+        .then(async (id) => {
+          setShareId(id);
+          publishScreenCapture({
+            videoUrl: url,
+            shareUrl: buildLocalShareUrl(id),
+            source: "local",
+          });
+
+          if (cloudEnabled) {
+            const record = await loadVideoRecord(id);
+            await enqueueLocalUpload(id, record?.size ?? 0);
           }
-        });
-      } else {
-        setIsSavingShare(true);
-        saveVideo(url)
-          .then((id) => {
-            setShareId(id);
-            publishScreenCapture({
-              videoUrl: url,
-              shareUrl: buildLocalShareUrl(id),
-              source: "local",
-            });
-          })
-          .catch((error) => logger.error("[App] Local share save failed", error))
-          .finally(() => setIsSavingShare(false));
-      }
+        })
+        .catch((error) => logger.error("[App] Local protection save failed", error))
+        .finally(() => setIsSavingShare(false));
     },
   });
 
@@ -223,13 +215,14 @@ export default function App() {
 
   useEffect(() => {
     const loadGallery = async () => {
+      const { getAllVideos } = await import("./lib/videoStore");
+      const localVideos = await getAllVideos();
+
       if (cloudEnabled) {
         const { listVideosFromBucket } = await import("./lib/uploadVideo");
         const videos = await listVideosFromBucket();
-        setGallery(videos.map((video) => video.url));
+        setGallery([...localVideos.map((video) => video.url), ...videos.map((video) => video.url)]);
       } else {
-        const { getAllVideos } = await import("./lib/videoStore");
-        const localVideos = await getAllVideos();
         setGallery(localVideos.map((video) => video.url));
       }
     };
@@ -379,6 +372,11 @@ export default function App() {
                   shareId={shareId} 
                   isSavingShare={isSavingShare} 
                   accent={accent}
+                  isOnline={isOnline}
+                  isPersistent={isPersistent}
+                  queueStats={queueStats}
+                  activeSyncId={activeSyncId}
+                  lastSyncError={lastSyncError}
                   onOpenEmailCapture={settings.emailCaptureEnabled ? () => {
                     setShowEmailModal(true);
                     haptic.light();
