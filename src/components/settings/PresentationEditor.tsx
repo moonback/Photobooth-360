@@ -85,16 +85,17 @@ export function PresentationEditor({
 
           <div>
             <SectionLabel>Style</SectionLabel>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-4 gap-1">
               {PRESENTATION_TEMPLATES.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => set(isIntro ? { introTemplate: item.id } : { outroTemplate: item.id })}
-                  className={`min-h-11 rounded-lg border px-1.5 py-1.5 text-left touch-manipulation ${template === item.id ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
+                  className={`min-h-12 rounded-lg border px-1 py-1.5 text-left touch-manipulation ${template === item.id ? "border-neuro-accent bg-neuro-accent/15 text-white" : "border-white/10 bg-white/5 text-neuro-muted"}`}
                   aria-pressed={template === item.id}
                 >
-                  <span className="block text-[11px] font-bold leading-none">{item.name}</span>
+                  <span className="block text-[10px] font-bold leading-none">{item.name}</span>
+                  <span className="block text-[8px] text-white/50 mt-1 leading-tight">{item.description}</span>
                 </button>
               ))}
             </div>
@@ -102,17 +103,18 @@ export function PresentationEditor({
 
           <div>
             <SectionLabel>Fond</SectionLabel>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {PRESENTATION_BACKGROUNDS.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => set(isIntro ? { introBackground: item.id } : { outroBackground: item.id })}
-                  className={`rounded-lg border p-1 touch-manipulation ${background === item.id ? "border-white" : "border-white/10"}`}
+                  className={`rounded-lg border p-1.5 touch-manipulation ${background === item.id ? "border-white" : "border-white/10"}`}
                   aria-label={item.name}
                   aria-pressed={background === item.id}
                 >
-                  <span className="block h-6 rounded-md" style={{ background: `linear-gradient(135deg, ${item.colors.join(", ")})` }} />
+                  <span className="block h-7 rounded-md" style={{ background: `linear-gradient(135deg, ${item.colors.join(", ")})` }} />
+                  <span className="block text-[8px] text-white/60 mt-1 text-center truncate">{item.name}</span>
                 </button>
               ))}
             </div>

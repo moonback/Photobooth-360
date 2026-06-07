@@ -179,6 +179,16 @@ function drawPresentationSlide(
     drawMinimalTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
   } else if (slide.template === 'gradient') {
     drawGradientTemplate(ctx, title, subtitle, width, height, format, slideImage);
+  } else if (slide.template === 'neon') {
+    drawNeonTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
+  } else if (slide.template === 'aurora') {
+    drawAuroraTemplate(ctx, title, subtitle, width, height, format, accent, progress, slideImage);
+  } else if (slide.template === 'minimal-bold') {
+    drawMinimalBoldTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
+  } else if (slide.template === 'glass') {
+    drawGlassTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
+  } else if (slide.template === 'cinema') {
+    drawCinemaTemplate(ctx, title, subtitle, width, height, format, slideImage);
   } else {
     drawSpotlightTemplate(ctx, title, subtitle, width, height, format, accent, slideImage);
   }
@@ -324,6 +334,219 @@ function drawMinimalTemplate(
   }
 }
 
+function drawNeonTemplate(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  subtitle: string,
+  width: number,
+  height: number,
+  format: ExportFormat,
+  accent: string,
+  slideImage?: HTMLImageElement,
+): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const imageSize = width * (isVertical ? 0.22 : isSquare ? 0.18 : 0.16);
+  
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Image
+  const imageY = isVertical ? height * 0.18 : isSquare ? height * 0.22 : height * 0.24;
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 20);
+  }
+
+  // Neon glow
+  ctx.shadowBlur = 30;
+  ctx.shadowColor = accent;
+
+  const titleY = slideImage ? height * (isVertical ? 0.5 : isSquare ? 0.52 : 0.52) : height * (isVertical ? 0.44 : isSquare ? 0.46 : 0.46);
+  const subtitleY = slideImage ? height * (isVertical ? 0.66 : isSquare ? 0.68 : 0.68) : height * (isVertical ? 0.6 : isSquare ? 0.62 : 0.62);
+
+  // Title neon
+  drawWrappedText(ctx, title, width / 2, titleY, width * 0.85, Math.round(width * (isVertical ? 0.08 : 0.065)), 1.0, '#fff', '900');
+  // Subtitle without glow or soft glow
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = 'rgba(255,255,255,0.3)';
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, width * 0.8, Math.round(width * (isVertical ? 0.028 : 0.024)), 1.4, 'rgba(255,255,255,0.85)', '700');
+  }
+
+  ctx.shadowBlur = 0;
+}
+
+function drawAuroraTemplate(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  subtitle: string,
+  width: number,
+  height: number,
+  format: ExportFormat,
+  accent: string,
+  progress: number,
+  slideImage?: HTMLImageElement,
+): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const imageSize = width * (isVertical ? 0.2 : isSquare ? 0.16 : 0.14);
+
+  // Animated aurora waves
+  const time = progress * Math.PI * 4;
+  const waveY = height * 0.6 + Math.sin(time) * 20;
+  const waveColor = ctx.createLinearGradient(0, height * 0.4, 0, height * 0.8);
+  waveColor.addColorStop(0, 'rgba(34,197,94,0.35)');
+  waveColor.addColorStop(0.5, 'rgba(59,130,246,0.3)');
+  waveColor.addColorStop(1, 'rgba(168,85,247,0.2)');
+
+  ctx.fillStyle = waveColor;
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  for (let x = 0; x <= width; x += 20) {
+    const y = waveY + Math.sin((x / width) * Math.PI * 2 + time) * 30;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(width, height);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const imageY = isVertical ? height * 0.2 : isSquare ? height * 0.24 : height * 0.26;
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 24);
+  }
+
+  const titleY = slideImage ? height * (isVertical ? 0.48 : isSquare ? 0.5 : 0.5) : height * (isVertical ? 0.42 : isSquare ? 0.44 : 0.44);
+  const subtitleY = slideImage ? height * (isVertical ? 0.64 : isSquare ? 0.66 : 0.66) : height * (isVertical ? 0.58 : isSquare ? 0.6 : 0.6);
+
+  drawWrappedText(ctx, title, width / 2, titleY, width * 0.85, Math.round(width * (isVertical ? 0.085 : 0.07)), 1.0, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, width * 0.8, Math.round(width * (isVertical ? 0.03 : 0.025)), 1.4, 'rgba(255,255,255,0.8)', '700');
+  }
+}
+
+function drawMinimalBoldTemplate(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  subtitle: string,
+  width: number,
+  height: number,
+  format: ExportFormat,
+  accent: string,
+  slideImage?: HTMLImageElement,
+): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const imageSize = width * (isVertical ? 0.18 : isSquare ? 0.14 : 0.12);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Border
+  const borderWidth = 4;
+  const padding = width * (isVertical ? 0.06 : isSquare ? 0.08 : 0.1);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = borderWidth;
+  roundRect(ctx, padding, padding, width - padding * 2, height - padding * 2, isVertical ? 24 : isSquare ? 20 : 16);
+  ctx.stroke();
+
+  // Image
+  const imageY = padding + height * 0.1;
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 16);
+  }
+
+  const titleY = padding + height * (slideImage ? 0.4 : 0.35);
+  const subtitleY = padding + height * (slideImage ? 0.65 : 0.6);
+
+  drawWrappedText(ctx, title, width / 2, titleY, width * 0.75, Math.round(width * (isVertical ? 0.09 : 0.075)), 1.1, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, width * 0.7, Math.round(width * (isVertical ? 0.032 : 0.026)), 1.4, 'rgba(255,255,255,0.75)', '600');
+  }
+}
+
+function drawGlassTemplate(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  subtitle: string,
+  width: number,
+  height: number,
+  format: ExportFormat,
+  accent: string,
+  slideImage?: HTMLImageElement,
+): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const cardX = width * (isVertical ? 0.08 : isSquare ? 0.12 : 0.18);
+  const cardY = height * (isVertical ? 0.16 : isSquare ? 0.2 : 0.22);
+  const cardW = width * (isVertical ? 0.84 : isSquare ? 0.76 : 0.64);
+  const cardH = height * (isVertical ? 0.68 : isSquare ? 0.6 : 0.56);
+  const imageSize = width * (isVertical ? 0.22 : isSquare ? 0.18 : 0.16);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Glass
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 2;
+  roundRect(ctx, cardX, cardY, cardW, cardH, isVertical ? 32 : 28);
+  ctx.fill();
+  ctx.stroke();
+
+  // Image
+  const imageY = cardY + cardH * 0.12;
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 24);
+  }
+
+  const titleY = cardY + cardH * (slideImage ? 0.48 : 0.4);
+  const subtitleY = cardY + cardH * (slideImage ? 0.7 : 0.62);
+
+  drawWrappedText(ctx, title, width / 2, titleY, cardW * 0.85, Math.round(width * (isVertical ? 0.08 : 0.065)), 1.0, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, cardW * 0.8, Math.round(width * (isVertical ? 0.028 : 0.023)), 1.4, 'rgba(255,255,255,0.8)', '600');
+  }
+}
+
+function drawCinemaTemplate(
+  ctx: CanvasRenderingContext2D,
+  title: string,
+  subtitle: string,
+  width: number,
+  height: number,
+  format: ExportFormat,
+  slideImage?: HTMLImageElement,
+): void {
+  const isVertical = format === '9:16';
+  const isSquare = format === '1:1';
+  const barHeight = height * 0.12;
+  const imageSize = width * (isVertical ? 0.18 : isSquare ? 0.14 : 0.12);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Cinema bars
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, width, barHeight);
+  ctx.fillRect(0, height - barHeight, width, barHeight);
+
+  // Image
+  const imageY = barHeight + height * 0.12;
+  if (slideImage) {
+    drawRoundedImage(ctx, slideImage, width * 0.5 - imageSize / 2, imageY, imageSize, imageSize, 12);
+  }
+
+  const titleY = barHeight + height * (slideImage ? 0.42 : 0.38);
+  const subtitleY = barHeight + height * (slideImage ? 0.62 : 0.58);
+
+  drawWrappedText(ctx, title, width / 2, titleY, width * 0.8, Math.round(width * (isVertical ? 0.075 : 0.06)), 1.0, '#fff', '900');
+  if (subtitle) {
+    drawWrappedText(ctx, subtitle, width / 2, subtitleY, width * 0.75, Math.round(width * (isVertical ? 0.026 : 0.022)), 1.4, 'rgba(255,255,255,0.75)', '500');
+  }
+}
 
 function drawRoundedImage(
   ctx: CanvasRenderingContext2D,
