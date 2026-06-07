@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, Check, Download, ExternalLink, Film, Mail, MonitorPlay, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, Volume2, X,
+  ArrowLeft, BarChart3, Check, Download, ExternalLink, Film, Mail, MonitorPlay, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, Volume2, X, CheckCircle2
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../../lib/uploadLogo";
@@ -61,6 +61,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [exportingVideos, setExportingVideos] = useState(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const [videoCount, setVideoCount] = useState(0);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const backgroundFileRef = useRef<HTMLInputElement>(null);
 
@@ -164,11 +166,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
   const handleClearStorage = async () => {
     if (!SUPABASE_CONFIGURED) {
-      alert('⚠️ Supabase non configuré');
+      setSuccessMessage('⚠️ Supabase non configuré');
+      setShowSuccessModal(true);
       return;
     }
     if (videoCount === 0) {
-      alert('ℹ️ Aucune vidéo à supprimer');
+      setSuccessMessage('ℹ️ Aucune vidéo à supprimer');
+      setShowSuccessModal(true);
       return;
     }
     if (!confirm(`⚠️ Effacer ${videoCount} vidéo${videoCount > 1 ? 's' : ''} du bucket Supabase ET toutes les données associées (statistiques, emails collectés) ?\n\nCette action est irréversible.`)) {
@@ -184,13 +188,16 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
           clearEmailCaptures(draft.eventName || "default")
         ]);
         setVideoCount(0);
-        alert(`✅ ${result.count} vidéo${result.count > 1 ? 's' : ''}, statistiques et emails supprimés avec succès`);
+        setSuccessMessage(`✅ ${result.count} vidéo${result.count > 1 ? 's' : ''}, statistiques et emails supprimés avec succès`);
+        setShowSuccessModal(true);
       } else {
-        alert(`❌ Erreur lors de la suppression :\n${result.errors.join('\n')}`);
+        setSuccessMessage(`❌ Erreur lors de la suppression :\n${result.errors.join('\n')}`);
+        setShowSuccessModal(true);
       }
     } catch (error) {
       console.error('Error clearing storage:', error);
-      alert('❌ Erreur lors de l\'effacement du stockage');
+      setSuccessMessage('❌ Erreur lors de l\'effacement du stockage');
+      setShowSuccessModal(true);
     } finally {
       setClearingStorage(false);
     }
@@ -198,11 +205,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
 
   const handleExportVideos = async () => {
     if (!SUPABASE_CONFIGURED) {
-      alert('⚠️ Supabase non configuré');
+      setSuccessMessage('⚠️ Supabase non configuré');
+      setShowSuccessModal(true);
       return;
     }
     if (videoCount === 0) {
-      alert('ℹ️ Aucune vidéo à exporter.\n\nCapturez des vidéos d\'abord !');
+      setSuccessMessage('ℹ️ Aucune vidéo à exporter.\n\nCapturez des vidéos d\'abord !');
+      setShowSuccessModal(true);
       return;
     }
     setExportingVideos(true);
@@ -211,14 +220,17 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       await exportAllVideosFromBucket((progress) => {
         setExportProgress({ current: progress.current, total: progress.total });
       });
-      alert('✅ Export terminé avec succès');
+      setSuccessMessage('✅ Export terminé avec succès');
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Error exporting videos:', error);
       if (error instanceof Error && error.message === 'NO_VIDEOS') {
-        alert('ℹ️ Aucune vidéo à exporter');
+        setSuccessMessage('ℹ️ Aucune vidéo à exporter');
+        setShowSuccessModal(true);
       } else {
         const message = error instanceof Error ? error.message : 'Erreur inconnue';
-        alert(`❌ Erreur lors de l'export : ${message}`);
+        setSuccessMessage(`❌ Erreur lors de l'export : ${message}`);
+        setShowSuccessModal(true);
       }
     } finally {
       setExportingVideos(false);
@@ -296,6 +308,41 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
         onClose={() => setShowEmailList(false)}
         eventId={draft.eventName || "default"}
       />
+      
+      <AnimatePresence>
+        {showSuccessModal && (
+          <motion.div 
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowSuccessModal(false)}
+          >
+            <motion.div
+              className="mx-4 flex w-full max-w-sm flex-col items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]">
+                <CheckCircle2 className="h-8 w-8 text-white" />
+              </div>
+              <p className="text-center text-lg font-semibold text-white whitespace-pre-line">
+                {successMessage}
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowSuccessModal(false)}
+                className="mt-2 flex w-full items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-bold text-gray-900 shadow-[0_0_20px_rgba(255,255,255,0.15)] active:scale-[0.97] transition-all"
+              >
+                OK
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isOpen && (
