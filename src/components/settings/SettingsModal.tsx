@@ -9,6 +9,8 @@ import { uploadJingle } from "../../lib/uploadJingle";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { listVideosFromBucket, clearAllVideosFromBucket } from "../../lib/uploadVideo";
 import { exportAllVideosFromBucket } from "../../lib/exportVideos";
+import { clearAnalytics } from "../../lib/analytics";
+import { clearEmailCaptures } from "../../lib/emailCapture";
 import { AnalyticsDashboard } from "../AnalyticsDashboard";
 import EmailListDashboard from "../EmailListDashboard";
 import {
@@ -169,15 +171,20 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       alert('ℹ️ Aucune vidéo à supprimer');
       return;
     }
-    if (!confirm(`⚠️ Effacer ${videoCount} vidéo${videoCount > 1 ? 's' : ''} du bucket Supabase ?\n\nCette action est irréversible.`)) {
+    if (!confirm(`⚠️ Effacer ${videoCount} vidéo${videoCount > 1 ? 's' : ''} du bucket Supabase ET toutes les données associées (statistiques, emails collectés) ?\n\nCette action est irréversible.`)) {
       return;
     }
     setClearingStorage(true);
     try {
       const result = await clearAllVideosFromBucket();
       if (result.success) {
+        // Clear analytics and email captures
+        await Promise.all([
+          clearAnalytics(draft.eventName || "default"),
+          clearEmailCaptures(draft.eventName || "default")
+        ]);
         setVideoCount(0);
-        alert(`✅ ${result.count} vidéo${result.count > 1 ? 's' : ''} supprimée${result.count > 1 ? 's' : ''} avec succès`);
+        alert(`✅ ${result.count} vidéo${result.count > 1 ? 's' : ''}, statistiques et emails supprimés avec succès`);
       } else {
         alert(`❌ Erreur lors de la suppression :\n${result.errors.join('\n')}`);
       }
@@ -276,7 +283,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       <AnimatePresence>
         {showAnalytics && (
           <Fragment key="analytics">
-            <AnalyticsDashboard onClose={() => setShowAnalytics(false)} />
+            <AnalyticsDashboard 
+              onClose={() => setShowAnalytics(false)} 
+              eventId={draft.eventName || "default"} 
+            />
           </Fragment>
         )}
       </AnimatePresence>

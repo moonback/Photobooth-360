@@ -19,6 +19,7 @@ interface ShareSectionProps {
   isSavingShare: boolean;
   accent: AccentStyle;
   onOpenEmailCapture?: () => void;
+  eventId?: string;
 }
 
 function buildCloudShareUrl(uploadedUrl: string) {
@@ -34,6 +35,7 @@ export default function ShareSection({
   isSavingShare,
   accent,
   onOpenEmailCapture,
+  eventId,
 }: ShareSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const showLocal = !cloudEnabled || uploadStatus === "error";
@@ -53,7 +55,7 @@ export default function ShareSection({
     if (isReady && qrValue && qrValue !== trackedVideoRef.current) {
       trackedVideoRef.current = qrValue;
       const videoId = shareId || uploadedUrl || `video_${Date.now()}`;
-      trackShare(videoId, cloudEnabled ? 'qr_cloud' : 'qr_local');
+      trackShare(videoId, cloudEnabled ? 'qr_cloud' : 'qr_local', eventId);
     }
   }, [isReady, qrValue, shareId, uploadedUrl, cloudEnabled]);
 

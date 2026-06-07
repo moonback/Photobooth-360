@@ -172,7 +172,7 @@ export default function App() {
         duration: settings.duration,
         resolution: settings.resolution,
         facingMode: settings.facingMode,
-      });
+      }, settings.eventName || "default");
 
       haptic.success();
 
@@ -315,7 +315,7 @@ export default function App() {
     });
 
     // Tracker l'action
-    trackShare(videoIdToUse, 'email');
+    trackShare(videoIdToUse, 'email', settings.eventName || "default");
     haptic.success();
   };
 
@@ -389,6 +389,7 @@ export default function App() {
                   shareId={shareId} 
                   isSavingShare={isSavingShare} 
                   accent={accent}
+                  eventId={settings.eventName || "default"}
                   onOpenEmailCapture={settings.emailCaptureEnabled ? () => {
                     setShowEmailModal(true);
                     haptic.light();
@@ -430,7 +431,7 @@ export default function App() {
                     download="neurobooth360.webm"
                     onClick={() => {
                       const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
-                      trackDownload(videoId);
+                      trackDownload(videoId, settings.eventName || "default");
                       haptic.medium();
                     }}
                     className={`group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.98] touch-manipulation ${accent.bg}`}

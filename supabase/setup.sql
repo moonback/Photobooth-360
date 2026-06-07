@@ -147,6 +147,12 @@ CREATE POLICY "Anon insert — event_analytics"
   TO anon
   WITH CHECK (true);
 
+-- Les utilisateurs anonymes peuvent supprimer des événements
+CREATE POLICY "Anon delete — event_analytics"
+  ON event_analytics FOR DELETE
+  TO anon
+  USING (true);
+
 -- -----------------------------------------------------------------------------
 -- 6. Vue pour les statistiques agrégées
 -- -----------------------------------------------------------------------------
@@ -248,6 +254,10 @@ CREATE POLICY "Allow public update — email_captures"
   ON email_captures FOR UPDATE
   USING (true)
   WITH CHECK (true);
+
+CREATE POLICY "Allow public delete — email_captures"
+  ON email_captures FOR DELETE
+  USING (true);
 
 -- Grants explicites sur la table et la séquence
 GRANT ALL ON email_captures TO anon;

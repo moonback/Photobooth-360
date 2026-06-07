@@ -5,10 +5,12 @@ import { useEffect } from 'react';
 
 interface AnalyticsDashboardProps {
   onClose: () => void;
+  eventId?: string;
 }
 
-export function AnalyticsDashboard({ onClose }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({ onClose, eventId }: AnalyticsDashboardProps) {
   const { stats, loading, refresh } = useAnalytics({
+    eventId,
     refreshInterval: 5000,
     realtime: true,
   });

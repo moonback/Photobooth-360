@@ -192,3 +192,27 @@ export async function resendEmail(recordId: number): Promise<void> {
     recordId: data.id,
   });
 }
+
+/**
+ * Clear all email captures for a given eventId
+ */
+export async function clearEmailCaptures(eventId: string = "default"): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[clearEmailCaptures] Clearing email captures for eventId:', eventId);
+    const client = getSupabaseClient();
+    const { error, count } = await client
+      .from("email_captures")
+      .delete({ count: 'exact' })
+      .eq("event_id", eventId);
+
+    if (error) {
+      console.error('[clearEmailCaptures] Error:', error);
+      return { success: false, error: error.message };
+    }
+    console.log('[clearEmailCaptures] Successfully cleared', count, 'email captures!');
+    return { success: true };
+  } catch (err) {
+    console.error('[clearEmailCaptures] Error:', err);
+    return { success: false, error: err instanceof Error ? err.message : "Erreur inconnue" };
+  }
+}
