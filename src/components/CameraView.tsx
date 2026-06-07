@@ -3,7 +3,7 @@ import { Camera, Radio, RefreshCw, Sparkles, Maximize2, Minimize2, SwitchCamera 
 import { AnimatePresence, motion } from "motion/react";
 
 interface CameraViewProps {
-  liveVideoRef: RefObject<HTMLVideoElement>;
+  liveVideoRef: RefObject<HTMLVideoElement | null>;
   isRecording: boolean;
   countdown: number | null;
   /** True while waiting for the motor to reach speed before recording starts */

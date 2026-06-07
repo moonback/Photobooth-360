@@ -18,9 +18,11 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
     return [];
   }
 
+  const client = supabase;
+
   try {
     console.log('[listVideosFromBucket] Fetching from bucket:', BUCKET);
-    const { data, error } = await supabase.storage
+    const { data, error } = await client.storage
       .from(BUCKET)
       .list('videos', {
         limit: 1000,
@@ -44,7 +46,7 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
       .filter(file => file.name.endsWith('.webm'))
       .map(file => {
         const path = `videos/${file.name}`;
-        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+        const { data: urlData } = client.storage.from(BUCKET).getPublicUrl(path);
         return {
           name: file.name,
           url: urlData.publicUrl,

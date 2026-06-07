@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { getSupabaseClient } from "./supabase";
 import type { EmailCaptureData } from "../components/EmailCaptureModal";
 
 interface SaveEmailCaptureParams {
@@ -22,7 +22,7 @@ interface EmailCaptureRecord {
   email_sent: boolean;
   email_sent_at: string | null;
   email_error: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -36,7 +36,8 @@ export async function saveEmailCapture({
   emailData,
   sendEmail = true,
 }: SaveEmailCaptureParams): Promise<EmailCaptureRecord> {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const { data, error } = await client
     .from("email_captures")
     .insert({
       event_id: eventId,
@@ -94,7 +95,8 @@ async function sendVideoEmail({
   videoUrl,
   recordId,
 }: SendVideoEmailParams): Promise<void> {
-  const { data, error } = await supabase.functions.invoke("send-video-email", {
+  const client = getSupabaseClient();
+  const { data, error } = await client.functions.invoke("send-video-email", {
     body: { email, firstName, videoUrl, recordId },
   });
 
@@ -102,7 +104,7 @@ async function sendVideoEmail({
   if (error) {
     const msg = error.message ?? "Edge Function inaccessible";
     console.error("Edge Function invoke error:", msg, error);
-    await supabase.from("email_captures").update({ email_error: msg }).eq("id", recordId);
+    await client.from("email_captures").update({ email_error: msg }).eq("id", recordId);
     throw new Error(msg);
   }
 
@@ -110,7 +112,7 @@ async function sendVideoEmail({
   if (data && !data.success) {
     const msg = data.error ?? "Erreur inconnue dans la Edge Function";
     console.error("Edge Function business error:", msg);
-    await supabase.from("email_captures").update({ email_error: msg }).eq("id", recordId);
+    await client.from("email_captures").update({ email_error: msg }).eq("id", recordId);
     throw new Error(msg);
   }
 
@@ -121,7 +123,8 @@ async function sendVideoEmail({
  * Récupère toutes les captures d'email pour un événement
  */
 export async function getEmailCaptures(eventId: string = "default"): Promise<EmailCaptureRecord[]> {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const { data, error } = await client
     .from("email_captures")
     .select("*")
     .eq("event_id", eventId)
@@ -139,7 +142,8 @@ export async function getEmailCaptures(eventId: string = "default"): Promise<Ema
  * Récupère les statistiques d'email pour un événement
  */
 export async function getEmailStats(eventId: string = "default") {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const { data, error } = await client
     .from("email_captures")
     .select("*")
     .eq("event_id", eventId);
@@ -170,7 +174,8 @@ export async function getEmailStats(eventId: string = "default") {
  * Renvoie un email qui a échoué
  */
 export async function resendEmail(recordId: number): Promise<void> {
-  const { data, error } = await supabase
+  const client = getSupabaseClient();
+  const { data, error } = await client
     .from("email_captures")
     .select("*")
     .eq("id", recordId)
