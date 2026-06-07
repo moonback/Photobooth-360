@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { getSupabaseClient } from './supabase';
 
 export type AnalyticsActionType = 'capture' | 'share' | 'download' | 'view';
 
@@ -6,7 +6,7 @@ export interface AnalyticsEvent {
   event_id?: string;
   video_id: string;
   action_type: AnalyticsActionType;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EventStats {
@@ -26,7 +26,8 @@ export interface EventStats {
  */
 export async function trackEvent(event: AnalyticsEvent): Promise<void> {
   try {
-    const { error } = await supabase.from('event_analytics').insert({
+    const client = getSupabaseClient();
+    const { error } = await client.from('event_analytics').insert({
       event_id: event.event_id || 'default',
       video_id: event.video_id,
       action_type: event.action_type,
@@ -46,7 +47,8 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
  */
 export async function getEventStats(eventId: string = 'default'): Promise<EventStats | null> {
   try {
-    const { data, error } = await supabase.rpc('get_event_stats', {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc('get_event_stats', {
       p_event_id: eventId,
     });
 
@@ -68,9 +70,10 @@ export async function getEventStats(eventId: string = 'default'): Promise<EventS
 export async function getRecentEvents(
   eventId: string = 'default',
   limit: number = 50
-): Promise<any[]> {
+): Promise<AnalyticsEvent[]> {
   try {
-    const { data, error } = await supabase
+    const client = getSupabaseClient();
+    const { data, error } = await client
       .from('event_analytics')
       .select('*')
       .eq('event_id', eventId)
@@ -94,9 +97,10 @@ export async function getRecentEvents(
  */
 export function subscribeToAnalytics(
   eventId: string = 'default',
-  callback: (payload: any) => void
+  callback: (payload: unknown) => void
 ) {
-  const channel = supabase
+  const client = getSupabaseClient();
+  const channel = client
     .channel(`analytics:${eventId}`)
     .on(
       'postgres_changes',
@@ -111,14 +115,14 @@ export function subscribeToAnalytics(
     .subscribe();
 
   return () => {
-    supabase.removeChannel(channel);
+    client.removeChannel(channel);
   };
 }
 
 /**
  * Helper pour tracker une capture
  */
-export function trackCapture(videoId: string, metadata?: Record<string, any>) {
+export function trackCapture(videoId: string, metadata?: Record<string, unknown>) {
   return trackEvent({
     video_id: videoId,
     action_type: 'capture',

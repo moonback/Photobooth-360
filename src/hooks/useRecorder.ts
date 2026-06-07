@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { logger } from '../shared/utils/logger';
 
 interface UseRecorderProps {
   onRecordingComplete: (url: string) => void;
@@ -18,34 +19,44 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
   const [isSyncing, setIsSyncing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const maxDurationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
-    if (maxDurationTimerRef.current) clearTimeout(maxDurationTimerRef.current);
+    if (maxDurationTimerRef.current) {
+      clearTimeout(maxDurationTimerRef.current);
+      maxDurationTimerRef.current = null;
+    }
   }, []);
 
   const beginRecording = useCallback(async (stream: MediaStream, durationMs: number) => {
-    // ── Sync gate ──────────────────────────────────────────────────────────
-    // Await onBeforeRecord if provided. This is where the motor reaches
-    // speed before we commit the first video frame.
     if (onBeforeRecord) {
       setIsSyncing(true);
       try {
         await onBeforeRecord();
       } catch (err) {
-        console.error('[Recorder] onBeforeRecord threw, aborting recording:', err);
+        logger.error('[Recorder] onBeforeRecord failed; recording cancelled', err);
         setIsSyncing(false);
         return;
       }
       setIsSyncing(false);
     }
 
-    // ── MediaRecorder start ───────────────────────────────────────────────
     const startMediaRecorder = (rec: MediaRecorder) => {
       chunksRef.current = [];
 
@@ -56,6 +67,8 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const url = URL.createObjectURL(blob);
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
         onRecordingComplete(url);
       };
 
@@ -75,7 +88,6 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
       });
       startMediaRecorder(recorder);
     } catch {
-      // Fallback: browser doesn't support that codec combo
       const recorder = new MediaRecorder(stream);
       startMediaRecorder(recorder);
     }
@@ -83,8 +95,10 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
 
   const startRecording = useCallback(
     (stream: MediaStream, durationMs = 15000, countdownSec = 3) => {
+      clearTimers();
+
       if (countdownSec <= 0) {
-        beginRecording(stream, durationMs);
+        void beginRecording(stream, durationMs);
         return;
       }
 
@@ -92,25 +106,36 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
       let counter = countdownSec;
 
       timerRef.current = setInterval(() => {
-        counter--;
+        counter -= 1;
         if (counter > 0) {
           setCountdown(counter);
         } else {
           if (timerRef.current) clearInterval(timerRef.current);
+          timerRef.current = null;
           setCountdown(null);
-          beginRecording(stream, durationMs);
+          void beginRecording(stream, durationMs);
         }
       }, 1000);
     },
-    [beginRecording]
+    [beginRecording, clearTimers]
   );
 
   const cancelCountdown = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
+      timerRef.current = null;
       setCountdown(null);
     }
   }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTimers();
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, [clearTimers]);
 
   return {
     isRecording,
