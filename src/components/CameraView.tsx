@@ -1,5 +1,5 @@
 import { RefObject } from "react";
-import { Camera, Radio, RefreshCw, Sparkles, Maximize2, Minimize2, SwitchCamera } from "lucide-react";
+import { Camera, Radio, RefreshCw, Sparkles, SwitchCamera, GalleryHorizontal } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 interface CameraViewProps {
@@ -11,9 +11,8 @@ interface CameraViewProps {
   showFlash: boolean;
   eventName: string;
   hidden: boolean;
-  isFullscreen: boolean;
-  onToggleFullscreen: () => void;
   onSwitchCamera?: () => void;
+  onOpenGallery?: () => void;
   facingMode?: "user" | "environment";
 }
 
@@ -25,9 +24,8 @@ export default function CameraView({
   showFlash,
   eventName,
   hidden,
-  isFullscreen,
-  onToggleFullscreen,
   onSwitchCamera,
+  onOpenGallery,
   facingMode = "user",
 }: CameraViewProps) {
   const countdownLabel = countdown === 0 ? "GO" : countdown;
@@ -57,11 +55,27 @@ export default function CameraView({
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="glass-panel flex min-h-10 min-w-0 items-center gap-2 rounded-full px-3 py-1.5">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
-            <Sparkles className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-2">
+          {onOpenGallery && !isRecording && (
+            <motion.button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenGallery(); }}
+              onTouchStart={(e) => { e.stopPropagation(); }}
+              className="glass-panel grid min-h-10 min-w-10 shrink-0 place-items-center rounded-full text-white transition-all hover:bg-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              aria-label="Ouvrir la galerie"
+            >
+              <GalleryHorizontal className="h-[18px] w-[18px]" />
+            </motion.button>
+          )}
+          
+          <div className="glass-panel flex min-h-10 min-w-0 items-center gap-2 rounded-full px-3 py-1.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <p className="min-w-0 truncate text-[13px] font-bold text-white">{eventName}</p>
           </div>
-          <p className="min-w-0 truncate text-[13px] font-bold text-white">{eventName}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -71,11 +85,12 @@ export default function CameraView({
               {isRecording ? "REC" : "LIVE"}
             </span>
           </div>
-          
+
           {onSwitchCamera && !isRecording && (
             <motion.button
               type="button"
-              onClick={onSwitchCamera}
+              onClick={(e) => { e.stopPropagation(); onSwitchCamera(); }}
+              onTouchStart={(e) => { e.stopPropagation(); }}
               className="glass-panel grid min-h-10 min-w-10 shrink-0 place-items-center rounded-full text-white transition-all hover:bg-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -84,17 +99,6 @@ export default function CameraView({
               <SwitchCamera className="h-[18px] w-[18px]" />
             </motion.button>
           )}
-          
-          <motion.button
-            type="button"
-            onClick={onToggleFullscreen}
-            className="glass-panel grid min-h-10 min-w-10 shrink-0 place-items-center rounded-full text-white transition-all hover:bg-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            aria-label={isFullscreen ? "Quitter le plein écran" : "Passer en plein écran"}
-          >
-            {isFullscreen ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
-          </motion.button>
         </div>
       </motion.div>
 

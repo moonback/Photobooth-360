@@ -342,18 +342,17 @@ export default function App() {
             ) : (
               <>
                 <CameraView 
-                  liveVideoRef={liveVideoRef} 
-                  isRecording={isRecording} 
-                  countdown={countdown}
-                  isSyncing={isSyncing}
-                  showFlash={showFlash} 
-                  eventName={settings.eventName} 
-                  hidden={isReviewing} 
-                  isFullscreen={isFullscreen}
-                  onToggleFullscreen={() => setIsFullscreen((value) => !value)}
-                  onSwitchCamera={handleSwitchCamera}
-                  facingMode={settings.facingMode}
-                />
+              liveVideoRef={liveVideoRef} 
+              isRecording={isRecording} 
+              countdown={countdown}
+              isSyncing={isSyncing}
+              showFlash={showFlash} 
+              eventName={settings.eventName} 
+              hidden={isReviewing} 
+              onSwitchCamera={handleSwitchCamera}
+              onOpenGallery={() => navigate("/gallery")}
+              facingMode={settings.facingMode}
+            />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
 
                 {/* Motor control panel — visible on camera view when motor is enabled */}
@@ -458,30 +457,7 @@ export default function App() {
             )}
           </main>
 
-          {!isFullscreen && (
-            <nav className="glass-panel fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.55rem)] z-50 grid min-h-14 grid-cols-2 rounded-[1.25rem] p-1 md:left-1/2 md:max-w-xs md:-translate-x-1/2" aria-label="Navigation principale">
-              <button 
-                type="button" 
-                onClick={isReviewing ? handleReset : undefined} 
-                className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-all active:scale-95 touch-manipulation ${!isReviewing ? "bg-white text-black" : "text-neuro-muted hover:text-white"}`} 
-                aria-label="Capture"
-                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
-                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <Camera className="h-[18px] w-[18px]" /> Capture
-              </button>
-              <button 
-                type="button" 
-                onClick={() => navigate("/gallery")} 
-                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold text-neuro-muted transition-all hover:text-white active:scale-95 touch-manipulation" 
-                aria-label="Galerie"
-                onTouchStart={(e) => { e.currentTarget.style.transform = 'scale(0.95)'; haptic.light(); }}
-                onTouchEnd={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <GalleryHorizontal className="h-[18px] w-[18px]" /> Galerie
-              </button>
-            </nav>
-          )}
+
         </>
       )}
 
