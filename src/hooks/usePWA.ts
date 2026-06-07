@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { logger } from '../shared/utils/logger';
+
+let serviceWorkerUpdateTimer: number | null = null;
 
 export function usePWA() {
   const [needRefresh, setNeedRefresh] = useState(false);
@@ -12,17 +15,18 @@ export function usePWA() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegisteredSW(swUrl, registration) {
-      console.log('Service Worker enregistré:', swUrl);
-      
-      // Vérifier les mises à jour toutes les heures
-      if (registration) {
-        setInterval(() => {
-          registration.update();
+      logger.info('[PWA] Service Worker registered', { swUrl });
+
+      if (registration && serviceWorkerUpdateTimer === null) {
+        serviceWorkerUpdateTimer = window.setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            void registration.update();
+          }
         }, 60 * 60 * 1000);
       }
     },
     onRegisterError(error) {
-      console.error('Erreur lors de l\'enregistrement du Service Worker:', error);
+      logger.error('[PWA] Service Worker registration failed', error);
     },
   });
 

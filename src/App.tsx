@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
 import { motion } from "motion/react";
@@ -26,6 +26,7 @@ import { saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 import { saveEmailCapture } from "./lib/emailCapture";
+import { logger } from "./shared/utils/logger";
 import type { EmailCaptureData } from "./components/EmailCaptureModal";
 
 const ACCENT: Record<AppSettings["accentColor"], { bg: string; text: string; border: string; glow: string }> = {
@@ -54,25 +55,33 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState("");
   const [showDiagnostic, setShowDiagnostic] = useState(false); // État pour le diagnostic
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Exposer le toggle diagnostic dans la console pour debug mobile
   useEffect(() => {
-    (window as any).toggleCameraDiagnostic = () => {
+    window.toggleCameraDiagnostic = () => {
       setShowDiagnostic(prev => {
-        console.log("[Debug] Camera diagnostic:", !prev ? "ON" : "OFF");
+        logger.debug("[Debug] Camera diagnostic", { enabled: !prev });
         return !prev;
       });
     };
-    console.log("[Debug] Pour afficher le diagnostic caméra, tapez: toggleCameraDiagnostic()");
+    logger.debug("[Debug] Pour afficher le diagnostic caméra, tapez: toggleCameraDiagnostic()");
     
     return () => {
-      delete (window as any).toggleCameraDiagnostic;
+      delete window.toggleCameraDiagnostic;
     };
   }, []);
 
   const accent = ACCENT[settings.accentColor];
   const isReviewing = Boolean(videoUrl);
+
+  useEffect(() => {
+    return () => {
+      if (videoUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(videoUrl);
+      }
+    };
+  }, [videoUrl]);
 
   const { liveVideoRef, stream, cameraError } = useCamera({
     facingMode: settings.facingMode,
@@ -178,13 +187,13 @@ export default function App() {
               source: "local",
             });
           })
-          .catch(console.error)
+          .catch((error) => logger.error("[App] Local share save failed", error))
           .finally(() => setIsSavingShare(false));
       }
     },
   });
 
-  const resetInactivityTimer = () => {
+  const resetInactivityTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     if (!showSplash) {
       inactivityTimerRef.current = setTimeout(() => {
@@ -193,7 +202,7 @@ export default function App() {
         setShareId("");
       }, 300000);
     }
-  };
+  }, [showSplash]);
 
   useEffect(() => {
     if (showSplash) {
@@ -210,7 +219,7 @@ export default function App() {
       events.forEach((event) => document.removeEventListener(event, resetInactivityTimer));
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     };
-  }, [showSplash]);
+  }, [resetInactivityTimer, showSplash]);
 
   useEffect(() => {
     const loadGallery = async () => {
@@ -277,7 +286,7 @@ export default function App() {
     if (isRecording || countdown !== null) return; // Ne pas changer pendant l'enregistrement ou le compte à rebours
     
     const newFacingMode = settings.facingMode === "user" ? "environment" : "user";
-    console.log("[App] Switching camera from", settings.facingMode, "to", newFacingMode);
+    logger.debug("[App] Switching camera", { from: settings.facingMode, to: newFacingMode });
     handleSave({ ...settings, facingMode: newFacingMode });
     haptic.light();
   };

@@ -5,9 +5,15 @@ import { getTrackById } from '../lib/backgroundMusic';
 import { cleanupFiles, getFFmpeg, resetFFmpeg } from '../lib/ffmpegCore';
 import { computeMusicStartOffset, getMediaDuration } from '../lib/musicSync';
 import { buildCropFilter, type ExportFormat } from '../lib/exportFormat';
+import {
+  buildSmartSlowMotionSetptsFilter,
+  getSlowMotionPreset,
+  resolveAutoTrimWindow,
+  type SlowMotionPreset,
+} from '../lib/videoIntelligence';
 
 export type SlowMotionSpeed = 0.5 | 0.25;
-export type { ExportFormat };
+export type { ExportFormat, SlowMotionPreset };
 
 export type ProcessingStatus = 'idle' | 'loading' | 'processing' | 'done' | 'error';
 
@@ -15,6 +21,10 @@ export interface ProcessVideoOptions {
   music?: MusicSelection;
   musicVolume?: number;
   mixWithVideoAudio?: boolean;
+  /** Trim short operator handles at the beginning/end before export. */
+  autoTrim?: boolean;
+  /** Classic slows the full clip; other presets slow only the center highlight. */
+  slowMotionPreset?: SlowMotionPreset;
 }
 
 interface UseSlowMotionReturn {
@@ -66,9 +76,24 @@ function needsProcessing(
   speed: 1 | SlowMotionSpeed,
   format: ExportFormat,
   music?: MusicSelection,
+  autoTrim = false,
 ): boolean {
   const hasMusic = music && music !== 'none';
-  return speed !== 1 || format !== '16:9' || Boolean(hasMusic);
+  return speed !== 1 || format !== '16:9' || Boolean(hasMusic) || autoTrim;
+}
+
+function buildInputArgs(trimStart: number, trimDuration: number | null): string[] {
+  if (trimDuration && trimDuration > 0 && trimStart > 0.01) {
+    return ['-ss', trimStart.toFixed(3), '-t', trimDuration.toFixed(3), '-i', 'input.webm'];
+  }
+  if (trimDuration && trimDuration > 0) {
+    return ['-t', trimDuration.toFixed(3), '-i', 'input.webm'];
+  }
+  return ['-i', 'input.webm'];
+}
+
+function buildFullClipSetpts(speed: SlowMotionSpeed): string {
+  return `setpts=${(1 / speed).toFixed(1)}*PTS`;
 }
 
 export function useSlowMotion(): UseSlowMotionReturn {
@@ -83,7 +108,13 @@ export function useSlowMotion(): UseSlowMotionReturn {
     format: ExportFormat = '16:9',
     options: ProcessVideoOptions = {},
   ): Promise<string | null> => {
-    const { music = 'none', musicVolume = 35, mixWithVideoAudio = false } = options;
+    const {
+      music = 'none',
+      musicVolume = 35,
+      mixWithVideoAudio = false,
+      autoTrim = false,
+      slowMotionPreset = 'classic',
+    } = options;
     const hasMusic = music !== 'none';
 
     cancelledRef.current = false;
@@ -91,7 +122,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
     setProgress(0);
     setErrorMessage('');
 
-    if (!needsProcessing(speed, format, music)) {
+    if (!needsProcessing(speed, format, music, autoTrim)) {
       setProgress(100);
       setStatus('done');
       return inputUrl;
@@ -112,6 +143,31 @@ export function useSlowMotion(): UseSlowMotionReturn {
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
       await ff.writeFile('input.webm', await fetchFile(inputUrl));
 
+      let sourceDuration = 0;
+      let trimStart = 0;
+      let trimDuration: number | null = null;
+
+      if (autoTrim || (speed !== 1 && slowMotionPreset !== 'classic')) {
+        sourceDuration = await getMediaDuration(inputUrl);
+      }
+
+      if (autoTrim && sourceDuration > 0) {
+        const trim = resolveAutoTrimWindow(sourceDuration);
+        trimStart = trim.start;
+        trimDuration = trim.duration;
+      }
+
+      const workingDuration = trimDuration ?? sourceDuration;
+      const smartPreset = speed !== 1 && slowMotionPreset !== 'classic'
+        ? getSlowMotionPreset(slowMotionPreset)
+        : null;
+      const speedVideoFilter = speed === 1
+        ? null
+        : smartPreset && workingDuration > 0
+          ? buildSmartSlowMotionSetptsFilter(smartPreset, workingDuration)
+          : buildFullClipSetpts(speed);
+      const sourceInputArgs = buildInputArgs(trimStart, trimDuration);
+
       let musicStartOffset = 0;
       if (hasMusic) {
         const track = getTrackById(music);
@@ -128,7 +184,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       const videoFilters = [
         ...(format !== '16:9' ? [buildCropFilter(format)] : []),
-        ...(speed === 1 ? [] : [`setpts=${(1 / speed).toFixed(1)}*PTS`]),
+        ...(speedVideoFilter ? [speedVideoFilter] : []),
       ];
       const videoFilter = videoFilters.length > 0 ? videoFilters.join(',') : null;
 
@@ -136,7 +192,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       if (hasMusic && speed === 1 && format === '16:9') {
         outputArgs = [
-          '-i', 'input.webm',
+          ...sourceInputArgs,
           ...musicInputArgs,
           '-filter_complex', buildAudioFilter(musicVolume, mixWithVideoAudio),
           '-map', '0:v:0',
@@ -149,14 +205,16 @@ export function useSlowMotion(): UseSlowMotionReturn {
       } else if (hasMusic && speed !== 1 && format === '16:9') {
         const audioTempo = speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`;
         const vol = (musicVolume / 100).toFixed(2);
-        const audioFilter = mixWithVideoAudio
-          ? `[1:a]volume=${vol}[bg];[0:a]${audioTempo}[va];[va][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`
-          : `[1:a]volume=${vol},${audioTempo}[a]`;
+        const audioFilter = smartPreset
+          ? `[1:a]volume=${vol}[a]`
+          : mixWithVideoAudio
+            ? `[1:a]volume=${vol}[bg];[0:a]${audioTempo}[va];[va][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`
+            : `[1:a]volume=${vol},${audioTempo}[a]`;
 
         outputArgs = [
-          '-i', 'input.webm',
+          ...sourceInputArgs,
           ...musicInputArgs,
-          '-filter:v', `setpts=${(1 / speed).toFixed(1)}*PTS`,
+          '-filter:v', speedVideoFilter ?? buildFullClipSetpts(speed as SlowMotionSpeed),
           '-filter_complex', audioFilter,
           '-map', '0:v:0',
           '-map', '[a]',
@@ -171,7 +229,9 @@ export function useSlowMotion(): UseSlowMotionReturn {
         const vol = (musicVolume / 100).toFixed(2);
         let audioFilter: string;
 
-        if (mixWithVideoAudio) {
+        if (smartPreset) {
+          audioFilter = `[1:a]volume=${vol}[a]`;
+        } else if (mixWithVideoAudio) {
           const va = audioTempo ? `[0:a]${audioTempo}[va]` : '[0:a]anull[va]';
           audioFilter = audioTempo
             ? `${va};[1:a]volume=${vol}[bg];[va][bg]amix=inputs=2:duration=first:dropout_transition=2[a]`
@@ -183,7 +243,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
         }
 
         outputArgs = [
-          '-i', 'input.webm',
+          ...sourceInputArgs,
           ...musicInputArgs,
           '-filter_complex',
           `[0:v]${videoFilter}[v];${audioFilter}`,
@@ -197,7 +257,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
         ];
       } else if (speed === 1) {
         outputArgs = [
-          '-i', 'input.webm',
+          ...sourceInputArgs,
           '-vf', buildCropFilter(format),
           '-map', '0:v:0',
           '-map', '0:a?',
@@ -207,27 +267,47 @@ export function useSlowMotion(): UseSlowMotionReturn {
           'output.webm',
         ];
       } else if (format !== '16:9') {
-        outputArgs = [
-          '-i', 'input.webm',
-          '-filter_complex',
-          `[0:v]${videoFilter}[v];[0:a]${speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`}[a]`,
-          '-map', '[v]',
-          '-map', '[a]',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
-          '-c:a', 'libvorbis',
-          'output.webm',
-        ];
+        if (smartPreset) {
+          outputArgs = [
+            ...sourceInputArgs,
+            '-filter:v', videoFilter ?? speedVideoFilter ?? buildFullClipSetpts(speed as SlowMotionSpeed),
+            '-an',
+            '-c:v', 'libvpx',
+            '-b:v', '2M',
+            'output.webm',
+          ];
+        } else {
+          outputArgs = [
+            ...sourceInputArgs,
+            '-filter_complex',
+            `[0:v]${videoFilter}[v];[0:a]${speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`}[a]`,
+            '-map', '[v]',
+            '-map', '[a]',
+            '-c:v', 'libvpx',
+            '-b:v', '2M',
+            '-c:a', 'libvorbis',
+            'output.webm',
+          ];
+        }
       } else {
-        outputArgs = [
-          '-i', 'input.webm',
-          '-filter:v', `setpts=${(1 / speed).toFixed(1)}*PTS`,
-          '-filter:a', speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`,
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
-          '-c:a', 'libvorbis',
-          'output.webm',
-        ];
+        outputArgs = smartPreset
+          ? [
+              ...sourceInputArgs,
+              '-filter:v', speedVideoFilter ?? buildFullClipSetpts(speed as SlowMotionSpeed),
+              '-an',
+              '-c:v', 'libvpx',
+              '-b:v', '2M',
+              'output.webm',
+            ]
+          : [
+              ...sourceInputArgs,
+              '-filter:v', speedVideoFilter ?? buildFullClipSetpts(speed as SlowMotionSpeed),
+              '-filter:a', speed === 0.25 ? 'atempo=0.5,atempo=0.5' : `atempo=${speed}`,
+              '-c:v', 'libvpx',
+              '-b:v', '2M',
+              '-c:a', 'libvorbis',
+              'output.webm',
+            ];
       }
 
       await ff.exec(outputArgs);

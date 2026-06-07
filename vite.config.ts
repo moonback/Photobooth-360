@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['logo.png', 'header-bg.png', 'icon-192.png', 'icon-512.png'],
+        includeAssets: ['logo.png', 'header-bg.png', 'icon-192.png', 'icon-512.png', 'offline.html'],
         manifest: {
           name: 'NeuroBooth 360',
           short_name: 'NeuroBooth',
@@ -125,6 +125,11 @@ export default defineConfig(() => {
             }
           ],
           cleanupOutdatedCaches: true,
+          // Keep SPA navigations on the app shell. Using offline.html here makes
+          // every navigation resolve to the offline screen while the service
+          // worker is active, even when the network is available.
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//, /^\/storage\//],
           skipWaiting: true,
           clientsClaim: true
         },
@@ -155,6 +160,20 @@ export default defineConfig(() => {
         // 'credentialless' allows cross-origin images/media (e.g. Supabase logo bucket)
         // while still enabling SharedArrayBuffer needed for FFmpeg WASM
         'Cross-Origin-Embedder-Policy': 'credentialless',
+      },
+    },
+
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules/@ffmpeg')) return 'ffmpeg';
+            if (id.includes('node_modules/jszip')) return 'jszip';
+            if (id.includes('node_modules/@supabase')) return 'supabase';
+            if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'motion';
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-router-dom')) return 'react-vendor';
+          },
+        },
       },
     },
     // SPA fallback — serve index.html for all routes (e.g. /share/:id)

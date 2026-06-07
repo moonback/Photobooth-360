@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music } from 'lucide-react';
+import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music, Sparkles, Scissors } from 'lucide-react';
 import { loadVideo } from '../lib/videoStore';
 import { loadSettings } from '../lib/settingsStore';
 import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
-import { useSlowMotion, SlowMotionSpeed, ExportFormat } from '../hooks/useSlowMotion';
+import { useSlowMotion, SlowMotionSpeed, ExportFormat, type SlowMotionPreset } from '../hooks/useSlowMotion';
 import { useVideoComposer } from '../hooks/useVideoComposer';
 import type { AppSettings } from '../components/SettingsModal';
+import { SLOW_MOTION_PRESETS } from '../lib/videoIntelligence';
 
 type Speed = 1 | SlowMotionSpeed;
 
@@ -41,6 +42,8 @@ export default function SharePage() {
   const [selectedSpeed, setSelectedSpeed] = useState<Speed>(1);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('16:9');
   const [selectedMusic, setSelectedMusic] = useState<MusicSelection>('none');
+  const [selectedPreset, setSelectedPreset] = useState<SlowMotionPreset>('cinematic');
+  const [autoTrimEnabled, setAutoTrimEnabled] = useState(true);
   const [musicEnabled, setMusicEnabled] = useState(false);
   const [musicVolume, setMusicVolume] = useState(35);
   const [recordAudio, setRecordAudio] = useState(false);
@@ -104,20 +107,33 @@ export default function SharePage() {
 
   const handleConfirm = async () => {
     setPhase('encoding');
+    const transientUrls: string[] = [];
+
     try {
       let sourceUrl = originalUrl;
 
+      // Trim the raw capture before optional jingles so intro/outro assets are preserved.
+      if (autoTrimEnabled) {
+        const trimmedUrl = await processVideo(originalUrl, 1, '16:9', { autoTrim: true });
+        if (!trimmedUrl) throw new Error('Auto-trim failed');
+        if (trimmedUrl.startsWith('blob:') && trimmedUrl !== originalUrl) transientUrls.push(trimmedUrl);
+        sourceUrl = trimmedUrl;
+      }
+
       if (appSettings?.jingleEnabled) {
-        sourceUrl = await composeWithJingles(originalUrl, appSettings, selectedFormat);
+        sourceUrl = await composeWithJingles(sourceUrl, appSettings, selectedFormat);
       }
 
       const result = await processVideo(sourceUrl, selectedSpeed, selectedFormat, {
         music: musicEnabled ? selectedMusic : 'none',
         musicVolume,
         mixWithVideoAudio: recordAudio,
+        autoTrim: false,
+        slowMotionPreset: selectedSpeed === 1 ? 'classic' : selectedPreset,
       });
 
       if (result) {
+        transientUrls.filter((url) => url !== result).forEach((url) => URL.revokeObjectURL(url));
         setDownloadUrl(result);
         setPhase('ready');
       } else {
@@ -125,6 +141,7 @@ export default function SharePage() {
         setPhase('choose');
       }
     } catch {
+      transientUrls.forEach((url) => URL.revokeObjectURL(url));
       setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
       setPhase('choose');
     }
@@ -135,9 +152,11 @@ export default function SharePage() {
     ? null
     : BACKGROUND_TRACKS.find((t) => t.id === selectedMusic)?.label;
   const speedSlug = selectedSpeed === 1 ? 'normal' : selectedSpeed === 0.5 ? 'slowmo' : 'ultraslowmo';
+  const presetSlug = selectedSpeed === 1 || selectedPreset === 'classic' ? '' : `-${selectedPreset}`;
+  const trimSlug = autoTrimEnabled ? '-autotrim' : '';
   const formatSlug = selectedFormat.replace(':', 'x');
   const musicSlug = selectedMusic === 'none' ? '' : `-${selectedMusic}`;
-  const filename = `photobooth360-${formatSlug}-${speedSlug}${musicSlug}.webm`;
+  const filename = `photobooth360-${formatSlug}-${speedSlug}${presetSlug}${trimSlug}${musicSlug}.webm`;
 
   return (
     <div className="min-h-screen h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center font-sans overflow-y-auto">
@@ -225,6 +244,28 @@ export default function SharePage() {
               </p>
             </div>
 
+            <div className="w-full rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <button
+                type="button"
+                onClick={() => setAutoTrimEnabled((enabled) => !enabled)}
+                disabled={phase === 'encoding'}
+                className="flex w-full items-center gap-3 text-left disabled:opacity-50"
+              >
+                <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${autoTrimEnabled ? 'bg-emerald-500 text-white' : 'bg-zinc-800 text-zinc-500'}`}>
+                  <Scissors className="h-4 w-4" />
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-bold text-white">Auto-trim intelligent</span>
+                  <span className="mt-0.5 block text-xs leading-snug text-zinc-400">
+                    Coupe automatiquement les petites secondes inutiles au début et à la fin avant l’export.
+                  </span>
+                </span>
+                <span className={`h-5 w-9 rounded-full p-0.5 transition ${autoTrimEnabled ? 'bg-emerald-500' : 'bg-zinc-700'}`}>
+                  <span className={`block h-4 w-4 rounded-full bg-white transition ${autoTrimEnabled ? 'translate-x-4' : ''}`} />
+                </span>
+              </button>
+            </div>
+
             <div className="w-full space-y-2">
               <div className="flex items-center gap-2">
                 <Gauge className="w-4 h-4 text-indigo-400" />
@@ -258,6 +299,36 @@ export default function SharePage() {
                   </button>
                 ))}
               </div>
+
+              {selectedSpeed !== 1 && (
+                <div className="mt-3 space-y-2 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-indigo-300" />
+                    <span className="text-sm font-semibold text-white">Preset slow motion intelligent</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {SLOW_MOTION_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setSelectedPreset(preset.id)}
+                        disabled={phase === 'encoding'}
+                        className={`rounded-xl border px-2.5 py-2 text-left transition active:scale-[0.98] disabled:opacity-50 ${
+                          selectedPreset === preset.id
+                            ? 'border-indigo-400 bg-indigo-500/20 text-white'
+                            : 'border-zinc-700 bg-zinc-900/80 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="block text-xs font-black uppercase tracking-[0.12em]">{preset.label}</span>
+                        <span className="mt-1 block text-[10px] leading-snug opacity-70">{preset.description}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-center text-[11px] text-zinc-500">
+                    Les presets Cinematic, Party, Luxury et Sport ralentissent seulement le moment central.
+                  </p>
+                </div>
+              )}
             </div>
 
             {musicEnabled && (
@@ -368,8 +439,8 @@ export default function SharePage() {
               <div className="flex items-center gap-2 text-sm text-emerald-400">
                 <CheckCircle className="w-4 h-4" />
                 {selectedSpeed === 1
-                  ? `Export ${selectedFormat} prêt${selectedTrackLabel ? ` · ${selectedTrackLabel}` : ''}`
-                  : `Export ${selectedFormat} · Slow-motion ${selectedSpeed === 0.5 ? '½×' : '¼×'} encodé`}
+                  ? `Export ${selectedFormat}${autoTrimEnabled ? ' · auto-trim' : ''} prêt${selectedTrackLabel ? ` · ${selectedTrackLabel}` : ''}`
+                  : `Export ${selectedFormat} · ${selectedPreset === 'classic' ? 'Slow-motion' : `Preset ${selectedPreset}`} ${selectedSpeed === 0.5 ? '½×' : '¼×'}${autoTrimEnabled ? ' · auto-trim' : ''}`}
               </div>
 
               <a
