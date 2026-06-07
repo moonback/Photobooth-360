@@ -372,7 +372,7 @@ function drawWrappedText(
   weight: string,
   align: CanvasTextAlign = 'center',
 ): void {
-  ctx.font = `${weight} ${fontSize}px Inter, ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `${weight} ${fontSize}px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif`;
   ctx.fillStyle = color;
   ctx.textAlign = align;
   const words = text.split(/\s+/).filter(Boolean);
