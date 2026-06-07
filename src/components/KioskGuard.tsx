@@ -12,7 +12,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Lock, Maximize2, Shield, WifiOff, X, LogOut, Settings } from "lucide-react";
+import { Maximize2, Shield, WifiOff } from "lucide-react";
+import PinModal from "./PinModal";
 import type { KioskState } from "../hooks/useKiosk";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -43,8 +44,6 @@ export default function KioskGuard({
   onExitKiosk,
 }: KioskGuardProps) {
   const [showPrompt,   setShowPrompt]   = useState(false);
-  const [pinInput,     setPinInput]     = useState("");
-  const [pinError,     setPinError]     = useState(false);
   const [tapFeedback,  setTapFeedback]  = useState(0);
   // "admin" → ouvre les réglages après PIN, "exit" → quitte le kiosque après PIN
   const [pendingAction, setPendingAction] = useState<"admin" | "exit">("admin");
@@ -143,32 +142,19 @@ export default function KioskGuard({
     if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
   }, []);
 
-  // ── Auto-submit PIN when length matches ───────────────────────────────────
-
-  useEffect(() => {
-    if (pinInput.length > 0 && pinInput.length >= Math.max(4, adminPin.length)) {
-      const t = setTimeout(handlePinSubmit, 120);
-      return () => clearTimeout(t);
-    }
-  }, [pinInput]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── PIN validation ─────────────────────────────────────────────────────────
 
-  const handlePinSubmit = () => {
-    if (pinInput === adminPin) {
-      setPinInput(""); setPinError(false); setShowPrompt(false);
-      if (pendingAction === "exit") {
-        onExitKioskRef.current();
-      } else {
-        onAdminAccessRef.current();
-      }
+  const handlePinUnlock = () => {
+    setShowPrompt(false);
+    if (pendingAction === "exit") {
+      onExitKioskRef.current();
     } else {
-      setPinError(true); setPinInput("");
+      onAdminAccessRef.current();
     }
   };
 
   const closePrompt = () => {
-    setShowPrompt(false); setPinInput(""); setPinError(false);
+    setShowPrompt(false);
   };
 
   // Don't render anything if idle and no kiosk
@@ -185,12 +171,12 @@ export default function KioskGuard({
         >
           <div className="flex items-center gap-1 rounded-full border border-emerald-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
             <Shield className="h-2.5 w-2.5 text-emerald-400" />
-            <span className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-400">Kiosque</span>
+            <span className="text-label text-emerald-400">Kiosque</span>
           </div>
           {!kioskState.isWakeLocked && (
             <div className="flex items-center gap-1 rounded-full border border-amber-500/20 bg-black/60 px-2 py-0.5 backdrop-blur-xl">
               <WifiOff className="h-2.5 w-2.5 text-amber-400" />
-              <span className="text-[9px] font-black uppercase tracking-[0.16em] text-amber-400">Veille</span>
+              <span className="text-label text-amber-400">Veille</span>
             </div>
           )}
         </motion.div>
@@ -249,19 +235,19 @@ export default function KioskGuard({
       <AnimatePresence>
         {showReEnterBanner && (
           <motion.div
-            className="fixed inset-x-0 top-0 z-[201] flex items-center justify-between gap-3 bg-indigo-600 px-4 shadow-2xl"
+            className="fixed inset-x-0 top-0 z-[201] flex items-center justify-between gap-3 border-b border-neuro-accent/30 bg-neuro-bg/95 px-4 backdrop-blur-xl"
             style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)", paddingBottom: "0.75rem" }}
             initial={{ y: -80 }} animate={{ y: 0 }} exit={{ y: -80 }}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
           >
             <div className="flex items-center gap-2.5">
-              <Maximize2 className="h-4 w-4 shrink-0 text-white" />
-              <p className="text-[13px] font-bold text-white">Kiosque interrompu — touchez pour reprendre</p>
+              <Maximize2 className="h-4 w-4 shrink-0 text-neuro-accent" />
+              <p className="text-[13px] font-semibold text-white">Kiosque interrompu</p>
             </div>
             <button
               type="button"
               onClick={onReEnterFullscreen}
-              className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[12px] font-black text-white active:scale-95 touch-manipulation"
+              className="btn-accent shrink-0 min-h-0 h-9 rounded-xl px-3.5 text-[12px] touch-manipulation"
             >
               Reprendre
             </button>
@@ -270,130 +256,13 @@ export default function KioskGuard({
       </AnimatePresence>
 
       {/* ── Admin PIN prompt ──────────────────────────────────────────── */}
-      <AnimatePresence>
-        {showPrompt && (
-          <motion.div
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/85 p-5 backdrop-blur-2xl"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="glass-panel w-full max-w-[320px] rounded-[1.5rem] p-5"
-              initial={{ scale: 0.88, y: 20, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            >
-              {/* Header */}
-              <div className="mb-5 flex items-center gap-3">
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${pendingAction === "exit" ? "bg-red-500/15 text-red-400" : "bg-indigo-500/15 text-indigo-400"}`}>
-                  {pendingAction === "exit" ? <LogOut className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-[17px] font-black text-white leading-tight">
-                    {pendingAction === "exit" ? "Quitter le kiosque" : "Administrateur"}
-                  </h2>
-                  <p className="text-[12px] text-white/50">
-                    {pendingAction === "exit" ? "Entrez le PIN pour désactiver" : "Gestion du PhotoBooth360"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closePrompt}
-                  className="grid h-8 w-8 place-items-center rounded-full border border-white/10 bg-white/5 text-white/50 active:scale-90 touch-manipulation"
-                  aria-label="Annuler"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* PIN dots */}
-              <div className="mb-5 flex justify-center gap-3">
-                {Array.from({ length: Math.max(4, adminPin.length) }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className={`h-3.5 w-3.5 rounded-full border-2 transition-all duration-150 ${
-                      i < pinInput.length
-                        ? "border-indigo-400 bg-indigo-400"
-                        : "border-white/25 bg-transparent"
-                    }`}
-                    animate={i === pinInput.length - 1 ? { scale: [1.3, 1] } : {}}
-                    transition={{ duration: 0.15 }}
-                  />
-                ))}
-              </div>
-
-              {/* Error */}
-              <AnimatePresence>
-                {pinError && (
-                  <motion.p
-                    className="mb-3 text-center text-[12px] font-bold text-red-400"
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: [0, -6, 6, -4, 4, 0] }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.35 }}
-                  >
-                    Code incorrect
-                  </motion.p>
-                )}
-              </AnimatePresence>
-
-              {/* Keypad */}
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
-                  <motion.button
-                    key={n}
-                    type="button"
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                      if (pinInput.length < Math.max(4, adminPin.length)) {
-                        setPinError(false);
-                        setPinInput((p: string) => p + String(n));
-                      }
-                    }}
-                    className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation"
-                  >
-                    {n}
-                  </motion.button>
-                ))}
-                <div />
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => { setPinError(false); setPinInput((p: string) => p + "0"); }}
-                  className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[22px] font-black text-white active:bg-white/15 touch-manipulation"
-                >
-                  0
-                </motion.button>
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => { setPinError(false); setPinInput((p: string) => p.slice(0, -1)); }}
-                  className="flex h-[3.75rem] items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[20px] text-white/60 active:bg-white/15 touch-manipulation"
-                  aria-label="Effacer"
-                >
-                  ⌫
-                </motion.button>
-              </div>
-
-              {/* Confirm */}
-              <motion.button
-                type="button"
-                whileTap={{ scale: 0.97 }}
-                onClick={handlePinSubmit}
-                disabled={pinInput.length === 0}
-                className={`flex h-[3.25rem] w-full items-center justify-center gap-2 rounded-xl text-[14px] font-black text-white disabled:opacity-40 touch-manipulation ${
-                  pendingAction === "exit"
-                    ? "bg-red-500 shadow-[0_0_24px_rgba(239,68,68,0.4)]"
-                    : "bg-indigo-500 shadow-[0_0_24px_rgba(99,102,241,0.4)]"
-                }`}
-              >
-                {pendingAction === "exit" ? <LogOut className="h-4 w-4" /> : <Settings className="h-4 w-4" />}
-                {pendingAction === "exit" ? "Quitter le kiosque" : "Confirmer"}
-              </motion.button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <PinModal
+        isOpen={showPrompt}
+        adminPin={adminPin}
+        variant={pendingAction === "exit" ? "exit" : "admin"}
+        onUnlock={handlePinUnlock}
+        onCancel={closePrompt}
+      />
     </>
   );
 }
