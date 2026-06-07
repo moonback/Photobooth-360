@@ -45,7 +45,8 @@ export function useUpload(): UseUploadReturn {
 
   const listVideos = useCallback(async (): Promise<string[]> => {
     if (!SUPABASE_CONFIGURED) return [];
-    return await listVideosFromBucket();
+    const videos = await listVideosFromBucket();
+    return videos.map((video) => video.url);
   }, []);
 
   return { 

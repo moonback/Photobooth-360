@@ -216,7 +216,8 @@ export default function App() {
     const loadGallery = async () => {
       if (cloudEnabled) {
         const { listVideosFromBucket } = await import("./lib/uploadVideo");
-        setGallery(await listVideosFromBucket());
+        const videos = await listVideosFromBucket();
+        setGallery(videos.map((video) => video.url));
       } else {
         const { getAllVideos } = await import("./lib/videoStore");
         const localVideos = await getAllVideos();

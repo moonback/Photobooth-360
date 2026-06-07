@@ -114,7 +114,7 @@ function VideoModal({
   const hasNext = index < total - 1;
 
   useEffect(() => {
-    videoRef.current?.play();
+    void videoRef.current?.play().catch(() => undefined);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft" && hasPrev) onPrev();
@@ -194,7 +194,7 @@ function VideoModal({
           loop
           playsInline
           onClick={() => {
-            if (videoRef.current?.paused) videoRef.current.play();
+            if (videoRef.current?.paused) void videoRef.current.play().catch(() => undefined);
             else videoRef.current?.pause();
           }}
         />
@@ -316,8 +316,8 @@ export default function GalleryPage() {
     setError("");
     try {
       if (SUPABASE_CONFIGURED) {
-        const urls = await listVideosFromBucket();
-        setVideos(urls.map((url, i) => ({ id: `bucket-${i}`, url, shareUrl: url })));
+        const remoteVideos = await listVideosFromBucket();
+        setVideos(remoteVideos.map((video, i) => ({ id: `bucket-${i}`, url: video.url, shareUrl: video.url })));
       } else {
         const local = await getAllVideos();
         setVideos(local.map((v) => ({ ...v, shareUrl: `${window.location.origin}/share/${v.id}` })));
