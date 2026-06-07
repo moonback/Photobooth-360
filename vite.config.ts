@@ -125,7 +125,10 @@ export default defineConfig(() => {
             }
           ],
           cleanupOutdatedCaches: true,
-          navigateFallback: '/offline.html',
+          // Keep SPA navigations on the app shell. Using offline.html here makes
+          // every navigation resolve to the offline screen while the service
+          // worker is active, even when the network is available.
+          navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//, /^\/storage\//],
           skipWaiting: true,
           clientsClaim: true

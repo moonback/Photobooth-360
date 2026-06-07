@@ -32,7 +32,7 @@ Après correction, le build de production est découpé en chunks dédiés, la c
 
 ### Majeur
 
-1. **Service worker incomplet pour les navigations offline** : pas de fallback explicite de navigation. Correction : `offline.html` inclus et `navigateFallback` configuré.
+1. **Service worker / navigation SPA** : `offline.html` ne doit pas être utilisé comme `navigateFallback`, sinon le service worker peut servir l'écran hors-ligne malgré une connexion active. Correction : `offline.html` reste précaché, mais le fallback de navigation pointe vers `index.html`.
 2. **Intervalle PWA sans garde** : l'enregistrement du service worker pouvait créer plusieurs timers d'update. Correction : timer module-level unique et update seulement si l'onglet est visible.
 3. **MediaRecorder sans cleanup unmount** : timers et enregistrement pouvaient rester actifs au démontage. Correction : clear timers et arrêt du recorder au cleanup.
 4. **Supabase nullable propagé** : plusieurs modules appelaient `supabase` sans narrowing TypeScript. Correction : `getSupabaseClient()` centralise le contrôle.
@@ -76,7 +76,7 @@ Les dossiers `app/`, `shared/` et `types/` ont été initialisés. La migration 
 - Ajout d'un Error Boundary global et d'un fallback de route Suspense.
 - Lazy loading des pages `/`, `/gallery`, `/share/:id`, `/ecran`.
 - Chunks manuels Vite pour React, Motion, Supabase, JSZip et FFmpeg.
-- Configuration PWA renforcée avec `offline.html` inclus et fallback de navigation.
+- Configuration PWA renforcée avec `offline.html` précaché et fallback de navigation maintenu sur l'app shell `index.html`.
 - TypeScript strict activé pour l'application navigateur, avec exclusion des Edge Functions Deno.
 - Types Web Serial/WebUSB ajoutés pour ESP32.
 - Logger partagé ajouté pour limiter les logs debug/info en production.
