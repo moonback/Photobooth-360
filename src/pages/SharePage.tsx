@@ -197,7 +197,7 @@ export default function SharePage() {
       : compositionProgress;
 
   return (
-    <div className="min-h-dvh bg-neuro-bg text-neuro-text font-sans flex flex-col">
+    <div className="flex h-dvh flex-col overflow-hidden bg-neuro-bg text-neuro-text font-sans">
       <div className="pointer-events-none fixed inset-0 premium-gradient grain-overlay opacity-60" />
 
       {/* Header sticky */}
@@ -223,7 +223,7 @@ export default function SharePage() {
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 overflow-y-auto overscroll-contain no-bounce smooth-scroll">
+      <main className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain smooth-scroll touch-pan-y">
         <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
 
           {phase === 'loading' && (

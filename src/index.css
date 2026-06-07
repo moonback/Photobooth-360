@@ -161,6 +161,10 @@ a,
   scroll-behavior: smooth;
 }
 
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
 .no-bounce {
   overscroll-behavior: contain;
 }
