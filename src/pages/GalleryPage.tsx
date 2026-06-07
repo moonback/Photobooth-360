@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertCircle, ArrowLeft, Camera, Download, Loader2, Play, RefreshCw, Share2, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence, PanInfo } from "motion/react";
@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { getAllVideos } from "../lib/videoStore";
 import { listVideosFromBucket } from "../lib/uploadVideo";
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
+import { useSettings } from "../hooks/useSettings";
+import { getPresentationBackground } from "../lib/presentationTemplates";
 
 interface VideoItem {
   id: string;
@@ -306,10 +308,15 @@ function VideoModal({
 
 export default function GalleryPage() {
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const bg = useMemo(() => getPresentationBackground(settings.appBackground), [settings]);
+  const backgroundStyle = settings.appBackgroundUrl
+    ? { backgroundImage: `url(${settings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
 
   const loadVideos = useCallback(async () => {
     setLoading(true);
@@ -334,10 +341,10 @@ export default function GalleryPage() {
   const selectedVideo = selectedIndex !== null ? videos[selectedIndex] : null;
 
   return (
-    <div className="h-dvh overflow-hidden flex flex-col bg-neuro-bg text-neuro-text font-sans">
+    <div className="h-dvh overflow-hidden flex flex-col text-neuro-text font-sans" style={backgroundStyle}>
 
       {/* Header */}
-      <header className="shrink-0 flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 border-b border-white/8 bg-neuro-bg/90 backdrop-blur-xl">
+      <header className="shrink-0 flex items-center gap-3 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)] pb-3 border-b border-white/8 bg-black/30 backdrop-blur-xl">
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -348,7 +355,7 @@ export default function GalleryPage() {
         </button>
 
         <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-neuro-accent">NeuroBooth</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">{settings.eventName}</p>
           <h1 className="text-[18px] font-black text-white leading-tight truncate">
             Galerie
             {!loading && (

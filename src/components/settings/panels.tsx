@@ -2,6 +2,7 @@ import { Fragment, type RefObject } from "react";
 import { Image, Lock, Mail, Music, RefreshCw, RotateCcw, RotateCw, Smartphone, Upload } from "lucide-react";
 import { BACKGROUND_TRACKS } from "../../lib/backgroundMusic";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
+import { PRESENTATION_BACKGROUNDS } from "../../lib/presentationTemplates";
 import { PresentationEditor } from "./PresentationEditor";
 import type { AppSettings } from "./types";
 import { ACCENT_COLORS, COUNTDOWNS, DURATIONS, RESOLUTIONS, fmtDuration } from "./types";
@@ -19,9 +20,13 @@ interface UploadProps extends PanelProps {
   logoError: string;
   onLogo: (file?: File) => void;
   fileRef: RefObject<HTMLInputElement | null>;
+  backgroundState: UploadState;
+  backgroundError: string;
+  onBackground: (file?: File) => void;
+  backgroundFileRef: RefObject<HTMLInputElement | null>;
 }
 
-export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fileRef }: UploadProps) {
+export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fileRef, backgroundState, backgroundError, onBackground, backgroundFileRef }: UploadProps) {
   return (
     <div className="space-y-3">
       <PanelBlock className="p-3">
@@ -42,6 +47,62 @@ export function IdentityPanel({ draft, update, logoState, logoError, onLogo, fil
         </div>
         {!SUPABASE_CONFIGURED && <p className="mt-1.5 text-[10px] text-amber-300">Supabase non configuré</p>}
         {logoError && <p className="mt-1 text-[10px] text-red-400">{logoError}</p>}
+      </PanelBlock>
+
+      <PanelBlock className="p-3">
+        <SectionLabel>Fond d'écran</SectionLabel>
+        {draft.appBackgroundUrl ? (
+          <div className="space-y-2">
+            <div className="grid h-24 w-full overflow-hidden rounded-lg border border-white/10 bg-white/5">
+              <img src={draft.appBackgroundUrl} alt="Background" className="h-full w-full object-cover" />
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => backgroundFileRef.current?.click()}
+                className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-white text-[12px] font-bold text-black touch-manipulation"
+              >
+                <Upload className="h-3.5 w-3.5" /> Modifier
+              </button>
+              <button
+                type="button"
+                onClick={() => update("appBackgroundUrl", "")}
+                className="flex h-9 w-20 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-[12px] font-bold text-white touch-manipulation"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              {PRESENTATION_BACKGROUNDS.map((bg) => (
+                <button
+                  key={bg.id}
+                  type="button"
+                  onClick={() => update("appBackground", bg.id)}
+                  className={`flex h-16 flex-col items-center justify-center gap-1 rounded-lg border text-[10px] font-bold touch-manipulation ${draft.appBackground === bg.id ? "border-white bg-white/10" : "border-white/10 bg-white/5"}`}
+                  aria-label={bg.name}
+                  aria-pressed={draft.appBackground === bg.id}
+                >
+                  <div 
+                    className="h-6 w-6 rounded-full border border-white/20" 
+                    style={{ background: `linear-gradient(135deg, ${bg.colors[0]}, ${bg.colors[1]}, ${bg.colors[2]})` }} 
+                  />
+                  <span>{bg.name}</span>
+                </button>
+              ))}
+            </div>
+            <div className="pt-2">
+              <input ref={backgroundFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onBackground(e.target.files?.[0])} />
+              <button type="button" onClick={() => backgroundFileRef.current?.click()} className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-white text-[12px] font-bold text-black touch-manipulation">
+                <Upload className="h-3.5 w-3.5" /> {backgroundState === "uploading" ? "Import..." : "Importer une image"}
+              </button>
+              {!SUPABASE_CONFIGURED && <p className="mt-1.5 text-[10px] text-amber-300">Supabase non configuré</p>}
+              {backgroundError && <p className="mt-1 text-[10px] text-red-400">{backgroundError}</p>}
+            </div>
+          </div>
+        )}
       </PanelBlock>
 
       <PanelBlock className="p-3">

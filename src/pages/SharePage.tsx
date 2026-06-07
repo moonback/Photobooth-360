@@ -4,6 +4,7 @@ import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiO
 import { loadVideo } from '../lib/videoStore';
 import { loadSettings } from '../lib/settingsStore';
 import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
+import { getPresentationBackground } from '../lib/presentationTemplates';
 import { useSlowMotion, SlowMotionSpeed, ExportFormat } from '../hooks/useSlowMotion';
 import { useVideoComposer } from '../hooks/useVideoComposer';
 import type { AppSettings } from '../components/SettingsModal';
@@ -61,6 +62,10 @@ export default function SharePage() {
 
   const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
   const accentClass = ACCENT_COLOR_MAP[accentColor];
+  const bg = useMemo(() => getPresentationBackground(appSettings?.appBackground || "midnight"), [appSettings]);
+  const backgroundStyle = appSettings?.appBackgroundUrl
+    ? { backgroundImage: `url(${appSettings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
 
   useEffect(() => {
     loadSettings().then((settings: AppSettings) => {
@@ -151,20 +156,10 @@ export default function SharePage() {
   const filename = `photobooth360-${formatSlug}-${speedSlug}${musicSlug}.webm`;
 
   return (
-    <div className="min-h-screen h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center font-sans overflow-y-auto">
+    <div className="min-h-screen h-screen text-zinc-100 flex flex-col items-center font-sans overflow-y-auto" style={backgroundStyle}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute -left-24 top-20 h-72 w-72 rounded-full blur-3xl motion-safe:animate-pulse ${
-          accentClass === "indigo" ? "bg-indigo-500/20" :
-          accentClass === "rose" ? "bg-rose-500/20" :
-          accentClass === "amber" ? "bg-amber-500/20" :
-          accentClass === "emerald" ? "bg-emerald-500/20" : "bg-cyan-500/20"
-        }`} />
-        <div className={`absolute -right-24 bottom-16 h-80 w-80 rounded-full blur-3xl motion-safe:animate-pulse ${
-          accentClass === "indigo" ? "bg-purple-500/20" :
-          accentClass === "rose" ? "bg-pink-500/20" :
-          accentClass === "amber" ? "bg-yellow-500/20" :
-          accentClass === "emerald" ? "bg-teal-500/20" : "bg-blue-500/20"
-        }`} />
+        <div className="absolute -left-24 top-20 h-72 w-72 rounded-full blur-3xl motion-safe:animate-pulse" style={{ backgroundColor: `${bg.colors[1]}20` }} />
+        <div className="absolute -right-24 bottom-16 h-80 w-80 rounded-full blur-3xl motion-safe:animate-pulse" style={{ backgroundColor: `${bg.colors[1]}20` }} />
       </div>
       <div className="w-full max-w-sm flex flex-col items-center gap-3 px-3 py-4 pb-8 relative z-10">
 

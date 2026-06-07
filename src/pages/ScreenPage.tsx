@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
 import { listVideosFromBucket } from "../lib/uploadVideo";
+import { getPresentationBackground } from "../lib/presentationTemplates";
 import {
   buildCloudShareUrl,
   readScreenCapture,
@@ -43,6 +44,10 @@ export default function ScreenPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
+  const bg = useMemo(() => getPresentationBackground(appSettings?.appBackground || "midnight"), [appSettings]);
+  const backgroundStyle = appSettings?.appBackgroundUrl
+    ? { backgroundImage: `url(${appSettings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
 
   useEffect(() => {
     loadSettings().then((settings) => setAppSettings(settings)).catch(() => undefined);
@@ -116,10 +121,9 @@ export default function ScreenPage() {
   }, [isPolling, lastSyncAt]);
 
   return (
-    <main className="relative h-screen overflow-hidden bg-[#050816] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle at 12%_8%,rgba(99,102,241,0.38),transparent_30%),radial-gradient(circle at 82%_18%,rgba(34,211,238,0.22),transparent_28%),radial-gradient(circle at 50%_100%,rgba(168,85,247,0.20),transparent_36%)]" />
-      <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl motion-safe:animate-pulse" />
-      <div className="absolute -right-24 bottom-16 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl motion-safe:animate-pulse" />
+    <main className="relative h-screen overflow-hidden text-white" style={backgroundStyle}>
+      <div className="absolute -left-24 top-20 h-72 w-72 rounded-full blur-3xl motion-safe:animate-pulse" style={{ backgroundColor: `${bg.colors[1]}20` }} />
+      <div className="absolute -right-24 bottom-16 h-80 w-80 rounded-full blur-3xl motion-safe:animate-pulse" style={{ backgroundColor: `${bg.colors[1]}20` }} />
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/10 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,transparent_44%,rgba(255,255,255,0.09)_50%,transparent_56%,transparent_100%)] [background-size:220%_220%] motion-safe:animate-[pulse_5s_ease-in-out_infinite]" />
       

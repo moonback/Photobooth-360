@@ -26,6 +26,7 @@ import { saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
 import { trackCapture, trackDownload, trackShare } from "./lib/analytics";
 import { saveEmailCapture } from "./lib/emailCapture";
+import { getPresentationBackground } from "./lib/presentationTemplates";
 import { logger } from "./shared/utils/logger";
 import type { EmailCaptureData } from "./components/EmailCaptureModal";
 
@@ -74,6 +75,10 @@ export default function App() {
 
   const accent = ACCENT[settings.accentColor];
   const isReviewing = Boolean(videoUrl);
+  const bg = getPresentationBackground(settings.appBackground);
+  const backgroundStyle = settings.appBackgroundUrl
+    ? { backgroundImage: `url(${settings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
 
   useEffect(() => {
     return () => {
@@ -320,7 +325,7 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-neuro-bg font-sans text-neuro-text select-none touch-none">
+    <div className="fixed inset-0 flex flex-col overflow-hidden font-sans text-neuro-text select-none touch-none" style={backgroundStyle}>
       {showSplash ? (
         <SplashScreen
           settings={settings}

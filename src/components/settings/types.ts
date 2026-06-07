@@ -42,6 +42,8 @@ export interface AppSettings {
   backgroundMusicEnabled: boolean;
   backgroundMusicDefault: MusicSelection;
   backgroundMusicVolume: number;
+  appBackground: PresentationBackgroundId;
+  appBackgroundUrl?: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -85,6 +87,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   backgroundMusicEnabled: false,
   backgroundMusicDefault: "none",
   backgroundMusicVolume: 35,
+  appBackground: "midnight",
+  appBackgroundUrl: "",
 };
 
 export const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [

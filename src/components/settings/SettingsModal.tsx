@@ -4,6 +4,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../../lib/uploadLogo";
+import { uploadBackground } from "../../lib/uploadBackground";
 import { uploadJingle } from "../../lib/uploadJingle";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
 import { listVideosFromBucket, clearAllVideosFromBucket } from "../../lib/uploadVideo";
@@ -41,6 +42,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [panel, setPanel] = useState<SettingsPanel>("hub");
   const [logoState, setLogoState] = useState<UploadState>("idle");
   const [logoError, setLogoError] = useState("");
+  const [backgroundState, setBackgroundState] = useState<UploadState>("idle");
+  const [backgroundError, setBackgroundError] = useState("");
   const [introState, setIntroState] = useState<UploadState>("idle");
   const [introError, setIntroError] = useState("");
   const [outroState, setOutroState] = useState<UploadState>("idle");
@@ -56,6 +59,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0 });
   const [videoCount, setVideoCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const backgroundFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +67,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
       setPanel("hub");
       setLogoState("idle");
       setLogoError("");
+      setBackgroundState("idle");
+      setBackgroundError("");
       setIntroState("idle");
       setIntroError("");
       setOutroState("idle");
@@ -98,6 +104,21 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     } catch {
       setLogoState("error");
       setLogoError("Import impossible. Vérifiez Supabase.");
+    }
+  };
+
+  const handleBackground = async (file?: File) => {
+    if (!file) return;
+    setBackgroundState("uploading");
+    setBackgroundError("");
+    try {
+      const result = await uploadBackground(file, () => undefined);
+      if (!result) throw new Error("not configured");
+      update("appBackgroundUrl", result.publicUrl);
+      setBackgroundState("done");
+    } catch {
+      setBackgroundState("error");
+      setBackgroundError("Import impossible. Vérifiez Supabase.");
     }
   };
 
@@ -209,7 +230,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
     const props = { draft, update, updateFields };
     switch (panel) {
       case "identity":
-        return <IdentityPanel {...props} logoState={logoState} logoError={logoError} onLogo={handleLogo} fileRef={fileRef} />;
+        return <IdentityPanel {...props} logoState={logoState} logoError={logoError} onLogo={handleLogo} fileRef={fileRef} backgroundState={backgroundState} backgroundError={backgroundError} onBackground={handleBackground} backgroundFileRef={backgroundFileRef} />;
       case "capture":
         return <CapturePanel {...props} />;
       case "email":

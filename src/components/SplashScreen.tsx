@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Sparkles, Play, Camera, Zap, Star, Gift } from "lucide-react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "motion/react";
 import { AppSettings } from "./SettingsModal";
+import { getPresentationBackground } from "../lib/presentationTemplates";
 
 interface Particle {
   id: number;
@@ -25,6 +26,10 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
   const [clicked, setClicked] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const bg = getPresentationBackground(settings.appBackground);
+  const backgroundStyle = settings.appBackgroundUrl
+    ? { backgroundImage: `url(${settings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", perspective: 1500 }
+    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})`, perspective: 1500 };
 
   // 3D tilt effect
   const x = useMotionValue(0);
@@ -77,10 +82,7 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
     <motion.div
       ref={containerRef}
       className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden px-8 text-neuro-text safe-top safe-bottom cursor-pointer"
-      style={{ 
-        background: "linear-gradient(180deg, #0a0a1a 0%, #141428 50%, #0a0a1a 100%)",
-        perspective: 1500 
-      }}
+      style={backgroundStyle}
       onClick={handleClick}
       onMouseMove={handleMouseMove}
       initial={{ opacity: 0 }}
