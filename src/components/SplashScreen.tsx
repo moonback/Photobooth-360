@@ -31,28 +31,27 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
   const y = useMotionValue(0);
   const mouseXSpring = useSpring(x, { stiffness: 300, damping: 30 });
   const mouseYSpring = useSpring(y, { stiffness: 300, damping: 30 });
-  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [10, -10]);
-  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-10, 10]);
+  const rotateX = useTransform(mouseYSpring, [-0.5, 0.5], [8, -8]);
+  const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], [-8, 8]);
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     
     // Generate initial 3D particles
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 50; i++) {
       newParticles.push({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
-        size: Math.random() * 8 + 2,
-        color: i % 4 === 0 ? 'rgba(99, 102, 241, 0.7)' : 
-               i % 4 === 1 ? 'rgba(168, 85, 247, 0.6)' : 
-               i % 4 === 2 ? 'rgba(251, 191, 36, 0.5)' : 
-               'rgba(236, 72, 153, 0.5)',
-        duration: Math.random() * 5 + 2,
-        delay: Math.random() * 2,
+        size: Math.random() * 6 + 2,
+        color: i % 3 === 0 ? 'rgba(99,102,241,0.6)' : 
+               i % 3 === 1 ? 'rgba(168, 85, 247,0.5)' : 
+               'rgba(251,191,36,0.4)',
+        duration: Math.random() * 4 + 3,
+        delay: Math.random() * 3,
         depth: Math.random() * 100,
-        type: i % 3 === 0 ? 'star' : i % 3 === 1 ? 'spark' : 'dot',
+        type: i % 4 === 0 ? 'star' : i % 4 === 1 ? 'spark' : 'dot',
       });
     }
     setParticles(newParticles);
@@ -77,29 +76,29 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
   return (
     <motion.div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden px-6 text-neuro-text safe-top safe-bottom cursor-pointer"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden px-8 text-neuro-text safe-top safe-bottom cursor-pointer"
       style={{ 
-        background: "linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%)",
-        perspective: 1200 
+        background: "linear-gradient(180deg, #0a0a1a 0%, #141428 50%, #0a0a1a 100%)",
+        perspective: 1500 
       }}
       onClick={handleClick}
       onMouseMove={handleMouseMove}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
     >
       {/* Animated background gradient */}
       <motion.div
         className="absolute inset-0"
         animate={{
           background: [
-            "radial-gradient(circle at 20% 50%, rgba(99,102,241,0.15) 0%, transparent 50%)",
-            "radial-gradient(circle at 80% 80%, rgba(168,85,247,0.15) 0%, transparent 50%)",
-            "radial-gradient(circle at 40% 20%, rgba(251,191,36,0.12) 0%, transparent 50%)",
-            "radial-gradient(circle at 20% 50%, rgba(99,102,241,0.15) 0%, transparent 50%)"
+            "radial-gradient(circle at 30% 40%, rgba(99,102,241,0.12) 0%, transparent 60%)",
+            "radial-gradient(circle at 70% 60%, rgba(168,85,247,0.10) 0%, transparent 60%)",
+            "radial-gradient(circle at 50% 30%, rgba(251,191,36,0.08) 0%, transparent 60%)",
+            "radial-gradient(circle at 30% 40%, rgba(99,102,241,0.12) 0%, transparent 60%)"
           ]
         }}
-        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Animated 3D particles background */}
@@ -114,14 +113,14 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
               width: particle.size,
               height: particle.size,
               backgroundColor: particle.type === "dot" ? particle.color : "transparent",
-              boxShadow: particle.type === "dot" ? `0 0 ${particle.size * 3}px ${particle.color}` : "none",
+              boxShadow: particle.type === "dot" ? `0 0 ${particle.size * 2.5}px ${particle.color}` : "none",
               zIndex: Math.floor(particle.depth),
             }}
             animate={{
-              y: [0, -50 - particle.depth * 0.4, 0],
-              x: [0, 20, -15, 0],
-              opacity: [0.15, 0.9, 0.15],
-              scale: [1, 1.8, 1],
+              y: [0, -40 - particle.depth * 0.3, 0],
+              x: [0, 15, -10, 0],
+              opacity: [0.1, 0.7, 0.1],
+              scale: [1, 1.5, 1],
               rotateY: [0, 180, 360],
               rotateX: [0, 90, 0],
               rotate: [0, 360],
@@ -140,240 +139,259 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
         
         {/* Main 3D blobs */}
         <motion.div
-          className="absolute left-1/2 top-[24%] h-72 w-72 -translate-x-1/2 rounded-full"
+          className="absolute left-1/2 top-[28%] h-80 w-80 -translate-x-1/2 rounded-full"
           style={{ 
-            background: "radial-gradient(circle, rgba(99,102,241,0.35) 0%, transparent 70%)",
-            filter: "blur(40px)"
+            background: "radial-gradient(circle, rgba(99,102,241,0.25) 0%, transparent 70%)",
+            filter: "blur(45px)"
           }}
           animate={{ 
-            scale: [1, 1.4, 1], 
-            opacity: [0.25, 0.6, 0.25],
+            scale: [1, 1.3, 1], 
+            opacity: [0.2, 0.5, 0.2],
             rotateY: [0, 90, 180, 270, 360],
           }}
           transition={{ 
-            duration: 7, 
+            duration: 10, 
             repeat: Infinity, 
             ease: "linear" 
           }}
         />
         <motion.div
-          className="absolute bottom-[18%] right-[-4rem] h-60 w-60 rounded-full"
+          className="absolute bottom-[20%] right-[-5rem] h-64 w-64 rounded-full"
           style={{ 
-            background: "radial-gradient(circle, rgba(168,85,247,0.3) 0%, transparent 70%)",
-            filter: "blur(35px)"
+            background: "radial-gradient(circle, rgba(168,85,247,0.20) 0%, transparent 70%)",
+            filter: "blur(40px)"
           }}
           animate={{ 
-            y: [0, -35, 0], 
-            x: [0, 20, 0], 
-            opacity: [0.2, 0.5, 0.2],
+            y: [0, -30, 0], 
+            x: [0, 18, 0], 
+            opacity: [0.15, 0.4, 0.15],
             rotateX: [0, 180, 360],
           }}
           transition={{ 
-            duration: 8, 
+            duration: 12, 
             repeat: Infinity, 
             ease: "easeInOut" 
           }}
         />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black via-black/50 to-transparent" />
       </div>
 
       {/* 3D content container */}
       <motion.div
-        className="relative z-10 flex w-full max-w-[400px] flex-col items-center text-center"
+        className="relative z-10 flex w-full max-w-[450px] flex-col items-center text-center"
         style={{
           rotateX,
           rotateY,
           transformStyle: "preserve-3d",
         }}
-        initial={{ y: 40, opacity: 0, filter: "blur(20px)" }}
+        initial={{ y: 50, opacity: 0, filter: "blur(25px)" }}
         animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
       >
-        {/* Floating 3D logo */}
+        {/* Professional Floating 3D logo */}
         <motion.div
-          className="mb-8 relative"
+          className="mb-10 relative"
           animate={{ 
-            y: [0, -15, 0],
-            rotateY: [0, 12, -12, 0],
-            rotateZ: [0, 2, -2, 0],
+            y: [0, -12, 0],
+            rotateY: [0, 8, -8, 0],
+            rotateZ: [0, 1.5, -1.5, 0],
           }}
           transition={{ 
-            duration: 4.5, 
+            duration: 6, 
             repeat: Infinity, 
             ease: "easeInOut" 
           }}
         >
-          {/* Glow layers */}
+          {/* Outer glow ring */}
           <motion.div
-            className="absolute -inset-6 rounded-[2rem] opacity-50"
+            className="absolute -inset-8 rounded-[2.5rem] opacity-60"
             style={{ 
-              background: "radial-gradient(circle, rgba(99,102,241,0.4) 0%, transparent 60%)",
-              filter: "blur(20px)"
+              background: "conic-gradient(from 0deg, rgba(99,102,241,0.4), rgba(168,85,247,0.3), rgba(251,191,36,0.2), rgba(99,102,241,0.4))",
+              filter: "blur(25px)"
             }}
             animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.6, 0.3],
+              scale: [1, 1.15, 1],
+              opacity: [0.25, 0.55, 0.25],
+              rotate: [0, 360],
             }}
             transition={{
-              duration: 3,
+              scale: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+              opacity: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+              rotate: { duration: 20, repeat: Infinity, ease: "linear" },
+            }}
+          />
+          
+          {/* Middle glow layer */}
+          <motion.div
+            className="absolute -inset-5 rounded-[2.2rem] opacity-40"
+            style={{ 
+              background: "radial-gradient(circle, rgba(99,102,241,0.3) 0%, transparent 70%)",
+              filter: "blur(15px)"
+            }}
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{
+              duration: 3.5,
               repeat: Infinity,
               ease: "easeInOut",
             }}
           />
+
+          {/* Main logo container - Professional Glass Morphism */}
           <motion.div
-            className="absolute -inset-4 rounded-[2rem] bg-gradient-to-r from-neuro-accent via-neuro-violet via-neuro-amber to-neuro-accent opacity-50"
+            className="relative flex h-36 w-36 items-center justify-center rounded-[2.2rem] border border-white/25 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-3xl shadow-[0_8px_32px_rgba(0,0,0,0.35),0_0_60px_rgba(99,102,241,0.15)]"
             animate={{
-              backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
-              backgroundSize: ["200% 200%", "200% 200%"],
-              rotateZ: [0, 360],
+              rotateX: [0, 4, -4, 0],
+              rotateY: [0, 8, -8, 0],
             }}
             transition={{
-              backgroundPosition: { duration: 4, repeat: Infinity, ease: "linear" },
-              rotateZ: { duration: 12, repeat: Infinity, ease: "linear" },
-            }}
-          />
-          <motion.div
-            className="relative flex h-32 w-32 items-center justify-center rounded-[2rem] border border-white/20 bg-black/60 backdrop-blur-3xl"
-            animate={{
-              rotateX: [0, 6, -6, 0],
-              rotateY: [0, 12, -12, 0],
-            }}
-            transition={{
-              duration: 6,
+              duration: 7,
               repeat: Infinity,
               ease: "easeInOut",
             }}
           >
             {settings.logoUrl ? (
-              <img src={settings.logoUrl} alt="Logo de l'événement" className="max-h-24 max-w-24 rounded-2xl object-contain" />
+              <img 
+                src={settings.logoUrl} 
+                alt="Logo de l'événement" 
+                className="max-h-28 max-w-28 rounded-[1.5rem] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.3)]" 
+              />
             ) : (
               <motion.div
-                className="flex h-20 w-20 items-center justify-center rounded-[1.6rem] bg-gradient-to-br from-neuro-accent to-neuro-violet"
+                className="flex h-24 w-24 items-center justify-center rounded-[1.8rem] bg-gradient-to-br from-neuro-accent via-neuro-violet to-neuro-accent shadow-[0_0_40px_rgba(99,102,241,0.5)]"
                 animate={{
-                  scale: [1, 1.08, 1],
-                  rotate: [0, 5, -5, 0],
+                  scale: [1, 1.05, 1],
+                  rotate: [0, 3, -3, 0],
                 }}
                 transition={{
-                  duration: 2.5,
+                  duration: 3,
                   repeat: Infinity,
                   ease: "easeInOut",
                 }}
               >
-                <Sparkles className="h-12 w-12 text-white" />
+                <Sparkles className="h-14 w-14 text-white drop-shadow-[0_2px_8px_rgba(255,255,255,0.5)]" />
               </motion.div>
             )}
           </motion.div>
         </motion.div>
 
-        {/* Event name with 3D effect */}
+        {/* Event name - Professional Typography */}
         <motion.h1
-          className="text-[36px] font-black leading-[1.02] tracking-[-0.06em] text-white sm:text-[48px]"
+          className="text-[38px] font-bold leading-[1.05] tracking-[-0.04em] text-white sm:text-[50px]"
           style={{ 
-            textShadow: "0 6px 30px rgba(99,102,241,0.5), 0 0 60px rgba(168,85,247,0.3)" 
+            textShadow: "0 4px 20px rgba(99,102,241,0.4), 0 0 40px rgba(168,85,247,0.2)" 
           }}
-          initial={{ y: 20, opacity: 0, z: -60 }}
+          initial={{ y: 25, opacity: 0, z: -80 }}
           animate={{ y: 0, opacity: 1, z: 0 }}
-          transition={{ duration: 0.8, delay: 0.35, ease: "easeOut" }}
+          transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
         >
           {settings.eventName}
         </motion.h1>
 
-        {/* Subtitle */}
+        {/* Subtitle - Professional */}
         <motion.p
-          className="mt-4 text-white/70 text-lg font-medium"
-          initial={{ y: 10, opacity: 0 }}
+          className="mt-5 text-white/60 text-base font-normal max-w-[320px]"
+          initial={{ y: 15, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
         >
-          Créez des souvenirs inoubliables !
+          Capturez vos moments les plus précieux et créez des souvenirs qui dureront toujours.
         </motion.p>
 
-        {/* 3D CTA button */}
+        {/* Professional CTA button */}
         <motion.button
           type="button"
           onClick={(e) => { e.stopPropagation(); handleClick(e); }}
-          className="mt-12 min-h-18 w-full rounded-full bg-gradient-to-r from-white to-zinc-100 px-10 py-5 text-[18px] font-black text-black shadow-[0_15px_60px_rgba(255,255,255,0.35)] relative overflow-hidden group"
-          whileTap={{ scale: 0.92, rotateX: 8 }}
+          className="mt-14 min-h-[72px] w-full rounded-full bg-gradient-to-r from-white via-zinc-50 to-white px-12 py-5 text-[17px] font-bold text-black shadow-[0_10px_40px_rgba(255,255,255,0.25),0_0_80px_rgba(99,102,241,0.2)] relative overflow-hidden group"
+          whileTap={{ scale: 0.94, rotateX: 6 }}
           whileHover={{ 
-            scale: 1.05,
-            boxShadow: "0 20px 80px rgba(99,102,241,0.7)",
-            rotateX: -8,
+            scale: 1.03,
+            boxShadow: "0 15px 60px rgba(255,255,255,0.35),0_0_120px_rgba(99,102,241,0.3)",
+            rotateX: -6,
           }}
           style={{ transformStyle: "preserve-3d" }}
           aria-label="Touchez pour commencer"
         >
-          <span className="relative z-10 flex items-center justify-center gap-4">
-            Commencer l'expérience
-            <Play className="w-6 h-6" fill="black" />
+          <span className="relative z-10 flex items-center justify-center gap-3">
+            Commencer
+            <Play className="w-5 h-5" fill="black" />
           </span>
           
-          {/* Animated shine */}
+          {/* Animated shine - Professional */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent -skew-x-12 -translate-x-full"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -skew-x-10 -translate-x-full"
             animate={{
               translateX: ["-200%", "200%"],
             }}
             transition={{
-              duration: 2.2,
+              duration: 3,
               repeat: Infinity,
               ease: "linear",
             }}
           />
           
-          {/* 3D button depth */}
+          {/* Button depth - Professional */}
           <motion.div
-            className="absolute inset-0 rounded-full bg-gradient-to-b from-zinc-300 to-white opacity-0 group-hover:opacity-100"
-            transition={{ duration: 0.25 }}
+            className="absolute inset-0 rounded-full bg-gradient-to-b from-zinc-200/50 to-white/50 opacity-0 group-hover:opacity-100"
+            transition={{ duration: 0.3 }}
           />
         </motion.button>
 
-        {/* Feature icons */}
+        {/* Feature icons - Professional */}
         <motion.div
-          className="mt-10 flex items-center justify-center gap-8"
-          initial={{ opacity: 0, y: 15 }}
+          className="mt-12 flex items-center justify-center gap-10"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.75 }}
+          transition={{ duration: 0.9, delay: 0.9 }}
         >
-          {[Camera, Zap, Gift].map((Icon, i) => (
-            <motion.div
-              key={i}
-              className="flex items-center justify-center h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/15"
+          {[
+            { icon: Camera, label: "360°" },
+            { icon: Zap, label: "Instantané" },
+            { icon: Gift, label: "Partage" }
+          ].map(({ icon: Icon, label }, i) => (
+            <motion.div 
+              key={i} 
+              className="flex flex-col items-center gap-2"
               animate={{
-                scale: [1, 1.15, 1],
-                rotate: [0, 5, -5, 0],
+                y: [0, -8, 0],
               }}
               transition={{
-                duration: 2.5,
-                delay: i * 0.15,
+                duration: 3,
+                delay: i * 0.2,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
             >
-              <Icon className="h-7 w-7 text-white" />
+              <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-white/8 backdrop-blur-xl border border-white/12">
+                <Icon className="h-8 w-8 text-white drop-shadow-[0_2px_6px_rgba(255,255,255,0.2)]" />
+              </div>
+              <span className="text-white/50 text-xs font-medium tracking-wider">{label}</span>
             </motion.div>
           ))}
         </motion.div>
 
-        {/* 3D floating indicator dots */}
-        <div className="mt-10 flex items-center gap-5">
+        {/* Floating indicator dots - Professional */}
+        <div className="mt-14 flex items-center gap-6">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="h-4 w-4 rounded-full"
+              className="h-3 w-3 rounded-full"
               style={{
                 backgroundColor: i === 0 ? "#6366f1" : i === 1 ? "#a855f7" : "#fbbf24",
-                boxShadow: `0 0 30px ${i === 0 ? "#6366f1" : i === 1 ? "#a855f7" : "#fbbf24"}`,
+                boxShadow: `0 0 20px ${i === 0 ? "#6366f1" : i === 1 ? "#a855f7" : "#fbbf24"}`,
               }}
               animate={{
-                scale: [1, 1.8, 1],
-                opacity: [0.4, 1, 0.4],
-                y: [0, -15 + i * 8, 0],
+                scale: [1, 1.5, 1],
+                opacity: [0.35, 0.9, 0.35],
+                y: [0, -12 + i * 6, 0],
                 rotate: [0, 360],
               }}
               transition={{
-                duration: 2,
+                duration: 2.5,
                 repeat: Infinity,
-                delay: i * 0.3,
+                delay: i * 0.35,
                 ease: "easeInOut",
               }}
             />
@@ -385,11 +403,11 @@ export default function SplashScreen({ settings, onEnter }: SplashScreenProps) {
       <AnimatePresence>
         {clicked && (
           <motion.div
-            className="absolute inset-0 bg-black/90 backdrop-blur-3xl"
-            initial={{ opacity: 0, scale: 1.3 }}
+            className="absolute inset-0 bg-black/92 backdrop-blur-3xl"
+            initial={{ opacity: 0, scale: 1.4 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.45 }}
+            transition={{ duration: 0.5 }}
           />
         )}
       </AnimatePresence>
