@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, Clock3, Download, Film, Loader2, MonitorPlay, QrCode, RefreshCw, Sparkles, Wifi, WifiOff } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 import { SUPABASE_CONFIGURED } from "../lib/supabase";
 import { listVideosFromBucket } from "../lib/uploadVideo";
@@ -10,6 +11,8 @@ import {
   subscribeScreenCapture,
   type ScreenCapturePayload,
 } from "../lib/screenCapture";
+import { loadSettings } from "../lib/settingsStore";
+import type { AppSettings } from "../components/SettingsModal";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -35,9 +38,28 @@ export default function ScreenPage() {
   const [isPolling, setIsPolling] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string>("");
   const [hasCloudError, setHasCloudError] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+  const [showActivation, setShowActivation] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => subscribeScreenCapture((payload) => setCapture((current) => newerCapture(current, payload))), []);
+  const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
+
+  useEffect(() => {
+    loadSettings().then((settings) => setAppSettings(settings)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    subscribeScreenCapture((payload) => {
+      setCapture((current) => {
+        const newCapture = newerCapture(current, payload);
+        if (newCapture !== current) {
+          setShowActivation(true);
+          setTimeout(() => setShowActivation(false), 2000);
+        }
+        return newCapture;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,12 +72,19 @@ export default function ScreenPage() {
         if (cancelled) return;
         const latest = videos[0];
         if (latest?.url) {
-          setCapture((current) => newerCapture(current, {
-            videoUrl: latest.url,
-            shareUrl: buildCloudShareUrl(latest.url),
-            source: "cloud",
-            updatedAt: latest.createdAt || new Date().toISOString(),
-          }));
+          setCapture((current) => {
+            const newCapture = newerCapture(current, {
+              videoUrl: latest.url,
+              shareUrl: buildCloudShareUrl(latest.url),
+              source: "cloud",
+              updatedAt: latest.createdAt || new Date().toISOString(),
+            });
+            if (newCapture !== current) {
+              setShowActivation(true);
+              setTimeout(() => setShowActivation(false), 2000);
+            }
+            return newCapture;
+          });
           setHasCloudError(false);
         }
         setLastSyncAt(new Date().toISOString());
@@ -88,11 +117,32 @@ export default function ScreenPage() {
 
   return (
     <main className="relative h-screen overflow-hidden bg-[#050816] text-white">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(99,102,241,0.38),transparent_30%),radial-gradient(circle_at_82%_18%,rgba(34,211,238,0.22),transparent_28%),radial-gradient(circle_at_50%_100%,rgba(168,85,247,0.20),transparent_36%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle at 12%_8%,rgba(99,102,241,0.38),transparent_30%),radial-gradient(circle at 82%_18%,rgba(34,211,238,0.22),transparent_28%),radial-gradient(circle at 50%_100%,rgba(168,85,247,0.20),transparent_36%)]" />
       <div className="absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl motion-safe:animate-pulse" />
       <div className="absolute -right-24 bottom-16 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl motion-safe:animate-pulse" />
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/10 to-transparent" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_0%,transparent_44%,rgba(255,255,255,0.09)_50%,transparent_56%,transparent_100%)] [background-size:220%_220%] motion-safe:animate-[pulse_5s_ease-in-out_infinite]" />
+      
+      <AnimatePresence>
+        {showActivation && (
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1.3, opacity: [0.6, 0, 0.6, 0] }}
+            exit={{ scale: 2, opacity: 0 }}
+            transition={{ duration: 1.5 }}
+            className="absolute inset-0 z-50 pointer-events-none"
+            style={{
+              background: `radial-gradient(circle, ${
+                accentColor === "indigo" ? "rgba(99, 102, 241, 0.4)" :
+                accentColor === "rose" ? "rgba(244, 63, 94, 0.4)" :
+                accentColor === "amber" ? "rgba(245, 158, 11, 0.4)" :
+                accentColor === "emerald" ? "rgba(16, 185, 129, 0.4)" : "rgba(6, 182, 212, 0.4)"
+              }, transparent 60%)`,
+            }}
+          />
+        )}
+      </AnimatePresence>
+      
       <div className="relative flex h-screen min-h-0 flex-col p-4 sm:p-6 lg:p-8">
         <header className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/10 bg-white/[0.07] px-4 py-3 shadow-2xl shadow-black/30 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-300/30 hover:bg-white/[0.09] sm:px-5 lg:mb-5">
           <div className="flex items-center gap-3">
@@ -103,7 +153,7 @@ export default function ScreenPage() {
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.26em] text-cyan-200/80">Écran client</p>
-              <h1 className="text-xl font-black tracking-[-0.04em] sm:text-3xl">Vidéo originale & QR Code</h1>
+              <h1 className="text-xl font-black tracking-[-0.04em] sm:text-3xl">{appSettings?.eventName || "NeuroBooth"}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/25 px-3 py-2 text-xs font-bold text-white/70 shadow-inner shadow-white/5 transition-colors duration-300 hover:border-emerald-300/30 hover:text-white">
@@ -114,10 +164,16 @@ export default function ScreenPage() {
 
         {capture ? (
           <section className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,360px)] xl:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="group relative h-full min-h-[42vh] overflow-hidden rounded-[2.25rem] border border-white/10 bg-black shadow-2xl shadow-indigo-950/40 transition-all duration-500 hover:border-cyan-300/30 hover:shadow-[0_0_60px_rgba(34,211,238,0.22)] lg:min-h-0">
+            <motion.div
+              layout
+              className="group relative h-full min-h-[42vh] overflow-hidden rounded-[2.25rem] border border-white/10 bg-black shadow-2xl shadow-indigo-950/40 transition-all duration-500 hover:border-cyan-300/30 hover:shadow-[0_0_60px_rgba(34,211,238,0.22)] lg:min-h-0"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <div className="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(135deg,rgba(255,255,255,0.10),transparent_24%,transparent_72%,rgba(34,211,238,0.10))]" />
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-24 -translate-y-full bg-gradient-to-b from-cyan-300/25 to-transparent transition-transform duration-1000 group-hover:translate-y-[65vh]" />
-              <video
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-32 -translate-y-full bg-gradient-to-b from-cyan-300/25 to-transparent transition-transform duration-1000 group-hover:translate-y-[65vh]" />
+              <motion.video
                 key={capture.videoUrl}
                 ref={videoRef}
                 src={capture.videoUrl}
@@ -127,6 +183,9 @@ export default function ScreenPage() {
                 loop
                 playsInline
                 controls
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.6, type: "spring", bounce: 0.2 }}
               />
               <div className="pointer-events-none absolute left-4 top-4 z-30 flex flex-wrap gap-2">
                 <div className="flex items-center gap-2 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-md shadow-[0_0_24px_rgba(34,211,238,0.18)]">
@@ -137,9 +196,15 @@ export default function ScreenPage() {
                   Sans effets appliqués
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <aside className="group/qr relative flex min-h-0 flex-col justify-between overflow-y-auto rounded-[2.25rem] border border-white/10 bg-white/[0.075] p-4 text-center shadow-2xl shadow-black/30 backdrop-blur-2xl transition-all duration-500 hover:border-emerald-300/30 hover:bg-white/[0.09] xl:p-5">
+            <motion.aside
+              layout
+              className="group/qr relative flex min-h-0 flex-col justify-between overflow-y-auto rounded-[2.25rem] border border-white/10 bg-white/[0.075] p-4 text-center shadow-2xl shadow-black/30 backdrop-blur-2xl transition-all duration-500 hover:border-emerald-300/30 hover:bg-white/[0.09] xl:p-5"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
               <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-cyan-200/70 to-transparent" />
               <div>
                 <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100 motion-safe:animate-pulse">
@@ -154,11 +219,17 @@ export default function ScreenPage() {
                 <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-white/60">Le lien partage la vidéo originale, prête à être récupérée ou traitée avec les effets.</p>
               </div>
 
-              <div className="relative mx-auto my-4 w-full max-w-[min(280px,34vh)] rounded-[2rem] border border-white/10 bg-white p-3 shadow-[0_0_50px_rgba(34,211,238,0.18)] transition-transform duration-500 group-hover/qr:scale-[1.03] xl:my-6 xl:max-w-[300px] xl:p-4">
+              <motion.div
+                key={capture.shareUrl}
+                initial={{ scale: 0.8, rotate: -5 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="relative mx-auto my-4 w-full max-w-[min(280px,34vh)] rounded-[2rem] border border-white/10 bg-white p-3 shadow-[0_0_50px_rgba(34,211,238,0.18)] transition-transform duration-500 group-hover/qr:scale-[1.03] xl:my-6 xl:max-w-[300px] xl:p-4"
+              >
                 <div className="pointer-events-none absolute -inset-2 rounded-[2.25rem] border border-cyan-200/25 opacity-0 transition-opacity duration-500 group-hover/qr:opacity-100" />
                 <div className="pointer-events-none absolute inset-3 rounded-[1.5rem] bg-gradient-to-b from-cyan-300/0 via-cyan-300/20 to-cyan-300/0 opacity-0 transition-opacity duration-500 group-hover/qr:opacity-100" />
                 <QRCodeSVG value={capture.shareUrl} size={300} level="M" includeMargin className="relative h-auto w-full" />
-              </div>
+              </motion.div>
 
               <div className="mb-3 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-cyan-400 to-emerald-300 px-4 py-3 text-sm font-black text-slate-950 shadow-[0_0_30px_rgba(34,211,238,0.28)] transition-transform duration-300 group-hover/qr:scale-[1.02]">
                 <Download className="h-4 w-4" />
@@ -179,7 +250,7 @@ export default function ScreenPage() {
                   <p className="text-sm text-white/85">Capture reçue à {formatTime(capture.updatedAt)}.</p>
                 </div>
               </div>
-            </aside>
+            </motion.aside>
           </section>
         ) : (
           <section className="grid flex-1 place-items-center rounded-[2.25rem] border border-white/10 bg-white/[0.055] p-8 text-center shadow-2xl shadow-black/20 backdrop-blur-2xl transition-all duration-500 hover:border-cyan-300/30 hover:bg-white/[0.08]">

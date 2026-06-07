@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music } from 'lucide-react';
+import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music, Sparkles } from 'lucide-react';
 import { loadVideo } from '../lib/videoStore';
 import { loadSettings } from '../lib/settingsStore';
 import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
@@ -31,6 +31,14 @@ const EXPORT_FORMATS: {
 type Phase = 'loading' | 'choose' | 'encoding' | 'ready' | 'error';
 type Source = 'cloud' | 'local';
 
+const ACCENT_COLOR_MAP: Record<AppSettings["accentColor"], string> = {
+  indigo: "indigo",
+  rose: "rose",
+  amber: "amber",
+  emerald: "emerald",
+  cyan: "cyan",
+};
+
 export default function SharePage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -50,6 +58,9 @@ export default function SharePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { processVideo, status, progress } = useSlowMotion();
   const { composeWithJingles, compositionStage, compositionProgress } = useVideoComposer();
+
+  const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
+  const accentClass = ACCENT_COLOR_MAP[accentColor];
 
   useEffect(() => {
     loadSettings().then((settings: AppSettings) => {
@@ -141,14 +152,53 @@ export default function SharePage() {
 
   return (
     <div className="min-h-screen h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center font-sans overflow-y-auto">
-      <div className="w-full max-w-sm flex flex-col items-center gap-3 px-3 py-4 pb-8">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className={`absolute -left-24 top-20 h-72 w-72 rounded-full blur-3xl motion-safe:animate-pulse ${
+          accentClass === "indigo" ? "bg-indigo-500/20" :
+          accentClass === "rose" ? "bg-rose-500/20" :
+          accentClass === "amber" ? "bg-amber-500/20" :
+          accentClass === "emerald" ? "bg-emerald-500/20" : "bg-cyan-500/20"
+        }`} />
+        <div className={`absolute -right-24 bottom-16 h-80 w-80 rounded-full blur-3xl motion-safe:animate-pulse ${
+          accentClass === "indigo" ? "bg-purple-500/20" :
+          accentClass === "rose" ? "bg-pink-500/20" :
+          accentClass === "amber" ? "bg-yellow-500/20" :
+          accentClass === "emerald" ? "bg-teal-500/20" : "bg-blue-500/20"
+        }`} />
+      </div>
+      <div className="w-full max-w-sm flex flex-col items-center gap-3 px-3 py-4 pb-8 relative z-10">
 
         <div className="text-center space-y-0.5 flex-shrink-0">
-          <div className="inline-flex items-center justify-center p-2 bg-indigo-500/10 rounded-full mb-0.5">
-            <Camera className="w-5 h-5 text-indigo-400" />
-          </div>
+          {(appSettings?.logoUrl) ? (
+            <div className="mx-auto mb-2 flex items-center justify-center">
+              <img
+                src={appSettings.logoUrl}
+                alt="Logo de l'événement"
+                className="max-h-16 max-w-28 rounded-2xl object-contain"
+              />
+            </div>
+          ) : (
+            <div className={`inline-flex items-center justify-center p-3 rounded-full mb-2 ${
+              accentClass === "indigo" ? "bg-indigo-500/10" :
+              accentClass === "rose" ? "bg-rose-500/10" :
+              accentClass === "amber" ? "bg-amber-500/10" :
+              accentClass === "emerald" ? "bg-emerald-500/10" : "bg-cyan-500/10"
+            }`}>
+              <Sparkles className={`w-6 h-6 ${
+                accentClass === "indigo" ? "text-indigo-400" :
+                accentClass === "rose" ? "text-rose-400" :
+                accentClass === "amber" ? "text-amber-400" :
+                accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+              }`} />
+            </div>
+          )}
           <h1 className="text-xl font-bold text-white">
-            NeuroBooth <span className="text-indigo-400">360</span>
+            {appSettings?.eventName || "NeuroBooth"} <span className={
+              accentClass === "indigo" ? "text-indigo-400" :
+              accentClass === "rose" ? "text-rose-400" :
+              accentClass === "amber" ? "text-amber-400" :
+              accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+            }>360</span>
           </h1>
           <p className="text-zinc-400 text-xs">Ta vidéo est prête 🎉</p>
           <div className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-0.5 ${
@@ -165,7 +215,12 @@ export default function SharePage() {
 
         {phase === 'loading' && (
           <div className="flex flex-col items-center gap-3 py-12 text-zinc-400 flex-shrink-0">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+            <Loader2 className={`w-8 h-8 animate-spin ${
+              accentClass === "indigo" ? "text-indigo-400" :
+              accentClass === "rose" ? "text-rose-400" :
+              accentClass === "amber" ? "text-amber-400" :
+              accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+            }`} />
             <span className="text-sm">Chargement de ta vidéo…</span>
           </div>
         )}
@@ -196,7 +251,12 @@ export default function SharePage() {
 
             <div className="w-full space-y-2">
               <div className="flex items-center gap-2">
-                <RectangleHorizontal className="w-4 h-4 text-indigo-400" />
+                <RectangleHorizontal className={`w-4 h-4 ${
+                  accentClass === "indigo" ? "text-indigo-400" :
+                  accentClass === "rose" ? "text-rose-400" :
+                  accentClass === "amber" ? "text-amber-400" :
+                  accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+                }`} />
                 <span className="text-sm font-semibold">Choisis ton format d'export</span>
               </div>
 
@@ -208,7 +268,12 @@ export default function SharePage() {
                     disabled={phase === 'encoding'}
                     className={`flex min-h-[102px] flex-col items-center justify-center gap-2 rounded-xl border px-2 py-2 text-center transition-all active:scale-[0.98] disabled:opacity-50 ${
                       selectedFormat === value
-                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        ? (
+                          accentClass === "indigo" ? "bg-indigo-500/10 border-indigo-500 text-white" :
+                          accentClass === "rose" ? "bg-rose-500/10 border-rose-500 text-white" :
+                          accentClass === "amber" ? "bg-amber-500/10 border-amber-500 text-white" :
+                          accentClass === "emerald" ? "bg-emerald-500/10 border-emerald-500 text-white" : "bg-cyan-500/10 border-cyan-500 text-white"
+                        )
                         : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                     }`}
                   >
@@ -227,7 +292,12 @@ export default function SharePage() {
 
             <div className="w-full space-y-2">
               <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-indigo-400" />
+                <Gauge className={`w-4 h-4 ${
+                  accentClass === "indigo" ? "text-indigo-400" :
+                  accentClass === "rose" ? "text-rose-400" :
+                  accentClass === "amber" ? "text-amber-400" :
+                  accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+                }`} />
                 <span className="text-sm font-semibold">Choisis ton effet</span>
               </div>
 
@@ -239,7 +309,12 @@ export default function SharePage() {
                     disabled={phase === 'encoding'}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
                       selectedSpeed === value
-                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        ? (
+                          accentClass === "indigo" ? "bg-indigo-500/10 border-indigo-500 text-white" :
+                          accentClass === "rose" ? "bg-rose-500/10 border-rose-500 text-white" :
+                          accentClass === "amber" ? "bg-amber-500/10 border-amber-500 text-white" :
+                          accentClass === "emerald" ? "bg-emerald-500/10 border-emerald-500 text-white" : "bg-cyan-500/10 border-cyan-500 text-white"
+                        )
                         : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                     }`}
                   >
@@ -253,7 +328,12 @@ export default function SharePage() {
                       )}
                     </div>
                     {selectedSpeed === value && (
-                      <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
+                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        accentClass === "indigo" ? "bg-indigo-400" :
+                        accentClass === "rose" ? "bg-rose-400" :
+                        accentClass === "amber" ? "bg-amber-400" :
+                        accentClass === "emerald" ? "bg-emerald-400" : "bg-cyan-400"
+                      }`} />
                     )}
                   </button>
                 ))}
@@ -263,7 +343,12 @@ export default function SharePage() {
             {musicEnabled && (
               <div className="w-full space-y-2">
                 <div className="flex items-center gap-2">
-                  <Music className="w-4 h-4 text-indigo-400" />
+                  <Music className={`w-4 h-4 ${
+                    accentClass === "indigo" ? "text-indigo-400" :
+                    accentClass === "rose" ? "text-rose-400" :
+                    accentClass === "amber" ? "text-amber-400" :
+                    accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+                  }`} />
                   <span className="text-sm font-semibold">Musique de fond (optionnel)</span>
                 </div>
 
@@ -273,7 +358,12 @@ export default function SharePage() {
                     disabled={phase === 'encoding'}
                     className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border text-[12px] font-bold transition-all active:scale-[0.98] disabled:opacity-50 ${
                       selectedMusic === 'none'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                        ? (
+                          accentClass === "indigo" ? "bg-indigo-500/10 border-indigo-500 text-white" :
+                          accentClass === "rose" ? "bg-rose-500/10 border-rose-500 text-white" :
+                          accentClass === "amber" ? "bg-amber-500/10 border-amber-500 text-white" :
+                          accentClass === "emerald" ? "bg-emerald-500/10 border-emerald-500 text-white" : "bg-cyan-500/10 border-cyan-500 text-white"
+                        )
                         : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                     }`}
                   >
@@ -286,9 +376,14 @@ export default function SharePage() {
                       disabled={phase === 'encoding'}
                       className={`flex h-10 items-center justify-center rounded-xl border px-2 text-[12px] font-bold transition-all active:scale-[0.98] disabled:opacity-50 ${
                         selectedMusic === track.id
-                          ? 'bg-indigo-500/10 border-indigo-500 text-white'
+                          ? (
+                            accentClass === "indigo" ? "bg-indigo-500/10 border-indigo-500 text-white" :
+                            accentClass === "rose" ? "bg-rose-500/10 border-rose-500 text-white" :
+                            accentClass === "amber" ? "bg-amber-500/10 border-amber-500 text-white" :
+                            accentClass === "emerald" ? "bg-emerald-500/10 border-emerald-500 text-white" : "bg-cyan-500/10 border-cyan-500 text-white"
+                          )
                           : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                      }`}
+                    }`}
                     >
                       {track.label}
                     </button>
@@ -323,7 +418,12 @@ export default function SharePage() {
                 </div>
                 <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      accentClass === "indigo" ? "bg-indigo-500" :
+                      accentClass === "rose" ? "bg-rose-500" :
+                      accentClass === "amber" ? "bg-amber-500" :
+                      accentClass === "emerald" ? "bg-emerald-500" : "bg-cyan-500"
+                    }`}
                     style={{
                       width: `${
                         compositionStage === 'idle' || compositionStage === 'done'
@@ -342,7 +442,12 @@ export default function SharePage() {
             {phase === 'choose' && (
               <button
                 onClick={handleConfirm}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className={`w-full flex items-center justify-center gap-2 py-3 hover:brightness-110 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] ${
+                  accentClass === "indigo" ? "bg-indigo-500 hover:bg-indigo-600" :
+                  accentClass === "rose" ? "bg-rose-500 hover:bg-rose-600" :
+                  accentClass === "amber" ? "bg-amber-500 hover:bg-amber-600" :
+                  accentClass === "emerald" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-cyan-500 hover:bg-cyan-600"
+                }`}
               >
                 <Download className="w-5 h-5" />
                 Préparer le téléchargement {selectedFormat}
@@ -353,7 +458,10 @@ export default function SharePage() {
 
         {phase === 'ready' && (
           <>
-            <div className="w-full rounded-2xl overflow-hidden bg-black ring-1 ring-indigo-500/30" style={{ aspectRatio: selectedFormatConfig.aspectRatio }}>
+            <div className="w-full rounded-2xl overflow-hidden bg-black" style={{ aspectRatio: selectedFormatConfig.aspectRatio, boxShadow: accentClass === "indigo" ? "0 0 0 1px rgba(99, 102, 241, 0.3)" :
+              accentClass === "rose" ? "0 0 0 1px rgba(244, 63, 94, 0.3)" :
+              accentClass === "amber" ? "0 0 0 1px rgba(245, 158, 11, 0.3)" :
+              accentClass === "emerald" ? "0 0 0 1px rgba(16, 185, 129, 0.3)" : "0 0 0 1px rgba(6, 182, 212, 0.3)" }}>
               <video
                 src={downloadUrl}
                 autoPlay
@@ -375,7 +483,12 @@ export default function SharePage() {
               <a
                 href={downloadUrl}
                 download={filename}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]"
+                className={`w-full flex items-center justify-center gap-2 py-3 hover:brightness-110 active:scale-95 text-white font-semibold rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] ${
+                  accentClass === "indigo" ? "bg-indigo-500 hover:bg-indigo-600" :
+                  accentClass === "rose" ? "bg-rose-500 hover:bg-rose-600" :
+                  accentClass === "amber" ? "bg-amber-500 hover:bg-amber-600" :
+                  accentClass === "emerald" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-cyan-500 hover:bg-cyan-600"
+                }`}
               >
                 <Download className="w-5 h-5" />
                 Télécharger sur mon téléphone
@@ -395,7 +508,7 @@ export default function SharePage() {
         )}
 
         <p className="text-xs text-zinc-700 text-center mt-1">
-          NeuroBooth 360 · {source === 'cloud' ? 'Vidéo hébergée sur Supabase Storage' : 'Vidéo stockée localement sur cet appareil'}
+          {appSettings?.eventName || "NeuroBooth"} 360 · {source === 'cloud' ? 'Vidéo hébergée sur Supabase Storage' : 'Vidéo stockée localement sur cet appareil'}
         </p>
       </div>
     </div>
