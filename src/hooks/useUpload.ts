@@ -3,7 +3,7 @@ import { uploadVideo, UploadStatus, listVideosFromBucket } from '../lib/uploadVi
 import { SUPABASE_CONFIGURED } from '../lib/supabase';
 
 export interface UseUploadReturn {
-  upload: (blobUrl: string) => Promise<string | null>;
+  upload: (input: string | Blob) => Promise<string | null>;
   listVideos: () => Promise<string[]>;
   status: UploadStatus;
   progress: number;
@@ -18,7 +18,7 @@ export function useUpload(): UseUploadReturn {
   const [publicUrl, setPublicUrl] = useState('');
   const [storagePath, setStoragePath] = useState('');
 
-  const upload = useCallback(async (blobUrl: string): Promise<string | null> => {
+  const upload = useCallback(async (input: string | Blob): Promise<string | null> => {
     if (!SUPABASE_CONFIGURED) return null;
 
     setStatus('uploading');
@@ -27,7 +27,7 @@ export function useUpload(): UseUploadReturn {
     setStoragePath('');
 
     try {
-      const result = await uploadVideo(blobUrl, (pct) => setProgress(pct));
+      const result = await uploadVideo(input, (pct) => setProgress(pct));
       if (!result) {
         setStatus('error');
         return null;

@@ -141,7 +141,7 @@ export default function App() {
       haptic.medium();
     },
 
-    onRecordingComplete: async (url) => {
+    onRecordingComplete: async (url, blob) => {
       stream?.getAudioTracks().forEach((track: MediaStreamTrack) => { track.enabled = false; });
       
       setVideoUrl(url);
@@ -166,7 +166,7 @@ export default function App() {
       haptic.success();
 
       if (cloudEnabled) {
-        upload(url).then((publicUrl) => {
+        upload(blob).then((publicUrl) => {
           if (publicUrl) {
             setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
             publishScreenCapture({
@@ -178,7 +178,7 @@ export default function App() {
         });
       } else {
         setIsSavingShare(true);
-        saveVideo(url)
+        saveVideo(blob)
           .then((id) => {
             setShareId(id);
             publishScreenCapture({

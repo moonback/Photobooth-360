@@ -25,10 +25,17 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-/** Save a blob URL (converted to Blob) and return a short random ID. */
-export async function saveVideo(blobUrl: string): Promise<string> {
+/** Save a blob URL or Blob and return a short random ID. */
+export async function saveVideo(input: string | Blob): Promise<string> {
   const id = Math.random().toString(36).slice(2, 10); // e.g. "k7x2m9qp"
-  const blob = await fetch(blobUrl).then((r) => r.blob());
+  let blob: Blob;
+  if (typeof input === 'string') {
+    // It's a blob URL
+    blob = await fetch(input).then((r) => r.blob());
+  } else {
+    // It's already a Blob
+    blob = input;
+  }
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');

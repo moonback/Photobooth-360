@@ -114,13 +114,20 @@ export async function clearAllVideosFromBucket(): Promise<{ success: boolean; co
  * Returns null if Supabase is not configured (env vars missing).
  */
 export async function uploadVideo(
-  blobUrl: string,
+  input: string | Blob,
   onProgress: (pct: number) => void,
 ): Promise<UploadResult | null> {
   if (!SUPABASE_CONFIGURED || !supabase) return null;
 
-  // Fetch the blob
-  const blob = await fetch(blobUrl).then((r) => r.blob());
+  // Get the blob
+  let blob: Blob;
+  if (typeof input === 'string') {
+    // It's a blob URL
+    blob = await fetch(input).then((r) => r.blob());
+  } else {
+    // It's already a Blob
+    blob = input;
+  }
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webm`;
   const path = `videos/${filename}`;
 

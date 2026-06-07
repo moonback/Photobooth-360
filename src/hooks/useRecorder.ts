@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { logger } from '../shared/utils/logger';
 
 interface UseRecorderProps {
-  onRecordingComplete: (url: string) => void;
+  onRecordingComplete: (url: string, blob: Blob) => void;
   onRecordingStart?: () => void;
   /**
    * Optional async gate called right before MediaRecorder.start().
@@ -69,7 +69,7 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
         const url = URL.createObjectURL(blob);
         mediaRecorderRef.current = null;
         setIsRecording(false);
-        onRecordingComplete(url);
+        onRecordingComplete(url, blob);
       };
 
       rec.start();
