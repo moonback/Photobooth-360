@@ -1,4 +1,4 @@
-import { SUPABASE_CONFIGURED } from './supabase';
+import { SUPABASE_CONFIGURED, isNetworkError, isSupabaseReachable, markSupabaseUnavailable } from './supabase';
 import { uploadVideoBlob, type UploadResult } from './uploadVideo';
 import {
   listUploadQueue,
@@ -26,7 +26,7 @@ function retryDelayMs(attempts: number) {
 }
 
 function canSync() {
-  return SUPABASE_CONFIGURED && (typeof navigator === 'undefined' || navigator.onLine);
+  return SUPABASE_CONFIGURED && isSupabaseReachable();
 }
 
 async function emitStats(listener?: SyncListener) {
@@ -79,7 +79,17 @@ export async function syncUploadQueue(listener?: SyncListener): Promise<UploadRe
           listener?.({ type: 'progress', item: uploadingItem, progress });
         }, item.videoId);
 
-        if (!result) throw new Error('Supabase is not configured');
+        if (!result) {
+          const queuedItem: UploadQueueItem = {
+            ...uploadingItem,
+            status: 'queued',
+            lastError: 'Supabase unreachable; upload will resume automatically.',
+            nextRetryAt: Date.now() + retryDelayMs(item.attempts),
+          };
+          await putUploadQueueItem(queuedItem);
+          await emitStats(listener);
+          continue;
+        }
 
         const syncedItem: UploadQueueItem = {
           ...uploadingItem,
@@ -96,9 +106,12 @@ export async function syncUploadQueue(listener?: SyncListener): Promise<UploadRe
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Unknown upload error');
         const attempts = item.attempts + 1;
+        const networkFailure = isNetworkError(err);
+        if (networkFailure) markSupabaseUnavailable();
+
         const errorItem: UploadQueueItem = {
           ...item,
-          status: 'error',
+          status: networkFailure ? 'queued' : 'error',
           attempts,
           lastError: err.message,
           nextRetryAt: Date.now() + retryDelayMs(attempts),

@@ -95,9 +95,9 @@ Le flux d’enregistrement est conçu pour continuer pendant une coupure réseau
 1. **Protection locale immédiate** — à la fin d’une capture, la vidéo est enregistrée dans IndexedDB avec son identifiant avant toute tentative cloud.
 2. **QR local instantané** — le participant peut scanner un lien local immédiatement, même si l’upload n’a pas encore démarré.
 3. **File d’upload différée** — si Supabase est configuré, la capture est ajoutée à une file locale (`queued`, `uploading`, `synced`, `error`).
-4. **Reprise automatique** — l’app écoute les événements `online/offline` et relance la file quand la connexion revient.
+4. **Reprise automatique** — l’app écoute les événements `online/offline` et relance la file quand la connexion revient, sans déclencher de lecture cloud au chargement de l’écran de capture.
 5. **Retry progressif** — les échecs réseau restent dans la file avec délai de reprise exponentiel, sans supprimer le média.
-6. **Indicateurs opérateur** — le panneau de partage affiche l’état réseau, le nombre de médias en attente, l’upload actif, les erreurs et si le navigateur a accordé le stockage persistant.
+6. **Indicateurs opérateur** — le panneau de partage affiche l’état réseau navigateur, le nombre de médias en attente, l’upload actif, les erreurs et si le navigateur a accordé le stockage persistant.
 7. **Anti-perte média** — une synchronisation cloud réussie ne supprime pas la copie locale ; l’opérateur garde une sauvegarde exportable depuis la galerie.
 
 > Recommandation événement : installer la PWA et accorder le stockage persistant quand le navigateur le propose pour réduire le risque d’éviction automatique des vidéos locales.

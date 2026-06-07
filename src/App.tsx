@@ -218,13 +218,7 @@ export default function App() {
       const { getAllVideos } = await import("./lib/videoStore");
       const localVideos = await getAllVideos();
 
-      if (cloudEnabled) {
-        const { listVideosFromBucket } = await import("./lib/uploadVideo");
-        const videos = await listVideosFromBucket();
-        setGallery([...localVideos.map((video) => video.url), ...videos.map((video) => video.url)]);
-      } else {
-        setGallery(localVideos.map((video) => video.url));
-      }
+      setGallery(localVideos.map((video) => video.url));
     };
 
     if (!showSplash) loadGallery();

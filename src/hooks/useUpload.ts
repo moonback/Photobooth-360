@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { uploadVideo, UploadStatus, listVideosFromBucket } from '../lib/uploadVideo';
-import { SUPABASE_CONFIGURED } from '../lib/supabase';
+import { SUPABASE_CONFIGURED, isNetworkAvailable, isSupabaseReachable, markSupabaseAvailable } from '../lib/supabase';
 import { syncUploadQueue } from '../lib/offlineSync';
 import {
   enqueueUpload,
@@ -33,7 +33,7 @@ export function useUpload(): UseUploadReturn {
   const [progress, setProgress] = useState(0);
   const [publicUrl, setPublicUrl] = useState('');
   const [storagePath, setStoragePath] = useState('');
-  const [isOnline, setIsOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  const [isOnline, setIsOnline] = useState(() => isNetworkAvailable());
   const [isPersistent, setIsPersistent] = useState(false);
   const [queueStats, setQueueStats] = useState<UploadQueueStats>(EMPTY_STATS);
   const [activeSyncId, setActiveSyncId] = useState('');
@@ -44,7 +44,7 @@ export function useUpload(): UseUploadReturn {
   }, []);
 
   const syncNow = useCallback(async (): Promise<string | null> => {
-    if (!SUPABASE_CONFIGURED) return null;
+    if (!SUPABASE_CONFIGURED || !isSupabaseReachable()) return null;
 
     const result = await syncUploadQueue((event) => {
       if (event.type === 'start') {
@@ -67,7 +67,7 @@ export function useUpload(): UseUploadReturn {
       }
 
       if (event.type === 'error') {
-        setStatus('error');
+        setStatus(event.item.status === 'queued' ? 'queued' : 'error');
         setLastSyncError(event.error.message);
         setActiveSyncId('');
       }
@@ -90,6 +90,7 @@ export function useUpload(): UseUploadReturn {
 
   useEffect(() => {
     const handleOnline = () => {
+      markSupabaseAvailable();
       setIsOnline(true);
       syncNow().catch(console.error);
     };
@@ -98,15 +99,11 @@ export function useUpload(): UseUploadReturn {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    if (isOnline) {
-      syncNow().catch(console.error);
-    }
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [isOnline, syncNow]);
+  }, [syncNow]);
 
   const upload = useCallback(async (blobUrl: string): Promise<string | null> => {
     if (!SUPABASE_CONFIGURED) return null;
@@ -139,13 +136,11 @@ export function useUpload(): UseUploadReturn {
     if (!SUPABASE_CONFIGURED) return;
 
     await enqueueUpload(videoId, size);
-    setStatus(isOnline ? 'idle' : 'queued');
+    setStatus('queued');
     await refreshStats();
 
-    if (isOnline) {
-      syncNow().catch(console.error);
-    }
-  }, [isOnline, refreshStats, syncNow]);
+    // Keep captures queued during unstable connections; the queue resumes on the next browser online event.
+  }, [refreshStats]);
 
   const listVideos = useCallback(async (): Promise<string[]> => {
     if (!SUPABASE_CONFIGURED) return [];

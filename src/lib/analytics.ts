@@ -1,4 +1,10 @@
-import { getSupabaseClient } from './supabase';
+import {
+  getSupabaseClient,
+  isNetworkError,
+  isSupabaseReachable,
+  markSupabaseAvailable,
+  markSupabaseUnavailable,
+} from './supabase';
 
 export type AnalyticsActionType = 'capture' | 'share' | 'download' | 'view';
 
@@ -22,9 +28,15 @@ export interface EventStats {
 }
 
 /**
- * Enregistre un événement d'analytics
+ * Enregistre un événement d'analytics.
+ *
+ * Analytics must never block capture in offline mode. When Supabase is not
+ * reachable we silently skip the remote write and let the protected media queue
+ * remain the source of truth.
  */
 export async function trackEvent(event: AnalyticsEvent): Promise<void> {
+  if (!isSupabaseReachable()) return;
+
   try {
     const client = getSupabaseClient();
     const { error } = await client.from('event_analytics').insert({
@@ -35,10 +47,13 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
     });
 
     if (error) {
-      console.error('Erreur lors du tracking:', error);
+      if (isNetworkError(error)) markSupabaseUnavailable();
+      return;
     }
+
+    markSupabaseAvailable();
   } catch (err) {
-    console.error('Erreur lors du tracking:', err);
+    if (isNetworkError(err)) markSupabaseUnavailable();
   }
 }
 
@@ -46,6 +61,8 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
  * Récupère les statistiques de l'événement
  */
 export async function getEventStats(eventId: string = 'default'): Promise<EventStats | null> {
+  if (!isSupabaseReachable()) return null;
+
   try {
     const client = getSupabaseClient();
     const { data, error } = await client.rpc('get_event_stats', {
@@ -53,13 +70,14 @@ export async function getEventStats(eventId: string = 'default'): Promise<EventS
     });
 
     if (error) {
-      console.error('Erreur lors de la récupération des stats:', error);
+      if (isNetworkError(error)) markSupabaseUnavailable();
       return null;
     }
 
+    markSupabaseAvailable();
     return data?.[0] || null;
   } catch (err) {
-    console.error('Erreur lors de la récupération des stats:', err);
+    if (isNetworkError(err)) markSupabaseUnavailable();
     return null;
   }
 }
@@ -71,6 +89,8 @@ export async function getRecentEvents(
   eventId: string = 'default',
   limit: number = 50
 ): Promise<AnalyticsEvent[]> {
+  if (!isSupabaseReachable()) return [];
+
   try {
     const client = getSupabaseClient();
     const { data, error } = await client
@@ -81,13 +101,14 @@ export async function getRecentEvents(
       .limit(limit);
 
     if (error) {
-      console.error('Erreur lors de la récupération des événements:', error);
+      if (isNetworkError(error)) markSupabaseUnavailable();
       return [];
     }
 
+    markSupabaseAvailable();
     return data || [];
   } catch (err) {
-    console.error('Erreur lors de la récupération des événements:', err);
+    if (isNetworkError(err)) markSupabaseUnavailable();
     return [];
   }
 }
@@ -99,6 +120,8 @@ export function subscribeToAnalytics(
   eventId: string = 'default',
   callback: (payload: unknown) => void
 ) {
+  if (!isSupabaseReachable()) return () => {};
+
   const client = getSupabaseClient();
   const channel = client
     .channel(`analytics:${eventId}`)

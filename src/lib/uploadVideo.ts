@@ -1,4 +1,14 @@
-import { supabase, BUCKET, SUPABASE_CONFIGURED } from './supabase';
+import {
+  supabase,
+  BUCKET,
+  SUPABASE_CONFIGURED,
+  SUPABASE_ANON_KEY,
+  SUPABASE_URL,
+  isNetworkError,
+  isSupabaseReachable,
+  markSupabaseAvailable,
+  markSupabaseUnavailable,
+} from './supabase';
 
 export type UploadStatus = 'idle' | 'queued' | 'uploading' | 'done' | 'error';
 
@@ -13,15 +23,13 @@ export interface UploadResult {
  * List all videos from Supabase Storage bucket with metadata
  */
 export async function listVideosFromBucket(): Promise<Array<{ name: string; url: string; path: string; createdAt: string; size: number }>> {
-  if (!SUPABASE_CONFIGURED || !supabase) {
-    console.log('[listVideosFromBucket] Supabase not configured');
+  if (!SUPABASE_CONFIGURED || !supabase || !isSupabaseReachable()) {
     return [];
   }
 
   const client = supabase;
 
   try {
-    console.log('[listVideosFromBucket] Fetching from bucket:', BUCKET);
     const { data, error } = await client.storage
       .from(BUCKET)
       .list('videos', {
@@ -30,16 +38,13 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
       });
 
     if (error) {
-      console.error('[listVideosFromBucket] Error:', error);
+      if (isNetworkError(error)) markSupabaseUnavailable();
       return [];
     }
 
     if (!data) {
-      console.log('[listVideosFromBucket] No data returned');
       return [];
     }
-
-    console.log('[listVideosFromBucket] Found', data.length, 'files');
 
     // Convert to objects with metadata
     const videos = data
@@ -56,10 +61,10 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
         };
       });
 
-    console.log('[listVideosFromBucket] Returning', videos.length, 'videos');
+    markSupabaseAvailable();
     return videos;
   } catch (err) {
-    console.error('[listVideosFromBucket] Error:', err);
+    if (isNetworkError(err)) markSupabaseUnavailable();
     return [];
   }
 }
@@ -118,7 +123,7 @@ export async function uploadVideoBlob(
   onProgress: (pct: number) => void,
   preferredName?: string,
 ): Promise<UploadResult | null> {
-  if (!SUPABASE_CONFIGURED || !supabase) return null;
+  if (!SUPABASE_CONFIGURED || !supabase || !isSupabaseReachable()) return null;
 
   const safeName = preferredName?.replace(/[^a-zA-Z0-9._-]/g, '-') || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webm`;
   const filename = safeName.endsWith('.webm') ? safeName : `${safeName}.webm`;
@@ -132,8 +137,8 @@ export async function uploadVideoBlob(
   }
 
   // Use XHR for real upload progress — the Supabase fetch-based client doesn't expose it
-  const storageUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const storageUrl = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`;
+  const anonKey = SUPABASE_ANON_KEY as string;
 
   await new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -150,6 +155,7 @@ export async function uploadVideoBlob(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
+        markSupabaseAvailable();
         onProgress(100);
         resolve();
       } else {
@@ -157,7 +163,10 @@ export async function uploadVideoBlob(
       }
     };
 
-    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.onerror = () => {
+      markSupabaseUnavailable();
+      reject(new Error('Network error during upload'));
+    };
     xhr.send(blob);
   });
 
@@ -178,6 +187,6 @@ export async function uploadVideo(
  * Delete a video from Supabase Storage (e.g. after session ends).
  */
 export async function deleteRemoteVideo(path: string): Promise<void> {
-  if (!supabase) return;
+  if (!supabase || !isSupabaseReachable()) return;
   await supabase.storage.from(BUCKET).remove([path]);
 }
