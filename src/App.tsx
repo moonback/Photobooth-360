@@ -207,13 +207,15 @@ export default function App() {
   const resetInactivityTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
     if (!showSplash) {
+      // If we're in share mode, return much faster (15s)
+      const delay = isReviewing ? 15000 : 300000;
       inactivityTimerRef.current = setTimeout(() => {
         setShowSplash(true);
         setVideoUrl("");
         setShareId("");
-      }, 300000);
+      }, delay);
     }
-  }, [showSplash]);
+  }, [showSplash, isReviewing]);
 
   useEffect(() => {
     if (showSplash) {
@@ -361,7 +363,6 @@ export default function App() {
               eventName={settings.eventName} 
               hidden={isReviewing} 
               onSwitchCamera={handleSwitchCamera}
-              onOpenGallery={() => navigate("/gallery")}
               facingMode={settings.facingMode}
             />
                 {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} slowMotionEnabled={settings.slowMotionEnabled} slowMotionSpeed={settings.slowMotionSpeed} />}
@@ -380,7 +381,18 @@ export default function App() {
             )}
 
             {isReviewing && (
-              <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.9rem)] z-30 md:bottom-0">
+              <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-30 md:bottom-0">
+                {/* Auto-return countdown indicator */}
+                <motion.div 
+                  className="mx-auto mb-4 flex max-w-[360px] items-center justify-center gap-2 rounded-full bg-black/60 px-4 py-2 text-[12px] text-white/80 backdrop-blur"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <RefreshCcw className="h-3.5 w-3.5 animate-spin" />
+                  Retour à l'accueil dans 15s...
+                </motion.div>
+
                 <ShareSection 
                   cloudEnabled={cloudEnabled} 
                   uploadStatus={uploadStatus} 
@@ -396,14 +408,13 @@ export default function App() {
                   } : undefined}
                 />
                 
-                {/* Boutons Refaire/Sauver repositionnés sous le QR code */}
+                {/* Simplified buttons */}
                 <motion.div 
                   className="flex gap-2.5 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 sm:px-6"
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
                 >
-                  {/* Bouton Refaire */}
                   <motion.button 
                     type="button" 
                     onClick={handleReset} 
@@ -413,57 +424,15 @@ export default function App() {
                     aria-label="Refaire une capture"
                     onTouchStart={() => haptic.light()}
                   >
-                    {/* Effet de brillance au hover */}
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100"
                       initial={{ x: "-100%" }}
                       whileHover={{ x: "200%" }}
                       transition={{ duration: 0.6 }}
                     />
-                    
                     <RefreshCcw className="relative h-5 w-5" /> 
                     <span className="relative">Refaire</span>
                   </motion.button>
-                  
-                  {/* Bouton Sauver avec gradient accent */}
-                  <motion.a 
-                    href={videoUrl} 
-                    download="neurobooth360.webm"
-                    onClick={() => {
-                      const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
-                      trackDownload(videoId, settings.eventName || "default");
-                      haptic.medium();
-                    }}
-                    className={`group relative flex min-h-14 flex-1 items-center justify-center gap-2 overflow-hidden rounded-[1.2rem] px-4 text-[14px] font-bold text-white shadow-xl transition-all hover:brightness-110 active:scale-[0.98] touch-manipulation ${accent.bg}`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }} 
-                    aria-label="Télécharger la vidéo"
-                    onTouchStart={() => haptic.light()}
-                  >
-                    {/* Effet de brillance au hover */}
-                    <motion.div
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100"
-                      initial={{ x: "-100%" }}
-                      whileHover={{ x: "200%" }}
-                      transition={{ duration: 0.6 }}
-                    />
-                    
-                    {/* Glow ring animé */}
-                    <motion.div
-                      className="absolute inset-0 rounded-[1.2rem] opacity-50"
-                      animate={{
-                        boxShadow: [
-                          "inset 0 0 10px rgba(255,255,255,0.2)",
-                          "inset 0 0 20px rgba(255,255,255,0.3)",
-                          "inset 0 0 10px rgba(255,255,255,0.2)",
-                        ]
-                      }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    />
-                    
-                    <Download className="relative h-5 w-5" /> 
-                    <span className="relative">Sauver</span>
-                  </motion.a>
                 </motion.div>
               </div>
             )}
