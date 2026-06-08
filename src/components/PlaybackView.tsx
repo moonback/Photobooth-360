@@ -5,16 +5,18 @@ import { useEffect, useRef } from "react";
 interface PlaybackViewProps {
   videoUrl: string;
   eventName: string;
+  slowMotionEnabled: boolean;
+  slowMotionSpeed: 0.5 | 0.25;
 }
 
-export default function PlaybackView({ videoUrl, eventName }: PlaybackViewProps) {
+export default function PlaybackView({ videoUrl, eventName, slowMotionEnabled, slowMotionSpeed }: PlaybackViewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = 0.5;
+      videoRef.current.playbackRate = slowMotionEnabled ? slowMotionSpeed : 1;
     }
-  }, [videoUrl]);
+  }, [videoUrl, slowMotionEnabled, slowMotionSpeed]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">

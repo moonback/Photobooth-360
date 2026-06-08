@@ -171,6 +171,33 @@ export function CapturePanel({ draft, update }: PanelProps) {
       <PanelBlock>
         <Toggle checked={draft.recordAudio} onChange={() => update("recordAudio", !draft.recordAudio)} label="Enregistrer le micro" compact />
       </PanelBlock>
+
+      <PanelBlock>
+        <Toggle checked={draft.slowMotionEnabled} onChange={() => update("slowMotionEnabled", !draft.slowMotionEnabled)} label="Slow motion par défaut" compact />
+        {draft.slowMotionEnabled && (
+          <div className="mt-2 px-3 pb-3">
+            <SectionLabel>Vitesse</SectionLabel>
+            <div className="grid grid-cols-2 gap-1">
+              <Segment
+                compact
+                value={0.5}
+                selected={draft.slowMotionSpeed === 0.5}
+                label="½×"
+                sub="Normal"
+                onClick={(v) => update("slowMotionSpeed", v)}
+              />
+              <Segment
+                compact
+                value={0.25}
+                selected={draft.slowMotionSpeed === 0.25}
+                label="¼×"
+                sub="Ultra slow"
+                onClick={(v) => update("slowMotionSpeed", v)}
+              />
+            </div>
+          </div>
+        )}
+      </PanelBlock>
     </div>
   );
 }
@@ -505,7 +532,7 @@ export function IntroOutroPanel(props: IntroOutroPanelProps) {
 export function hubSummaries(draft: AppSettings) {
   return {
     identity: `${draft.eventName}${draft.logoUrl ? " · Logo" : ""}`,
-    capture: `${fmtDuration(draft.duration)} · ${draft.countdownSeconds === 0 ? "Sans countdown" : `${draft.countdownSeconds}s`} · ${draft.resolution}${draft.recordAudio ? " · Mic" : ""}`,
+    capture: `${fmtDuration(draft.duration)} · ${draft.countdownSeconds === 0 ? "Sans countdown" : `${draft.countdownSeconds}s`} · ${draft.resolution}${draft.recordAudio ? " · Mic" : ""}${draft.slowMotionEnabled ? ` · Slow ${draft.slowMotionSpeed}×` : ""}`,
     email: draft.emailCaptureEnabled
       ? (draft.emailSendEnabled ? "Collecte + envoi auto" : "Collecte active")
       : "Désactivé",

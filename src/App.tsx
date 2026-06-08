@@ -364,7 +364,7 @@ export default function App() {
               onOpenGallery={() => navigate("/gallery")}
               facingMode={settings.facingMode}
             />
-                {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} />}
+                {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} slowMotionEnabled={settings.slowMotionEnabled} slowMotionSpeed={settings.slowMotionSpeed} />}
 
                 {/* Motor control panel — visible on camera view when motor is enabled */}
                 {settings.motorEnabled && !isReviewing && (
