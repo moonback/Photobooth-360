@@ -111,26 +111,26 @@ export default function ScreenPage() {
         
         if (videos.length === 0) {
           setHasNoVideos(true);
+          setCapture(null);
         } else {
           setHasNoVideos(false);
-        }
-        
-        const latest = videos[0];
-        if (latest?.url) {
-          setCapture((current) => {
-            const newCapture = newerCapture(current, {
-              videoUrl: latest.url,
-              shareUrl: buildCloudShareUrl(latest.url),
-              source: "cloud",
-              updatedAt: latest.createdAt || new Date().toISOString(),
+          const latest = videos[0];
+          if (latest?.url) {
+            setCapture((current) => {
+              const newCapture = newerCapture(current, {
+                videoUrl: latest.url,
+                shareUrl: buildCloudShareUrl(latest.url),
+                source: "cloud",
+                updatedAt: latest.createdAt || new Date().toISOString(),
+              });
+              if (newCapture !== current) {
+                setShowActivation(true);
+                setTimeout(() => setShowActivation(false), 2000);
+              }
+              return newCapture;
             });
-            if (newCapture !== current) {
-              setShowActivation(true);
-              setTimeout(() => setShowActivation(false), 2000);
-            }
-            return newCapture;
-          });
-          setHasCloudError(false);
+            setHasCloudError(false);
+          }
         }
         setLastSyncAt(new Date().toISOString());
       } catch {
