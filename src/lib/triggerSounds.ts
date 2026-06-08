@@ -22,6 +22,9 @@ export function isValidTriggerSoundId(value: string): value is TriggerSoundId {
   return TRIGGER_SOUNDS.some((s) => s.id === value);
 }
 
+// Cache preloaded audio elements
+const audioCache = new Map<string, HTMLAudioElement>();
+
 /**
  * Play the trigger sound with the given volume (0-100)
  */
@@ -31,9 +34,25 @@ export function playTriggerSound(id: TriggerSoundId, volume: number = 70): void 
   const sound = getTriggerSoundById(id);
   if (!sound.file) return;
   
-  const audio = new Audio(sound.file);
-  audio.volume = volume / 100;
-  audio.play().catch(err => {
-    console.error('[TriggerSound] Failed to play sound:', err);
-  });
+  try {
+    // Try to use cached audio element
+    let audio = audioCache.get(sound.file);
+    if (!audio) {
+      audio = new Audio(sound.file);
+      audio.preload = 'auto';
+      audioCache.set(sound.file, audio);
+    }
+    
+    // Reset audio to start
+    audio.currentTime = 0;
+    audio.volume = Math.max(0, Math.min(100, volume)) / 100;
+    
+    // Play with error handling
+    audio.play().catch(err => {
+      // Only log once per sound, or at lower severity
+      console.warn('[TriggerSound] Could not play sound (may be blocked by browser):', err);
+    });
+  } catch (err) {
+    console.warn('[TriggerSound] Failed to initialize audio:', err);
+  }
 }

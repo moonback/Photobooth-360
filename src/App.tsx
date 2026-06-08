@@ -21,6 +21,7 @@ import { useMotor } from "./hooks/useMotor";
 import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
+import { useSlowMotion } from "./hooks/useSlowMotion";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
@@ -49,6 +50,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
+  const [processedVideoUrl, setProcessedVideoUrl] = useState("");
   const [gallery, setGallery] = useState<string[]>([]);
   const [shareId, setShareId] = useState("");
   const [isSavingShare, setIsSavingShare] = useState(false);
@@ -58,6 +60,8 @@ export default function App() {
   const [currentVideoId, setCurrentVideoId] = useState("");
   const [showDiagnostic, setShowDiagnostic] = useState(false); // État pour le diagnostic
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { processVideo, status: processingStatus, progress: processingProgress } = useSlowMotion();
 
   // Exposer le toggle diagnostic dans la console pour debug mobile
   useEffect(() => {
@@ -86,8 +90,11 @@ export default function App() {
       if (videoUrl.startsWith("blob:")) {
         URL.revokeObjectURL(videoUrl);
       }
+      if (processedVideoUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(processedVideoUrl);
+      }
     };
-  }, [videoUrl]);
+  }, [videoUrl, processedVideoUrl]);
 
   const { liveVideoRef, stream, cameraError } = useCamera({
     facingMode: settings.facingMode,
@@ -156,6 +163,7 @@ export default function App() {
       stream?.getAudioTracks().forEach((track: MediaStreamTrack) => { track.enabled = false; });
       
       setVideoUrl(url);
+      setProcessedVideoUrl("");
       setShareId("");
       setGallery((prev: string[]) => [url, ...prev.filter((item: string) => item !== url)]);
 
@@ -176,8 +184,28 @@ export default function App() {
 
       haptic.success();
 
+      // Process video with default slow motion settings
+      let finalVideoUrl = url;
+      let finalBlob = blob;
+
+      if (settings.slowMotionEnabled) {
+        const processedUrl = await processVideo(
+          url,
+          settings.slowMotionSpeed,
+          "16:9", // Default format, no cropping
+          {}
+        );
+        if (processedUrl) {
+          setProcessedVideoUrl(processedUrl);
+          finalVideoUrl = processedUrl;
+          // Fetch the processed blob from the URL
+          const response = await fetch(processedUrl);
+          finalBlob = await response.blob();
+        }
+      }
+
       if (cloudEnabled) {
-        upload(blob).then((publicUrl) => {
+        upload(finalBlob).then((publicUrl) => {
           if (publicUrl) {
             setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
             publishScreenCapture({
@@ -189,11 +217,11 @@ export default function App() {
         });
       } else {
         setIsSavingShare(true);
-        saveVideo(blob)
+        saveVideo(finalBlob)
           .then((id) => {
             setShareId(id);
             publishScreenCapture({
-              videoUrl: url,
+              videoUrl: finalVideoUrl,
               shareUrl: buildLocalShareUrl(id),
               source: "local",
             });
@@ -303,7 +331,7 @@ export default function App() {
   };
 
   const handleEmailCapture = async (emailData: EmailCaptureData) => {
-    const videoToSend = uploadedUrl || videoUrl;
+    const videoToSend = uploadedUrl || processedVideoUrl || videoUrl;
     const videoIdToUse = currentVideoId || shareId || `video_${Date.now()}`;
 
     await saveEmailCapture({
@@ -364,7 +392,27 @@ export default function App() {
               onOpenGallery={() => navigate("/gallery")}
               facingMode={settings.facingMode}
             />
-                {isReviewing && <PlaybackView videoUrl={videoUrl} eventName={settings.eventName} slowMotionEnabled={settings.slowMotionEnabled} slowMotionSpeed={settings.slowMotionSpeed} />}
+                {isReviewing && (
+                  <div className="relative h-full w-full">
+                    <PlaybackView 
+                      videoUrl={processedVideoUrl || videoUrl} 
+                      eventName={settings.eventName} 
+                      slowMotionEnabled={settings.slowMotionEnabled} 
+                      slowMotionSpeed={settings.slowMotionSpeed} 
+                    />
+                    {processingStatus === "loading" || processingStatus === "processing" ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="h-12 w-12 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
+                          <div className="text-center">
+                            <p className="text-body font-semibold text-white">Préparation de la vidéo</p>
+                            <p className="text-caption text-white/60 mt-1">{processingProgress}%</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
 
                 {/* Motor control panel — visible on camera view when motor is enabled */}
                 {settings.motorEnabled && !isReviewing && (
@@ -427,7 +475,7 @@ export default function App() {
                   
                   {/* Bouton Sauver avec gradient accent */}
                   <motion.a 
-                    href={videoUrl} 
+                    href={processedVideoUrl || videoUrl} 
                     download="neurobooth360.webm"
                     onClick={() => {
                       const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
@@ -480,7 +528,7 @@ export default function App() {
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
         onSubmit={handleEmailCapture}
-        videoUrl={uploadedUrl || videoUrl}
+        videoUrl={uploadedUrl || processedVideoUrl || videoUrl}
       />
       
       {/* Kiosk guard — blocks navigation, shows exit PIN prompt */}

@@ -47,7 +47,7 @@ export default function SharePage() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [source, setSource] = useState<Source>('local');
   const [originalUrl, setOriginalUrl] = useState('');
-  const [selectedSpeed, setSelectedSpeed] = useState<Speed>(0.5);
+  const [selectedSpeed, setSelectedSpeed] = useState<Speed>(1);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('16:9');
   const [selectedMusic, setSelectedMusic] = useState<MusicSelection>('none');
   const [musicEnabled, setMusicEnabled] = useState(false);
@@ -75,11 +75,6 @@ export default function SharePage() {
       setRecordAudio(settings.recordAudio);
       if (settings.backgroundMusicEnabled) {
         setSelectedMusic(settings.backgroundMusicDefault);
-      }
-      if (settings.slowMotionEnabled) {
-        setSelectedSpeed(settings.slowMotionSpeed);
-      } else {
-        setSelectedSpeed(1);
       }
     }).catch(() => undefined);
   }, []);
@@ -119,9 +114,7 @@ export default function SharePage() {
     });
   }, [id, searchParams]);
 
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.playbackRate = selectedSpeed;
-  }, [selectedSpeed]);
+
 
   const handleConfirm = async () => {
     setPhase('encoding');
@@ -290,55 +283,7 @@ export default function SharePage() {
               </p>
             </div>
 
-            <div className="w-full space-y-2">
-              <div className="flex items-center gap-2">
-                <Gauge className={`w-4 h-4 ${
-                  accentClass === "indigo" ? "text-indigo-400" :
-                  accentClass === "rose" ? "text-rose-400" :
-                  accentClass === "amber" ? "text-amber-400" :
-                  accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
-                }`} />
-                <span className="text-sm font-semibold">Choisis ton effet</span>
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                {SPEEDS.map(({ value, emoji, label, sublabel }) => (
-                  <button
-                    key={value}
-                    onClick={() => setSelectedSpeed(value)}
-                    disabled={phase === 'encoding'}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all active:scale-[0.98] disabled:opacity-50 ${
-                      selectedSpeed === value
-                        ? (
-                          accentClass === "indigo" ? "bg-indigo-500/10 border-indigo-500 text-white" :
-                          accentClass === "rose" ? "bg-rose-500/10 border-rose-500 text-white" :
-                          accentClass === "amber" ? "bg-amber-500/10 border-amber-500 text-white" :
-                          accentClass === "emerald" ? "bg-emerald-500/10 border-emerald-500 text-white" : "bg-cyan-500/10 border-cyan-500 text-white"
-                        )
-                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                    }`}
-                  >
-                    <span className="text-xl">{emoji}</span>
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm">{label} — {sublabel}</div>
-                      {value !== 1 && (
-                        <div className="text-xs opacity-60 mt-0.5">
-                          Aperçu en direct
-                        </div>
-                      )}
-                    </div>
-                    {selectedSpeed === value && (
-                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        accentClass === "indigo" ? "bg-indigo-400" :
-                        accentClass === "rose" ? "bg-rose-400" :
-                        accentClass === "amber" ? "bg-amber-400" :
-                        accentClass === "emerald" ? "bg-emerald-400" : "bg-cyan-400"
-                      }`} />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {musicEnabled && (
               <div className="w-full space-y-2">
