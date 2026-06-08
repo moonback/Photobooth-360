@@ -1,0 +1,63 @@
+
+# Project Context
+Vous travaillez sur NeuroBooth 360, une application web PWA de photobooth événementiel professionnel.
+
+# Tech Stack
+- React 19 + TypeScript 5.8
+- Vite 6 (build tool)
+- Tailwind CSS 4 (styling)
+- Motion (animations)
+- Lucide React (icônes)
+- React Router DOM 6 (routing)
+- Supabase (backend : Storage, Database, Edge Functions)
+- IndexedDB (stockage local)
+
+# Code Style & Conventions
+- Utilisez TypeScript strict (pas de `any`)
+- Respectez Conventional Commits pour les messages de commit
+- Utilisez Tailwind CSS 4 pour le styling
+- Composants fonctionnels avec Hooks
+- Préférez `useCallback` et `useMemo` pour optimiser les performances
+- Noms de variables et fonctions explicites
+- Pas de commentaires inutiles (le code doit se documenter lui-même)
+
+# Architecture Patterns
+- Séparation stricte entre logique métier et UI
+- Logique métier dans `hooks/` et `lib/`
+- Composants ne font que l'affichage et les interactions utilisateur
+- Hooks isolés et découplés (une responsabilité par hook)
+- Persistance des paramètres via `useSettings`
+- Stockage vidéo via `videoStore` (IndexedDB) ou Supabase Storage
+
+# Best Practices
+- Toujours nettoyer les effets de bord dans `useEffect` (timeouts, intervals, event listeners, etc.)
+- Utilisez `useCallback` pour les fonctions passées en props ou en dépendance d'effets
+- Memoïsez les calculs lourds et les styles avec `useMemo`
+- Évitez les re-renders inutiles
+- Utilisez le logger `./src/shared/utils/logger.ts` pour les logs
+- Testez offline (PWA) et online (Supabase)
+
+# Common Workflows
+- Lancer le dev server : `npm run dev`
+- Lancer le lint : `npm run lint`
+- Build production : `npm run build`
+- Preview build : `npm run preview`
+
+# Preferred Dependencies
+- Utilisez Lucide React pour les icônes
+- Utilisez Motion pour les animations
+- Utilisez Supabase pour le backend
+- Utilisez qrcode.react pour les QR codes
+
+# Anti-patterns to Avoid
+- Ne pas utiliser `any` en TypeScript
+- Ne pas mettre la logique métier dans les composants
+- Ne pas oublier de nettoyer les timeouts/intervals dans `useEffect`
+- Ne pas utiliser de CSS inline (utilisez Tailwind)
+- Ne pas modifier le state directement (utilisez les setters)
+
+# Documentation Rules
+- Mettez à jour la documentation quand vous ajoutez une fonctionnalité
+- Mettez à jour le README si nécessaire
+- Mettez à jour la ROADMAP si vous travaillez sur une feature
+- Commentez les hooks et les fonctions complexes

@@ -6,11 +6,28 @@
 
 Application web professionnelle de type photomaton 360° — capture, partage et diffusion de vidéos depuis le navigateur. Conçue pour les événements, mariages, galas et soirées d'entreprise sur borne interactive ou tablette.
 
+---
+
+## 📊 Badges
+
 ![Version](https://img.shields.io/badge/version-2.5.0-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4)
+![Supabase](https://img.shields.io/badge/Supabase-ready-3ECF8E)
+![Vercel](https://img.shields.io/badge/Vercel-ready-black)
 ![PWA](https://img.shields.io/badge/PWA-ready-purple)
 ![License](https://img.shields.io/badge/license-MIT-green)
+
+---
+
+## 🎯 Pour qui ?
+
+NeuroBooth 360 est parfait pour :
+- 🎪 **Organisateurs d'événements** : Mariages, anniversaires, galas, salons
+- 📸 **Photographes professionnels** : Ajouter une expérience vidéo à vos services
+- 🏢 **Entreprises** : Soirées d'entreprise, team buildings, lancements de produits
+- 🎓 **Établissements** : Bals de promo, événements étudiants
 
 ---
 
@@ -31,6 +48,7 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 - Synchronisation plateau / déclenchement d'enregistrement
 - Modes de sync : ACK firmware, délai fixe, ou immédiat
 - Panneau de contrôle moteur intégré dans l'interface
+- [Documentation matériel](./firmware/WIRING.md)
 
 ### 🔒 Mode Kiosque
 - Verrouillage plein écran avec Wake Lock (écran toujours allumé)
@@ -47,7 +65,7 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 - QR Code instantané après chaque prise
 - Page de récupération mobile (téléchargement iOS/Android)
 - Stockage local IndexedDB comme fallback hors-ligne
-- Capture email opt-in avec envoi automatique de la vidéo
+- Capture email opt-in avec envoi automatique de la vidéo via Resend
 
 ### 🎨 Interface & UX
 - Design sombre avec Tailwind CSS 4
@@ -62,12 +80,12 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 - Suivi des captures, partages, téléchargements
 - Dashboard analytique live pour l'organisateur
 - Badge live stats en superposition
-- Export et rapport d'événement
 
 ### 📱 PWA
 - Installable sur iOS et Android (mode standalone)
 - Service Worker avec cache offline
 - Prompt d'installation et mise à jour automatique
+- [Guide PWA](./PWA-GUIDE.md)
 
 ### 🖼️ Galerie
 - Affichage adaptatif : 1 col mobile → 5 cols desktop
@@ -81,7 +99,6 @@ Application web professionnelle de type photomaton 360° — capture, partage et
   - Upload de vidéos ou images personnalisées
   - Composition automatique avec Canvas API
   - Préservation de l'audio de la vidéo principale
-  - Indicateur de progression lors de la composition
 
 ---
 
@@ -93,13 +110,13 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 | Build | Vite 6 + SWC |
 | Style | Tailwind CSS 4 |
 | Animations | Motion 12 |
-| Backend | Supabase (DB + Storage + Auth) |
+| Backend | Supabase (DB + Storage + Auth + Edge Functions) |
 | Stockage local | IndexedDB |
 | Navigation | React Router DOM 6 |
 | QR Code | qrcode.react |
 | Icônes | Lucide React |
 | PWA | vite-plugin-pwa + Workbox |
-| Matériel | WebSerial API (ESP32) |
+| Matériel | WebSerial / Web Bluetooth API (ESP32) |
 
 ---
 
@@ -108,31 +125,53 @@ Application web professionnelle de type photomaton 360° — capture, partage et
 ### Prérequis
 - Node.js 18+
 - npm ou yarn
-- Compte Supabase (optionnel)
+- Compte Supabase (optionnel, pour le cloud sharing)
+- Compte Resend (optionnel, pour l'envoi d'emails)
 
+### Étapes
+
+1. Clonez le dépôt :
 ```bash
 git clone https://github.com/votre-username/photobooth-360.git
 cd photobooth-360
+```
+
+2. Installez les dépendances :
+```bash
 npm install
+```
+
+3. Copiez le fichier d'environnement d'exemple :
+```bash
+cp .env.example .env
+```
+
+4. Configurez vos variables d'environnement (voir ci-dessous)
+
+5. Lancez le serveur de développement :
+```bash
+npm run dev
 ```
 
 ### Variables d'environnement
 
-```env
-VITE_SUPABASE_URL=votre_url_supabase
-VITE_SUPABASE_ANON_KEY=votre_cle_anonyme
-```
+| Variable | Description | Exemple | Obligatoire |
+|----------|-------------|---------|-------------|
+| `VITE_SUPABASE_URL` | URL de votre projet Supabase | `https://votre-projet.supabase.co` | Non |
+| `VITE_SUPABASE_ANON_KEY` | Clé anonyme Supabase | `votre-clé-anonyme` | Non |
+| `GEMINI_API_KEY` | Clé API Gemini (pour IA) | `votre-clé-gemini` | Non |
+| `APP_URL` | URL de votre application | `http://localhost:3000` | Non |
 
-> Sans Supabase, l'app fonctionne en mode local avec IndexedDB.
+> Sans Supabase, l'app fonctionne en mode local avec IndexedDB (partage sur même appareil uniquement).
 
-### Commandes
+### Commandes utiles
 
-```bash
-npm run dev        # Développement (port 3000)
-npm run build      # Build production
-npm run preview    # Preview du build
-npm run lint       # Vérification TypeScript
-```
+| Commande | Description |
+|----------|-------------|
+| `npm run dev` | Lance le serveur de développement sur le port 3000 |
+| `npm run build` | Génère le build de production |
+| `npm run preview` | Prévisualise le build de production |
+| `npm run lint` | Vérifie le code TypeScript |
 
 ---
 
@@ -140,52 +179,85 @@ npm run lint       # Vérification TypeScript
 
 ```
 photobooth-360/
+├── docs/                   # Documentation supplémentaire
+│   ├── ANALYTICS.md
+│   ├── AUDIT-PRODUCTION-2026.md
+│   ├── FEATURE-SUGGESTIONS-2026.md
+│   ├── JINGLES.md
+│   ├── JINGLES-QUICKSTART.md
+│   └── PWA-ARCHITECTURE.md
+├── firmware/               # Firmware pour ESP32
+│   ├── esp32_photobooth360/
+│   └── WIRING.md           # Schéma de câblage
+├── public/                 # Fichiers statiques
+│   ├── song/
+│   ├── sounds/
+│   ├── header-bg.png
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   ├── manifest.json
+│   └── offline.html
+├── scripts/                # Scripts utilitaires
+│   └── generate-icons.js
 ├── src/
-│   ├── components/
-│   │   ├── CameraView.tsx        # Flux caméra live
-│   │   ├── PlaybackView.tsx      # Lecteur vidéo
-│   │   ├── RecordButton.tsx      # Bouton enregistrement
-│   │   ├── SplashScreen.tsx      # Écran d'accueil
-│   │   ├── SettingsModal.tsx     # Réglages complets
-│   │   ├── KioskGuard.tsx        # Mode kiosque + PIN
-│   │   ├── ShareSection.tsx      # QR code + partage
-│   │   ├── EmailCaptureModal.tsx # Collecte email
-│   │   ├── MotorControlPanel.tsx # Contrôle plateau
-│   │   ├── AnalyticsDashboard.tsx# Stats événement
-│   │   ├── GalleryStrip.tsx      # Bande galerie
-│   │   └── SlowMotionPanel.tsx   # Effets slow-mo
-│   ├── hooks/
-│   │   ├── useCamera.ts          # Gestion caméra
-│   │   ├── useRecorder.ts        # Enregistrement
-│   │   ├── useMotor.ts           # Contrôle moteur
-│   │   ├── useKiosk.ts           # Mode kiosque
-│   │   ├── useSettings.ts        # Persistance réglages
-│   │   ├── useUpload.ts          # Upload cloud
-│   │   ├── useAnalytics.ts       # Métriques
-│   │   └── useSlowMotion.ts      # Slow motion
-│   ├── lib/
-│   │   ├── supabase.ts           # Client Supabase
-│   │   ├── videoStore.ts         # IndexedDB vidéos
-│   │   ├── settingsStore.ts      # Stockage réglages
-│   │   ├── uploadVideo.ts        # Upload vidéo
-│   │   ├── emailCapture.ts       # Capture emails
-│   │   └── analytics.ts          # Tracking
-│   ├── pages/
-│   │   ├── GalleryPage.tsx       # Galerie complète
-│   │   └── SharePage.tsx         # Page partage QR
+│   ├── components/         # Composants React
+│   ├── hooks/              # Hooks personnalisés
+│   ├── lib/                # Logique métier & utilitaires
+│   ├── pages/              # Pages de l'application
+│   ├── shared/             # Composants & utilitaires partagés
+│   ├── types/              # Définitions TypeScript
 │   ├── App.tsx
 │   ├── main.tsx
 │   └── index.css
-├── firmware/
-│   └── esp32_photobooth360/      # Code Arduino ESP32
-├── public/
-│   ├── manifest.json             # PWA manifest
-│   └── offline.html              # Page hors-ligne
-├── supabase/
-│   └── functions/                # Edge Functions
-├── .env.example
-└── ROADMAP.md
+├── supabase/               # Configuration Supabase
+│   ├── functions/          # Edge Functions
+│   ├── setup.sql           # Configuration initiale de la DB
+│   ├── setup-jingles-storage.sql
+│   └── fix-email-captures-rls.sql
+├── .cursorrules            # Règles pour Cursor (IA)
+├── .env.example            # Exemple de variables d'environnement
+├── .gitignore
+├── API_DOCS.md             # Documentation API
+├── ARCHITECTURE.md         # Architecture système
+├── CONTRIBUTING.md         # Guide de contribution
+├── DB_SCHEMA.md            # Schéma de base de données
+├── LICENSE
+├── PWA-GUIDE.md
+├── PWA-CHECKLIST.md
+├── README.md
+├── ROADMAP.md
+├── package-lock.json
+├── package.json
+├── tsconfig.json
+├── vercel.json
+└── vite.config.ts
 ```
+
+---
+
+## 📚 Documentation supplémentaire
+
+- [Architecture système](./ARCHITECTURE.md) : Vue d'ensemble de l'architecture technique
+- [Schéma de base de données](./DB_SCHEMA.md) : Modèle de données et tables
+- [Documentation API](./API_DOCS.md) : Endpoints Supabase utilisés
+- [Roadmap](./ROADMAP.md) : Plan de développement futur
+- [Guide de contribution](./CONTRIBUTING.md) : Comment contribuer au projet
+- [Guide PWA](./PWA-GUIDE.md) : Installation et configuration de la PWA
+- [Documentation matériel](./firmware/WIRING.md) : Schéma de câblage pour ESP32
+
+---
+
+## 🚀 Configuration Supabase
+
+Si vous voulez utiliser les fonctionnalités cloud (partage multi-appareils, emails, analytics), suivez ces étapes :
+
+1. Créez un projet sur [Supabase](https://supabase.com)
+2. Exécutez les scripts SQL suivants dans l'éditeur SQL de Supabase, dans l'ordre :
+   1. [`supabase/setup.sql`](./supabase/setup.sql) : Configure les buckets, tables et RLS policies
+   2. [`supabase/setup-jingles-storage.sql`](./supabase/setup-jingles-storage.sql) : Configure le stockage des jingles
+   3. [`supabase/fix-email-captures-rls.sql`](./supabase/fix-email-captures-rls.sql) : Corrige les policies pour les captures d'email
+3. Configurez vos variables d'environnement (`VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`)
+4. (Optionnel) Déployez l'Edge Function `send-video-email` pour l'envoi d'emails automatiques
 
 ---
 
@@ -193,6 +265,9 @@ photobooth-360/
 
 ### Vercel (recommandé)
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvotre-username%2Fphotobooth-360)
+
+Ou manuellement :
 ```bash
 npm i -g vercel
 vercel --prod
@@ -202,12 +277,10 @@ vercel --prod
 
 ```bash
 npm run build
-# Déployer le dossier dist/
+# Déployez le dossier dist/ sur Netlify
 ```
 
-Variables à configurer sur la plateforme :
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+N'oubliez pas de configurer vos variables d'environnement sur la plateforme de déploiement !
 
 ---
 
@@ -215,75 +288,50 @@ Variables à configurer sur la plateforme :
 
 ### Organisateur
 
-1. Accéder aux réglages via le geste secret (5 taps haut-centre) + PIN
-2. Configurer : nom événement, logo, durée, compte à rebours, résolution, thème
-3. Activer le mode kiosque pour verrouiller l'écran
-4. Suivre les stats en direct depuis le dashboard analytique
+1. Accédez aux réglages via le geste secret (5 taps en haut-centre) + PIN
+2. Configurez : nom événement, logo, durée, compte à rebours, résolution, thème
+3. Activez le mode kiosque pour verrouiller l'écran
+4. Suivez les stats en direct depuis le dashboard analytique
 
 ### Invité
 
-1. Taper l'écran splash pour démarrer
-2. Appuyer sur le bouton rouge pour lancer l'enregistrement
-3. Regarder le compte à rebours et sourire
-4. Scanner le QR code pour récupérer sa vidéo
+1. Tapez l'écran splash pour démarrer
+2. Appuyez sur le bouton rouge pour lancer l'enregistrement
+3. Regardez le compte à rebours et souriez !
+4. Scannez le QR code pour récupérer votre vidéo
 
 ### Mode kiosque
 
-- **5 taps** dans la zone haut-centre → PIN → réglages admin
-- **10 taps** dans la zone haut-centre → PIN → exit kiosque
-
----
-
-## 🔧 Configuration Supabase
-
-```sql
--- Bucket de stockage
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('photobooth360', 'photobooth360', true);
-
--- Table settings
-CREATE TABLE settings (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  data JSONB NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Table captures email
-CREATE TABLE email_captures (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  event_id TEXT,
-  video_url TEXT,
-  email TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
+- **5 taps** en haut-centre → entrez le PIN → accédez aux réglages
+- **10 taps** en haut-centre → entrez le PIN → quittez le mode kiosque
 
 ---
 
 ## 🎯 Roadmap
 
-Voir `ROADMAP.md` pour le détail complet des phases.
+Voir [ROADMAP.md](./ROADMAP.md) pour le détail complet des phases et fonctionnalités à venir, y compris nos futures fonctionnalités IA !
 
-**État actuel :**
-- ✅ Phase 1 — Capture vidéo
-- ✅ Phase 2 — Personnalisation & UX
-- ✅ Phase 3 — Cloud & partage
-- ✅ Phase 4 — Galerie & playback
-- ✅ Phase 5 — Mode kiosque & opérateur
-- ✅ Phase 6 — Moteur & matériel
-- 🚧 Phase 7 — Effets & post-traitement
-- 📋 Phase 8 — Analytics avancés & API
+**Points clés à venir :**
+- 🤖 IA & Fonctionnalités Intelligentes (Phase 11)
+- Remplacement de fond IA
+- Amélioration de visage IA
+- Sous-titres automatiques IA
+- Highlights vidéo IA
+- Et bien plus !
 
 ---
 
 ## 📄 Licence
 
-MIT — voir `LICENSE`
+MIT — voir le fichier [LICENSE](./LICENSE) pour plus de détails.
 
-## 💡 Support
+---
 
-- Issues : [GitHub Issues](https://github.com/votre-username/photobooth-360/issues)
-- Email : support@neurobooth360.com
+## 💡 Support et communauté
+
+- 📝 **Issues** : Signalez des bugs ou proposez des améliorations sur [GitHub Issues](https://github.com/votre-username/photobooth-360/issues)
+- 📧 **Email** : contactez-nous à support@neurobooth360.com
+- 🔧 **Contribuer** : Consultez le [guide de contribution](./CONTRIBUTING.md)
 
 ---
 
