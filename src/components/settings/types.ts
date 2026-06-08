@@ -49,6 +49,8 @@ export interface AppSettings {
   triggerSound: TriggerSoundId;
   triggerSoundVolume: number;
   triggerSoundUrl?: string;
+  slowMotionEnabled: boolean;
+  slowMotionSpeed: 0.5 | 0.25;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -98,6 +100,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   triggerSound: "beep",
   triggerSoundVolume: 70,
   triggerSoundUrl: "",
+  slowMotionEnabled: true,
+  slowMotionSpeed: 0.5,
 };
 
 export const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [

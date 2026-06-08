@@ -12,9 +12,9 @@ import type { AppSettings } from '../components/SettingsModal';
 type Speed = 1 | SlowMotionSpeed;
 
 const SPEEDS: { value: Speed; emoji: string; label: string; sublabel: string }[] = [
-  { value: 1,    emoji: '▶️',  label: '1×',  sublabel: 'Vitesse normale'  },
-  { value: 0.5,  emoji: '🐢',  label: '½×',  sublabel: 'Slow-Mo'          },
-  { value: 0.25, emoji: '✨',  label: '¼×',  sublabel: 'Ultra Slow'       },
+  { value: 1,    emoji: '▶️',  label: '1×',  sublabel: 'Vitesse normale' },
+  { value: 0.5,  emoji: '🐢',  label: '½×',  sublabel: 'Slow-Motion' },
+  { value: 0.25, emoji: '✨',  label: '¼×',  sublabel: 'Ultra Slow' },
 ];
 
 const EXPORT_FORMATS: {
@@ -47,7 +47,7 @@ export default function SharePage() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [source, setSource] = useState<Source>('local');
   const [originalUrl, setOriginalUrl] = useState('');
-  const [selectedSpeed, setSelectedSpeed] = useState<Speed>(1);
+  const [selectedSpeed, setSelectedSpeed] = useState<Speed>(0.5);
   const [selectedFormat, setSelectedFormat] = useState<ExportFormat>('16:9');
   const [selectedMusic, setSelectedMusic] = useState<MusicSelection>('none');
   const [musicEnabled, setMusicEnabled] = useState(false);
@@ -75,6 +75,11 @@ export default function SharePage() {
       setRecordAudio(settings.recordAudio);
       if (settings.backgroundMusicEnabled) {
         setSelectedMusic(settings.backgroundMusicDefault);
+      }
+      if (settings.slowMotionEnabled) {
+        setSelectedSpeed(settings.slowMotionSpeed);
+      } else {
+        setSelectedSpeed(1);
       }
     }).catch(() => undefined);
   }, []);
