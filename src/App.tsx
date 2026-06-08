@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw } from "lucide-react";
+import { AlertCircle, Camera, Download, GalleryHorizontal, RefreshCcw, Settings } from "lucide-react";
 import { motion } from "motion/react";
 
 import SplashScreen from "./components/SplashScreen";
@@ -346,6 +346,31 @@ export default function App() {
         />
       ) : (
         <>
+          {/* Header avec boutons admin */}
+          {!isReviewing && (
+            <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between p-4">
+              <button
+                type="button"
+                onClick={() => setSettingsOpen(true)}
+                className="glass-panel flex h-12 w-12 items-center justify-center rounded-full active:scale-[0.98] touch-manipulation"
+                aria-label="Paramètres"
+                onTouchStart={() => haptic.light()}
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => navigate("/gallery")}
+                className="glass-panel flex h-12 w-12 items-center justify-center rounded-full active:scale-[0.98] touch-manipulation"
+                aria-label="Galerie"
+                onTouchStart={() => haptic.light()}
+              >
+                <GalleryHorizontal className="h-5 w-5" />
+              </button>
+            </div>
+          )}
+          
           <main className={`relative flex-1 overflow-hidden bg-black ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
             {cameraError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
