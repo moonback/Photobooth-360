@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Camera, Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music, Sparkles } from 'lucide-react';
+import { Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music, Sparkles } from 'lucide-react';
 import { loadVideo } from '../lib/videoStore';
 import { loadSettings } from '../lib/settingsStore';
 import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
@@ -55,8 +55,9 @@ export default function SharePage() {
   const [recordAudio, setRecordAudio] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [videoError, setVideoError] = useState(false);
+  const [startTime, setStartTime] = useState<number>(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { processVideo, status, progress } = useSlowMotion();
   const { composeWithJingles, compositionStage, compositionProgress } = useVideoComposer();
@@ -87,7 +88,7 @@ export default function SharePage() {
 
   useEffect(() => {
     if (!id) {
-      setErrorMsg('Identifiant manquant dans le lien.');
+      setErrorMessage('Identifiant manquant dans le lien.');
       setPhase('error');
       return;
     }
@@ -111,11 +112,11 @@ export default function SharePage() {
         setOriginalUrl(url);
         setPhase('choose');
       } else {
-        setErrorMsg('Vidéo introuvable. Elle a peut-être expiré ou été enregistrée sur un autre appareil.');
+        setErrorMessage('Vidéo introuvable. Elle a peut-être expiré ou été enregistrée sur un autre appareil.');
         setPhase('error');
       }
     }).catch(() => {
-      setErrorMsg('Erreur lors de la récupération de la vidéo.');
+      setErrorMessage('Erreur lors de la récupération de la vidéo.');
       setPhase('error');
     });
   }, [id, searchParams]);
@@ -126,6 +127,7 @@ export default function SharePage() {
 
   const handleConfirm = async () => {
     setPhase('encoding');
+    setStartTime(Date.now());
     try {
       let sourceUrl = originalUrl;
 
@@ -143,11 +145,11 @@ export default function SharePage() {
         setDownloadUrl(result);
         setPhase('ready');
       } else {
-        setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
+        setErrorMessage("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
         setPhase('choose');
       }
     } catch {
-      setErrorMsg("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
+      setErrorMessage("L'encodage a échoué. Réessayez avec un autre format ou choisissez la vitesse normale.");
       setPhase('choose');
     }
   };
@@ -229,7 +231,7 @@ export default function SharePage() {
         {phase === 'error' && (
           <div className="flex flex-col items-center gap-3 py-12 text-center flex-shrink-0">
             <AlertCircle className="w-10 h-10 text-red-400" />
-            <p className="text-red-400 text-sm">{errorMsg}</p>
+            <p className="text-red-400 text-sm">{errorMessage}</p>
             <p className="text-zinc-600 text-xs">
               Cette page fonctionne uniquement depuis l'appareil où la vidéo a été enregistrée.
             </p>
@@ -480,6 +482,31 @@ export default function SharePage() {
                         />
                       </div>
                     </div>
+
+                    {(() => {
+                      const currentProgress = compositionStage === 'idle' || compositionStage === 'done' ? progress : compositionProgress;
+                      if (currentProgress > 0 && currentProgress < 100) {
+                        const elapsed = (Date.now() - startTime) / 1000;
+                        const estimatedTotal = elapsed / (currentProgress / 100);
+                        const estimatedRemaining = Math.max(0, estimatedTotal - elapsed);
+                        
+                        let timeText = '';
+                        if (estimatedRemaining < 60) {
+                          timeText = `~${Math.ceil(estimatedRemaining)}s`;
+                        } else {
+                          const minutes = Math.floor(estimatedRemaining / 60);
+                          const seconds = Math.ceil(estimatedRemaining % 60);
+                          timeText = `~${minutes}m${seconds}s`;
+                        }
+                        
+                        return (
+                          <p className="text-xs text-zinc-400 text-center">
+                            Temps restant estimé: {timeText}
+                          </p>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     <p className="text-xs text-zinc-600 text-center">
                       Traitement 100% local — aucune donnée envoyée

@@ -370,6 +370,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const cancelledRef = useRef(false);
+  const startTimeRef = useRef<number>(0);
 
   const processVideo = useCallback(async (
     inputUrl: string,
@@ -386,6 +387,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
     setStatus('loading');
     setProgress(0);
     setErrorMessage('');
+    startTimeRef.current = Date.now();
 
     if (!needsProcessing(speed, format, music)) {
       console.log('[useSlowMotion] ✅ No processing needed, returning input URL directly');
@@ -407,20 +409,20 @@ export function useSlowMotion(): UseSlowMotionReturn {
       let browserResult: { url: string; blobSize: number } | null = null;
       try {
         console.log('[useSlowMotion] 🌐 Trying browser encoding first...');
-        setStatus('processing');
-        browserResult = await encodeWithBrowser({
-          inputUrl,
-          speed,
-          format,
-          music,
-          musicVolume,
-          mixWithVideoAudio,
-          musicStartOffset,
-          onProgress: (p) => {
-            // console.log('[useSlowMotion] ⏳ Browser encoding progress:', p + '%');
-            if (!cancelledRef.current) setProgress(p);
-          },
-        });
+      setStatus('processing');
+      browserResult = await encodeWithBrowser({
+        inputUrl,
+        speed,
+        format,
+        music,
+        musicVolume,
+        mixWithVideoAudio,
+        musicStartOffset,
+        onProgress: (p) => {
+          // console.log('[useSlowMotion] ⏳ Browser encoding progress:', p + '%');
+          if (!cancelledRef.current) setProgress(Math.max(0, Math.min(100, p)));
+        },
+      });
 
         if (cancelledRef.current) {
           console.log('[useSlowMotion] ⛔ Processing cancelled');
@@ -447,8 +449,9 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       console.log('[useSlowMotion] 🎬 Starting FFmpeg encoding...');
       const ff = await getFFmpeg((p) => {
-        console.log('[useSlowMotion] ⏳ FFmpeg progress:', p + '%');
-        if (!cancelledRef.current) setProgress(p);
+        const clampedProgress = Math.max(0, Math.min(100, p));
+        console.log('[useSlowMotion] ⏳ FFmpeg progress:', clampedProgress + '%');
+        if (!cancelledRef.current) setProgress(clampedProgress);
       });
 
       if (cancelledRef.current) {
@@ -490,6 +493,13 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       let outputArgs: string[];
 
+      // Shared optimization args for speed
+      const optimizeArgs = [
+        '-threads', '4',
+        '-cpu-used', '4', // Faster encoding
+        '-deadline', 'realtime',
+      ];
+
       if (hasMusic && speed === 1 && format === '16:9') {
         outputArgs = [
           '-i', 'input.webm',
@@ -500,6 +510,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-c:v', 'copy',
           '-c:a', 'libvorbis',
           '-shortest',
+          ...optimizeArgs,
           'output.webm',
         ];
       } else if (hasMusic && speed !== 1 && format === '16:9') {
@@ -520,6 +531,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-b:v', '2M',
           '-c:a', 'libvorbis',
           '-shortest',
+          ...optimizeArgs,
           'output.webm',
         ];
       } else if (hasMusic) {
@@ -547,6 +559,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-b:v', '2M',
           '-c:a', 'libvorbis',
           '-shortest',
+          ...optimizeArgs,
           'output.webm',
         ];
       } else if (speed === 1) {
@@ -558,6 +571,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-c:v', 'libvpx',
           '-b:v', '2M',
           '-c:a', 'copy',
+          ...optimizeArgs,
           'output.webm',
         ];
       } else if (format !== '16:9') {
@@ -570,6 +584,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-c:v', 'libvpx',
           '-b:v', '2M',
           '-c:a', 'libvorbis',
+          ...optimizeArgs,
           'output.webm',
         ];
       } else {
@@ -580,6 +595,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-c:v', 'libvpx',
           '-b:v', '2M',
           '-c:a', 'libvorbis',
+          ...optimizeArgs,
           'output.webm',
         ];
       }
@@ -591,6 +607,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
         '-an',
         '-c:v', 'libvpx',
         '-b:v', '2M',
+        ...optimizeArgs,
         'output.webm',
       ];
 
@@ -607,6 +624,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
             '-c:v', 'copy',
             '-c:a', 'libvorbis',
             '-shortest',
+            ...optimizeArgs,
             'output.webm',
           ];
         }
@@ -621,6 +639,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-b:v', '2M',
           '-c:a', 'libvorbis',
           '-shortest',
+          ...optimizeArgs,
           'output.webm',
         ];
       };
