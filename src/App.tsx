@@ -23,6 +23,7 @@ import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useSlowMotion } from "./hooks/useSlowMotion";
 import { useVideoComposer } from "./hooks/useVideoComposer";
+import { useProcessingQueue } from "./hooks/useProcessingQueue";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
@@ -64,6 +65,19 @@ export default function App() {
 
   const { processVideo, status: processingStatus, progress: processingProgress } = useSlowMotion();
   const { composeWithJingles, isComposing, compositionStage, compositionProgress } = useVideoComposer();
+  const {
+    queue: processingQueue,
+    isProcessing,
+    processingStatus: queueProcessingStatus,
+    addToQueue
+  } = useProcessingQueue(composeWithJingles, processVideo);
+
+  // Track processed videos (url → processedUrl)
+  const [processedVideos, setProcessedVideos] = useState<Record<string, string>>({});
+  // Track share info for processed videos (url → {shareId, publicUrl, isSavingShare})
+  const [videoShareInfo, setVideoShareInfo] = useState<Record<string, { shareId?: string, publicUrl?: string, isSavingShare?: boolean }>>({});
+  // Currently reviewing video (the one shown in PlaybackView and ShareSection)
+  const [reviewingVideoUrl, setReviewingVideoUrl] = useState<string>("");
 
   // Exposer le toggle diagnostic dans la console pour debug mobile
   useEffect(() => {
@@ -81,11 +95,19 @@ export default function App() {
   }, []);
 
   const accent = ACCENT[settings.accentColor];
-  const isReviewing = Boolean(videoUrl);
+  const isReviewing = Boolean(reviewingVideoUrl);
   const bg = getPresentationBackground(settings.appBackground);
   const backgroundStyle = settings.appBackgroundUrl
     ? { backgroundImage: `url(${settings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
     : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
+
+  // Get current share info and processed URL
+  const currentProcessedUrl = reviewingVideoUrl ? processedVideos[reviewingVideoUrl] : null;
+  const currentShareInfo = reviewingVideoUrl ? videoShareInfo[reviewingVideoUrl] : null;
+  const isCurrentlyProcessing = reviewingVideoUrl && !processedVideos[reviewingVideoUrl];
+  const currentShareId = currentShareInfo?.shareId || "";
+  const currentPublicUrl = currentShareInfo?.publicUrl || "";
+  const currentIsSavingShare = currentShareInfo?.isSavingShare || false;
 
   useEffect(() => {
     return () => {
@@ -165,7 +187,7 @@ export default function App() {
       stream?.getAudioTracks().forEach((track: MediaStreamTrack) => { track.enabled = false; });
       
       setVideoUrl(url);
-      setProcessedVideoUrl("");
+      setReviewingVideoUrl(url);
       setShareId("");
       setGallery((prev: string[]) => [url, ...prev.filter((item: string) => item !== url)]);
 
@@ -186,71 +208,66 @@ export default function App() {
 
       haptic.success();
 
-      // Process video step by step
-      let currentVideoUrl = url;
-      let finalBlob = blob;
+      // Add video to processing queue
+      addToQueue(url, blob, settings)
+        .then(async (processedUrl) => {
+          // Mark as processed
+          setProcessedVideos(prev => ({ ...prev, [url]: processedUrl }));
 
-      // Step 1: Apply intro/outro jingles if enabled
-      if (settings.jingleEnabled) {
-        const composedUrl = await composeWithJingles(currentVideoUrl, settings, "16:9");
-        if (composedUrl !== currentVideoUrl) {
-          currentVideoUrl = composedUrl;
-          const response = await fetch(composedUrl);
-          finalBlob = await response.blob();
-        }
-      }
-
-      // Step 2: Apply slow motion if enabled
-      if (settings.slowMotionEnabled) {
-        // Prepare options for background music
-        const musicOptions = settings.backgroundMusicEnabled 
-          ? { 
-              music: settings.backgroundMusicDefault, 
-              musicVolume: settings.backgroundMusicVolume,
-              mixWithVideoAudio: settings.recordAudio 
-            }
-          : {};
-
-        const processedUrl = await processVideo(
-          currentVideoUrl,
-          settings.slowMotionSpeed,
-          "16:9",
-          musicOptions
-        );
-        if (processedUrl) {
-          currentVideoUrl = processedUrl;
-          const response = await fetch(processedUrl);
-          finalBlob = await response.blob();
-        }
-      }
-
-      setProcessedVideoUrl(currentVideoUrl);
-
-      if (cloudEnabled) {
-        upload(finalBlob).then((publicUrl) => {
-          if (publicUrl) {
-            setGallery((prev: string[]) => prev.map((item: string) => (item === url ? publicUrl : item)));
-            publishScreenCapture({
-              videoUrl: publicUrl,
-              shareUrl: buildCloudShareUrl(publicUrl),
-              source: "cloud",
-            });
+          // Update gallery with processed URL
+          if (processedUrl !== url) {
+            setGallery(prev => prev.map(item => item === url ? processedUrl : item));
           }
-        });
-      } else {
-        setIsSavingShare(true);
-        saveVideo(finalBlob)
-          .then((id) => {
-            setShareId(id);
-            publishScreenCapture({
-              videoUrl: currentVideoUrl,
-              shareUrl: buildLocalShareUrl(id),
-              source: "local",
+
+          // Get final blob
+          const response = await fetch(processedUrl);
+          const finalBlob = await response.blob();
+
+          // Upload or save for sharing
+          if (cloudEnabled) {
+            upload(finalBlob).then((publicUrl) => {
+              if (publicUrl) {
+                setGallery((prev) => prev.map((item) => item === processedUrl ? publicUrl : item));
+                setVideoShareInfo(prev => ({
+                  ...prev,
+                  [url]: { ...prev[url], publicUrl }
+                }));
+                publishScreenCapture({
+                  videoUrl: publicUrl,
+                  shareUrl: buildCloudShareUrl(publicUrl),
+                  source: "cloud",
+                });
+              }
             });
-          })
-          .catch((error) => logger.error("[App] Local share save failed:", error))
-          .finally(() => setIsSavingShare(false));
-      }
+          } else {
+            setVideoShareInfo(prev => ({
+              ...prev,
+              [url]: { ...prev[url], isSavingShare: true }
+            }));
+            saveVideo(finalBlob)
+              .then((id) => {
+                setVideoShareInfo(prev => ({
+                  ...prev,
+                  [url]: { ...prev[url], shareId: id, isSavingShare: false }
+                }));
+                publishScreenCapture({
+                  videoUrl: processedUrl,
+                  shareUrl: buildLocalShareUrl(id),
+                  source: "local",
+                });
+              })
+              .catch((error) => {
+                logger.error("[App] Local share save failed:", error);
+                setVideoShareInfo(prev => ({
+                  ...prev,
+                  [url]: { ...prev[url], isSavingShare: false }
+                }));
+              });
+          }
+        })
+        .catch(error => {
+          logger.error("[App] Video processing failed:", error);
+        });
     },
   });
 
@@ -319,6 +336,7 @@ export default function App() {
   const handleReset = () => {
     stream?.getAudioTracks().forEach((track) => { track.enabled = settings.recordAudio; });
     setVideoUrl("");
+    setReviewingVideoUrl("");
     setShareId("");
     setCurrentVideoId("");
     setIsFullscreen(false);
@@ -417,29 +435,39 @@ export default function App() {
                 {isReviewing && (
                   <div className="relative h-full w-full">
                     <PlaybackView 
-                      videoUrl={processedVideoUrl || videoUrl} 
+                      videoUrl={currentProcessedUrl || reviewingVideoUrl} 
                       eventName={settings.eventName} 
                       slowMotionEnabled={settings.slowMotionEnabled} 
                       slowMotionSpeed={settings.slowMotionSpeed} 
                     />
-                    {(isComposing || processingStatus === "loading" || processingStatus === "processing") ? (
+                    {isCurrentlyProcessing && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
                         <div className="h-12 w-12 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
                         <div className="text-center mt-4">
                           <p className="text-body font-semibold text-white">
-                            {isComposing && compositionStage === "intro" && "Ajout de l'intro..."}
-                            {isComposing && compositionStage === "main" && "Préparation de la vidéo principale..."}
-                            {isComposing && compositionStage === "outro" && "Ajout de l'outro..."}
-                            {isComposing && compositionStage === "finalizing" && "Finalisation..."}
-                            {processingStatus === "loading" && "Chargement..."}
-                            {processingStatus === "processing" && "Encodage de la vidéo..."}
+                            {queueProcessingStatus.isComposing && queueProcessingStatus.compositionStage === "intro" && "Ajout de l'intro..."}
+                            {queueProcessingStatus.isComposing && queueProcessingStatus.compositionStage === "main" && "Préparation de la vidéo principale..."}
+                            {queueProcessingStatus.isComposing && queueProcessingStatus.compositionStage === "outro" && "Ajout de l'outro..."}
+                            {queueProcessingStatus.isComposing && queueProcessingStatus.compositionStage === "finalizing" && "Finalisation..."}
+                            {queueProcessingStatus.isProcessingSlowMotion && queueProcessingStatus.slowMotionStatus === "loading" && "Chargement..."}
+                            {queueProcessingStatus.isProcessingSlowMotion && queueProcessingStatus.slowMotionStatus === "processing" && "Encodage de la vidéo..."}
+                            {!queueProcessingStatus.isComposing && !queueProcessingStatus.isProcessingSlowMotion && "Préparation..."}
                           </p>
                           <p className="text-caption text-white/60 mt-1">
-                            {isComposing ? `${compositionProgress}%` : `${processingProgress}%`}
+                            {queueProcessingStatus.isComposing ? `${queueProcessingStatus.compositionProgress}%` : 
+                             queueProcessingStatus.isProcessingSlowMotion ? `${queueProcessingStatus.slowMotionProgress}%` : ""}
                           </p>
                         </div>
                       </div>
-                    ) : null}
+                    )}
+                  </div>
+                )}
+
+                {/* Processing queue indicator */}
+                {processingQueue.length > 0 && (
+                  <div className="absolute top-4 right-4 z-40 flex items-center gap-2 rounded-xl bg-black/70 px-3 py-2 backdrop-blur-sm">
+                    <div className="h-5 w-5 rounded-full border-2 border-white/20 border-t-neuro-accent animate-spin" />
+                    <span className="text-body font-semibold text-white">{processingQueue.length} en attente</span>
                   </div>
                 )}
 
@@ -456,15 +484,15 @@ export default function App() {
               </div>
             )}
 
-            {isReviewing && (
+            {isReviewing && currentProcessedUrl && (
               <div className="absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.9rem)] z-30 md:bottom-0">
                 <ShareSection 
                   cloudEnabled={cloudEnabled} 
                   uploadStatus={uploadStatus} 
                   uploadProgress={uploadProgress} 
-                  uploadedUrl={uploadedUrl} 
-                  shareId={shareId} 
-                  isSavingShare={isSavingShare} 
+                  uploadedUrl={currentPublicUrl} 
+                  shareId={currentShareId} 
+                  isSavingShare={currentIsSavingShare} 
                   accent={accent}
                   eventId={settings.eventName || "default"}
                   onOpenEmailCapture={settings.emailCaptureEnabled ? () => {
@@ -504,10 +532,10 @@ export default function App() {
                   
                   {/* Bouton Sauver avec gradient accent */}
                   <motion.a 
-                    href={processedVideoUrl || videoUrl} 
+                    href={currentProcessedUrl || reviewingVideoUrl} 
                     download="neurobooth360.webm"
                     onClick={() => {
-                      const videoId = currentVideoId || shareId || videoUrl || `video_${Date.now()}`;
+                      const videoId = currentVideoId || currentShareId || currentProcessedUrl || reviewingVideoUrl || `video_${Date.now()}`;
                       trackDownload(videoId, settings.eventName || "default");
                       haptic.medium();
                     }}
@@ -557,7 +585,7 @@ export default function App() {
         isOpen={showEmailModal}
         onClose={() => setShowEmailModal(false)}
         onSubmit={handleEmailCapture}
-        videoUrl={uploadedUrl || processedVideoUrl || videoUrl}
+        videoUrl={currentPublicUrl || currentProcessedUrl || reviewingVideoUrl}
       />
       
       {/* Kiosk guard — blocks navigation, shows exit PIN prompt */}

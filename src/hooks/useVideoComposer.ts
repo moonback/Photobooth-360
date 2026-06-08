@@ -9,7 +9,12 @@ export interface UseVideoComposerReturn {
   isComposing: boolean;
   compositionStage: CompositionStage;
   compositionProgress: number;
-  composeWithJingles: (videoUrl: string, settings: AppSettings, format?: ExportFormat) => Promise<string>;
+  composeWithJingles: (
+    videoUrl: string,
+    settings: AppSettings,
+    format?: ExportFormat,
+    onProgress?: (stage: CompositionStage, progress: number) => void
+  ) => Promise<string>;
 }
 
 /**
@@ -21,7 +26,12 @@ export function useVideoComposer(): UseVideoComposerReturn {
   const [compositionProgress, setCompositionProgress] = useState(0);
 
   const composeWithJingles = useCallback(
-    async (videoUrl: string, settings: AppSettings, format: ExportFormat = '16:9'): Promise<string> => {
+    async (
+      videoUrl: string,
+      settings: AppSettings,
+      format: ExportFormat = '16:9',
+      onProgress?: (stage: CompositionStage, progress: number) => void
+    ): Promise<string> => {
       // If jingles are disabled or not configured, return video as-is
       const introSlide = settings.introMode === "template" ? {
         template: settings.introTemplate,
@@ -46,9 +56,14 @@ export function useVideoComposer(): UseVideoComposerReturn {
         return videoUrl;
       }
 
-      setIsComposing(true);
-      setCompositionStage('intro');
-      setCompositionProgress(0);
+      const setComposing = (stage: CompositionStage, progress: number) => {
+        setIsComposing(true);
+        setCompositionStage(stage);
+        setCompositionProgress(progress);
+        onProgress?.(stage, progress);
+      };
+
+      setComposing('intro', 0);
 
       try {
         const { width, height } = getExportDimensions(settings.resolution || '720p', format);
@@ -63,15 +78,10 @@ export function useVideoComposer(): UseVideoComposerReturn {
           height,
           format,
           recordAudio: settings.recordAudio,
-          onProgress: (stage, progress) => {
-            setCompositionStage(stage);
-            setCompositionProgress(progress);
-          },
+          onProgress: (stage, progress) => setComposing(stage, progress),
         });
 
-        setCompositionStage('done');
-        setCompositionProgress(100);
-        setIsComposing(false);
+        setComposing('done', 100);
 
         return composedUrl;
       } catch (err) {

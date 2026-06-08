@@ -23,6 +23,7 @@ interface UseSlowMotionReturn {
     speed: 1 | SlowMotionSpeed,
     format?: ExportFormat,
     options?: ProcessVideoOptions,
+    onProgress?: (status: ProcessingStatus, progress: number) => void,
   ) => Promise<string | null>;
   status: ProcessingStatus;
   progress: number;
@@ -257,18 +258,23 @@ export function useSlowMotion(): UseSlowMotionReturn {
     speed: 1 | SlowMotionSpeed,
     format: ExportFormat = '16:9',
     options: ProcessVideoOptions = {},
+    onProgress?: (status: ProcessingStatus, progress: number) => void,
   ): Promise<string | null> => {
     const { music = 'none', musicVolume = 35, mixWithVideoAudio = false } = options;
     const hasMusic = music !== 'none';
 
+    const updateStatus = (newStatus: ProcessingStatus, newProgress: number) => {
+      setStatus(newStatus);
+      setProgress(newProgress);
+      onProgress?.(newStatus, newProgress);
+    };
+
     cancelledRef.current = false;
-    setStatus('loading');
-    setProgress(0);
+    updateStatus('loading', 0);
     setErrorMessage('');
 
     if (!needsProcessing(speed, format, music)) {
-      setProgress(100);
-      setStatus('done');
+      updateStatus('done', 100);
       return inputUrl;
     }
 
@@ -280,7 +286,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
       }
 
       try {
-        setStatus('processing');
+        updateStatus('processing', 0);
         const browserUrl = await encodeWithBrowser({
           inputUrl,
           speed,
@@ -290,32 +296,31 @@ export function useSlowMotion(): UseSlowMotionReturn {
           mixWithVideoAudio,
           musicStartOffset,
           onProgress: (p) => {
-            if (!cancelledRef.current) setProgress(p);
+            if (!cancelledRef.current) updateStatus('processing', p);
           },
         });
 
         if (cancelledRef.current) {
-          setStatus('idle');
+          updateStatus('idle', 0);
           return null;
         }
 
-        setProgress(100);
-        setStatus('done');
+        updateStatus('done', 100);
         return browserUrl;
       } catch (browserError) {
         console.warn('[useSlowMotion] Encodage navigateur indisponible, fallback FFmpeg:', browserError);
       }
 
       const ff = await getFFmpeg((p) => {
-        if (!cancelledRef.current) setProgress(p);
+        if (!cancelledRef.current) updateStatus('processing', p);
       });
 
       if (cancelledRef.current) {
-        setStatus('idle');
+        updateStatus('idle', 0);
         return null;
       }
 
-      setStatus('processing');
+      updateStatus('processing', 0);
 
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
       await ff.writeFile('input.webm', await fetchFile(inputUrl));
@@ -326,7 +331,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
       }
 
       if (cancelledRef.current) {
-        setStatus('idle');
+        updateStatus('idle', 0);
         return null;
       }
 
@@ -478,7 +483,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
         await ff.exec(outputArgs);
       } catch (execError) {
         if (cancelledRef.current) {
-          setStatus('idle');
+          updateStatus('idle', 0);
           return null;
         }
 
@@ -491,7 +496,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
       }
 
       if (cancelledRef.current) {
-        setStatus('idle');
+        updateStatus('idle', 0);
         return null;
       }
 
@@ -507,12 +512,11 @@ export function useSlowMotion(): UseSlowMotionReturn {
 
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
 
-      setProgress(100);
-      setStatus('done');
+      updateStatus('done', 100);
       return outputUrl;
     } catch (err) {
       if (cancelledRef.current) {
-        setStatus('idle');
+        updateStatus('idle', 0);
         return null;
       }
       console.error('[useSlowMotion]', err);
