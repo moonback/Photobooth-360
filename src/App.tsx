@@ -22,6 +22,7 @@ import { useKiosk } from "./hooks/useKiosk";
 import { useSettings } from "./hooks/useSettings";
 import { useUpload } from "./hooks/useUpload";
 import { useSlowMotion } from "./hooks/useSlowMotion";
+import { useVideoComposer } from "./hooks/useVideoComposer";
 import { useMobileOptimizations, useHapticFeedback } from "./hooks/useMobileOptimizations";
 import { saveVideo } from "./lib/videoStore";
 import { buildCloudShareUrl, buildLocalShareUrl, publishScreenCapture } from "./lib/screenCapture";
@@ -62,6 +63,7 @@ export default function App() {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { processVideo, status: processingStatus, progress: processingProgress } = useSlowMotion();
+  const { composeWithJingles, isComposing, compositionStage, compositionProgress } = useVideoComposer();
 
   // Exposer le toggle diagnostic dans la console pour debug mobile
   useEffect(() => {
@@ -184,25 +186,45 @@ export default function App() {
 
       haptic.success();
 
-      // Process video with default slow motion settings
-      let finalVideoUrl = url;
+      // Process video step by step
+      let currentVideoUrl = url;
       let finalBlob = blob;
 
+      // Step 1: Apply intro/outro jingles if enabled
+      if (settings.jingleEnabled) {
+        const composedUrl = await composeWithJingles(currentVideoUrl, settings, "16:9");
+        if (composedUrl !== currentVideoUrl) {
+          currentVideoUrl = composedUrl;
+          const response = await fetch(composedUrl);
+          finalBlob = await response.blob();
+        }
+      }
+
+      // Step 2: Apply slow motion if enabled
       if (settings.slowMotionEnabled) {
+        // Prepare options for background music
+        const musicOptions = settings.backgroundMusicEnabled 
+          ? { 
+              music: settings.backgroundMusicDefault, 
+              musicVolume: settings.backgroundMusicVolume,
+              mixWithVideoAudio: settings.recordAudio 
+            }
+          : {};
+
         const processedUrl = await processVideo(
-          url,
+          currentVideoUrl,
           settings.slowMotionSpeed,
-          "16:9", // Default format, no cropping
-          {}
+          "16:9",
+          musicOptions
         );
         if (processedUrl) {
-          setProcessedVideoUrl(processedUrl);
-          finalVideoUrl = processedUrl;
-          // Fetch the processed blob from the URL
+          currentVideoUrl = processedUrl;
           const response = await fetch(processedUrl);
           finalBlob = await response.blob();
         }
       }
+
+      setProcessedVideoUrl(currentVideoUrl);
 
       if (cloudEnabled) {
         upload(finalBlob).then((publicUrl) => {
@@ -221,12 +243,12 @@ export default function App() {
           .then((id) => {
             setShareId(id);
             publishScreenCapture({
-              videoUrl: finalVideoUrl,
+              videoUrl: currentVideoUrl,
               shareUrl: buildLocalShareUrl(id),
               source: "local",
             });
           })
-          .catch((error) => logger.error("[App] Local share save failed", error))
+          .catch((error) => logger.error("[App] Local share save failed:", error))
           .finally(() => setIsSavingShare(false));
       }
     },
@@ -400,14 +422,21 @@ export default function App() {
                       slowMotionEnabled={settings.slowMotionEnabled} 
                       slowMotionSpeed={settings.slowMotionSpeed} 
                     />
-                    {processingStatus === "loading" || processingStatus === "processing" ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                        <div className="flex flex-col items-center gap-4">
-                          <div className="h-12 w-12 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
-                          <div className="text-center">
-                            <p className="text-body font-semibold text-white">Préparation de la vidéo</p>
-                            <p className="text-caption text-white/60 mt-1">{processingProgress}%</p>
-                          </div>
+                    {(isComposing || processingStatus === "loading" || processingStatus === "processing") ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="h-12 w-12 rounded-full border-4 border-white/10 border-t-neuro-accent animate-spin" />
+                        <div className="text-center mt-4">
+                          <p className="text-body font-semibold text-white">
+                            {isComposing && compositionStage === "intro" && "Ajout de l'intro..."}
+                            {isComposing && compositionStage === "main" && "Préparation de la vidéo principale..."}
+                            {isComposing && compositionStage === "outro" && "Ajout de l'outro..."}
+                            {isComposing && compositionStage === "finalizing" && "Finalisation..."}
+                            {processingStatus === "loading" && "Chargement..."}
+                            {processingStatus === "processing" && "Encodage de la vidéo..."}
+                          </p>
+                          <p className="text-caption text-white/60 mt-1">
+                            {isComposing ? `${compositionProgress}%` : `${processingProgress}%`}
+                          </p>
                         </div>
                       </div>
                     ) : null}
