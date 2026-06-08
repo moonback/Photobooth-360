@@ -1,5 +1,4 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
 
 let ffmpegInstance: FFmpeg | null = null;
 let ffmpegLoadPromise: Promise<void> | null = null;
@@ -18,10 +17,11 @@ export async function getFFmpeg(onProgress?: (p: number) => void): Promise<FFmpe
   }
 
   if (!ffmpegLoadPromise) {
-    const baseURL = '/ffmpeg-core';
+    // Use CDN for ffmpeg-core files since they're not available locally
+    const baseCDN = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
     ffmpegLoadPromise = ff.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      coreURL: `${baseCDN}/ffmpeg-core.js`,
+      wasmURL: `${baseCDN}/ffmpeg-core.wasm`,
     }).then(() => undefined);
   }
 
@@ -38,8 +38,10 @@ export async function cleanupFiles(ff: FFmpeg, names: string[]): Promise<void> {
   for (const name of names) {
     try {
       const files = await ff.listDir('/');
-      if (files.some((f) => f.name === name)) {
-        await ff.deleteFile(name);
+      for (const file of files) {
+        if (file.name && names.includes(file.name)) {
+          await ff.deleteFile(file.name);
+        }
       }
     } catch {
       // ignore

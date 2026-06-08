@@ -56,6 +56,7 @@ export default function SharePage() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const { processVideo, status, progress } = useSlowMotion();
   const { composeWithJingles, compositionStage, compositionProgress } = useVideoComposer();
@@ -238,15 +239,43 @@ export default function SharePage() {
         {(phase === 'choose' || phase === 'encoding') && originalUrl && (
           <>
             <div className="w-full rounded-2xl overflow-hidden bg-black ring-1 ring-white/10" style={{ aspectRatio: selectedFormatConfig.aspectRatio }}>
-              <video
-                ref={videoRef}
-                src={originalUrl}
-                autoPlay
-                loop
-                playsInline
-                muted={false}
-                className="w-full h-full object-cover"
-              />
+              {videoError ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <AlertCircle className="w-10 h-10 text-red-400" />
+                  <p className="text-red-400 text-sm">Impossible de charger la vidéo</p>
+                  <button 
+                    onClick={() => {
+                      setVideoError(false);
+                      if (videoRef.current) {
+                        videoRef.current.load();
+                      }
+                    }}
+                    className="text-xs text-zinc-400 hover:text-white underline"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <video
+                  ref={videoRef}
+                  src={originalUrl}
+                  autoPlay
+                  loop
+                  playsInline
+                  muted
+                  controls
+                  onError={() => setVideoError(true)}
+                  onLoadedMetadata={(e) => {
+                    if (e.currentTarget.duration > 0) {
+                      setVideoError(false);
+                      e.currentTarget.play().catch(() => {
+                        // Ignore autoplay errors, user will press play manually
+                      });
+                    }
+                  }}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
 
             <div className="w-full space-y-2">
@@ -398,44 +427,65 @@ export default function SharePage() {
             )}
 
             {phase === 'encoding' && (
-              <div className="w-full space-y-2">
-                <div className="flex items-center justify-between text-xs text-zinc-400">
-                  <span className="flex items-center gap-1.5">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    {compositionStage === 'intro' && 'Ajout de l\'intro…'}
-                    {compositionStage === 'main' && 'Traitement vidéo…'}
-                    {compositionStage === 'outro' && 'Ajout de l\'outro…'}
-                    {compositionStage === 'finalizing' && 'Finalisation intro/outro…'}
-                    {(compositionStage === 'idle' || compositionStage === 'done') && (
-                      status === 'loading' ? 'Chargement FFmpeg…' : `Encodage… ${progress}%`
-                    )}
-                  </span>
-                  <span>
-                    {compositionStage === 'idle' || compositionStage === 'done'
-                      ? `${progress}%`
-                      : `${compositionProgress}%`}
-                  </span>
+              // Modal overlay
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className={`w-10 h-10 animate-spin ${
+                      accentClass === "indigo" ? "text-indigo-400" :
+                      accentClass === "rose" ? "text-rose-400" :
+                      accentClass === "amber" ? "text-amber-400" :
+                      accentClass === "emerald" ? "text-emerald-400" : "text-cyan-400"
+                    }`} />
+                    
+                    <div className="text-center space-y-1">
+                      <h3 className="text-lg font-semibold text-white">
+                        Préparation de la vidéo…
+                      </h3>
+                      <p className="text-sm text-zinc-400">
+                        {compositionStage === 'intro' && 'Ajout de l\'intro…'}
+                        {compositionStage === 'main' && 'Traitement vidéo…'}
+                        {compositionStage === 'outro' && 'Ajout de l\'outro…'}
+                        {compositionStage === 'finalizing' && 'Finalisation intro/outro…'}
+                        {(compositionStage === 'idle' || compositionStage === 'done') && (
+                          status === 'loading' ? 'Chargement FFmpeg…' : `Encodage…`
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="w-full space-y-2">
+                      <div className="flex items-center justify-between text-xs text-zinc-400">
+                        <span>Progression</span>
+                        <span className="font-semibold">
+                          {compositionStage === 'idle' || compositionStage === 'done'
+                            ? `${progress}%`
+                            : `${compositionProgress}%`}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            accentClass === "indigo" ? "bg-indigo-500" :
+                            accentClass === "rose" ? "bg-rose-500" :
+                            accentClass === "amber" ? "bg-amber-500" :
+                            accentClass === "emerald" ? "bg-emerald-500" : "bg-cyan-500"
+                          }`}
+                          style={{
+                            width: `${
+                              compositionStage === 'idle' || compositionStage === 'done'
+                                ? (status === 'loading' ? 3 : progress)
+                                : compositionProgress
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-zinc-600 text-center">
+                      Traitement 100% local — aucune donnée envoyée
+                    </p>
+                  </div>
                 </div>
-                <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${
-                      accentClass === "indigo" ? "bg-indigo-500" :
-                      accentClass === "rose" ? "bg-rose-500" :
-                      accentClass === "amber" ? "bg-amber-500" :
-                      accentClass === "emerald" ? "bg-emerald-500" : "bg-cyan-500"
-                    }`}
-                    style={{
-                      width: `${
-                        compositionStage === 'idle' || compositionStage === 'done'
-                          ? (status === 'loading' ? 3 : progress)
-                          : compositionProgress
-                      }%`,
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-zinc-600 text-center">
-                  Traitement 100% local — aucune donnée envoyée
-                </p>
               </div>
             )}
 
@@ -462,14 +512,31 @@ export default function SharePage() {
               accentClass === "rose" ? "0 0 0 1px rgba(244, 63, 94, 0.3)" :
               accentClass === "amber" ? "0 0 0 1px rgba(245, 158, 11, 0.3)" :
               accentClass === "emerald" ? "0 0 0 1px rgba(16, 185, 129, 0.3)" : "0 0 0 1px rgba(6, 182, 212, 0.3)" }}>
-              <video
-                src={downloadUrl}
-                autoPlay
-                loop
-                playsInline
-                controls
-                className="w-full h-full object-cover"
-              />
+              {videoError ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <AlertCircle className="w-10 h-10 text-red-400" />
+                  <p className="text-red-400 text-sm">Impossible de charger la vidéo</p>
+                  <button 
+                    onClick={() => {
+                      setVideoError(false);
+                    }}
+                    className="text-xs text-zinc-400 hover:text-white underline"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <video
+                  src={downloadUrl}
+                  autoPlay
+                  loop
+                  playsInline
+                  muted
+                  controls
+                  onError={() => setVideoError(true)}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
 
             <div className="w-full flex flex-col items-center gap-3">

@@ -14,14 +14,12 @@ export interface UploadResult {
  */
 export async function listVideosFromBucket(): Promise<Array<{ name: string; url: string; path: string; createdAt: string; size: number }>> {
   if (!SUPABASE_CONFIGURED || !supabase) {
-    console.log('[listVideosFromBucket] Supabase not configured');
     return [];
   }
 
   const client = supabase;
 
   try {
-    console.log('[listVideosFromBucket] Fetching from bucket:', BUCKET);
     const { data, error } = await client.storage
       .from(BUCKET)
       .list('videos', {
@@ -29,17 +27,9 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
         sortBy: { column: 'created_at', order: 'desc' },
       });
 
-    if (error) {
-      console.error('[listVideosFromBucket] Error:', error);
+    if (error || !data) {
       return [];
     }
-
-    if (!data) {
-      console.log('[listVideosFromBucket] No data returned');
-      return [];
-    }
-
-    console.log('[listVideosFromBucket] Found', data.length, 'files');
 
     // Convert to objects with metadata
     const videos = data
@@ -56,10 +46,8 @@ export async function listVideosFromBucket(): Promise<Array<{ name: string; url:
         };
       });
 
-    console.log('[listVideosFromBucket] Returning', videos.length, 'videos');
     return videos;
   } catch (err) {
-    console.error('[listVideosFromBucket] Error:', err);
     return [];
   }
 }
@@ -73,17 +61,14 @@ export async function deleteVideosFromBucket(paths: string[]): Promise<{ success
   }
 
   try {
-    const { data, error } = await supabase.storage.from(BUCKET).remove(paths);
+    const { error } = await supabase.storage.from(BUCKET).remove(paths);
     
     if (error) {
-      console.error('[deleteVideosFromBucket] Error:', error);
       return { success: false, errors: [error.message] };
     }
 
-    console.log('[deleteVideosFromBucket] Deleted', data?.length || 0, 'files');
     return { success: true, errors: [] };
   } catch (err) {
-    console.error('[deleteVideosFromBucket] Error:', err);
     return { success: false, errors: [err instanceof Error ? err.message : 'Unknown error'] };
   }
 }
@@ -132,12 +117,8 @@ export async function uploadVideo(
   const path = `videos/${filename}`;
 
   // Supabase Storage upload URL
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const { data: sessionData } = await supabase.auth.getSession();
   void sessionData; // not needed for anon uploads
-
-  if (sessionError) {
-    console.warn('[uploadVideo] Auth session error (ignored for anon):', sessionError);
-  }
 
   // Use XHR for real upload progress — the Supabase fetch-based client doesn't expose it
   const storageUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`;

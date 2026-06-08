@@ -391,6 +391,19 @@ export default function ScreenPage() {
                         bgColor="white"
                         className="rounded-2xl"
                       />
+                      
+                      {/* Clickable link below QR */}
+                      <div className="mt-4 text-center">
+                        <a 
+                          href={capture.shareUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                        >
+                          Ouvrir le lien
+                          <ArrowRight className="h-4 w-4" />
+                        </a>
+                      </div>
                     </div>
                   </motion.div>
                 </div>

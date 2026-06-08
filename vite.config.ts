@@ -58,7 +58,7 @@ export default defineConfig(() => {
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,wasm}'],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
@@ -115,12 +115,12 @@ export default defineConfig(() => {
           // every navigation resolve to the offline screen while the service
           // worker is active, even when the network is available.
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//, /^\/storage\//],
+          navigateFallbackDenylist: [/^\/api\//, /^\/storage\//, /^\/ffmpeg-core\//],
           skipWaiting: true,
           clientsClaim: true
         },
         devOptions: {
-          enabled: true,
+          enabled: false, // Disable service worker in dev to avoid caching issues
           type: 'module'
         }
       })
@@ -134,20 +134,27 @@ export default defineConfig(() => {
       // @ffmpeg/ffmpeg uses internal Web Workers that Vite's dep optimizer can't bundle
       exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
     },
+    assetsInclude: ['**/*.wasm'],
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify - file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      // Required for FFmpeg WASM (SharedArrayBuffer needs cross-origin isolation)
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        // 'credentialless' allows cross-origin images/media (e.g. Supabase logo bucket)
-        // while still enabling SharedArrayBuffer needed for FFmpeg WASM
-        'Cross-Origin-Embedder-Policy': 'credentialless',
-      },
+    // HMR is disabled in AI Studio via DISABLE_HMR env var.
+    // Do not modify - file watching is disabled to prevent flickering during agent edits.
+    hmr: process.env.DISABLE_HMR !== 'true',
+    // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
+    watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    // Required for FFmpeg WASM (SharedArrayBuffer needs cross-origin isolation)
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      // 'credentialless' allows cross-origin resources like CDN-hosted ffmpeg-core
+      // while still enabling SharedArrayBuffer needed for FFmpeg WASM
+      'Cross-Origin-Embedder-Policy': 'credentialless',
     },
+  },
+  preview: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+  },
 
     build: {
       rollupOptions: {

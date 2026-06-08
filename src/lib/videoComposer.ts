@@ -23,6 +23,7 @@ export interface ComposerOptions {
  * Returns a blob URL of the composed video
  */
 export async function composeVideo(options: ComposerOptions): Promise<string> {
+  console.log('[videoComposer] 🎬 Starting video composition with options:', options);
   const {
     introUrl, outroUrl, introSlide, outroSlide, mainVideoUrl,
     width, height, format = '16:9', recordAudio, onProgress,
@@ -30,26 +31,34 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
 
   // If no intro/outro, return the main video as-is
   if (!introUrl && !outroUrl && !introSlide && !outroSlide) {
+    console.log('[videoComposer] ✅ No intro/outro needed, returning main video directly');
     return mainVideoUrl;
   }
 
+  console.log('[videoComposer] 🖼️ Creating canvas (', width, 'x', height, ')');
   // Create canvas for composition
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Failed to get canvas context');
+  console.log('[videoComposer] ✅ Canvas created successfully');
 
   // Create MediaRecorder
+  console.log('[videoComposer] 🎥 Creating MediaRecorder with 30fps');
   const stream = canvas.captureStream(30); // 30 fps
   
   // Add audio track if needed
   if (recordAudio) {
     try {
+      console.log('[videoComposer] 🎵 Loading main video to extract audio...');
       const mainVideo = await loadVideo(mainVideoUrl);
       if (mainVideo.srcObject instanceof MediaStream) {
         const audioTracks = (mainVideo.srcObject as MediaStream).getAudioTracks();
+        console.log('[videoComposer] 🎵 Found', audioTracks.length, 'audio track(s)');
         audioTracks.forEach(track => stream.addTrack(track));
+      } else {
+        console.log('[videoComposer] 🎵 No MediaStream found on video, skipping audio extraction');
       }
     } catch (err) {
       console.warn('[videoComposer] Could not extract audio track:', err);
@@ -63,23 +72,31 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
     recorder = new MediaRecorder(stream, {
       mimeType: 'video/webm;codecs=vp8,opus',
     });
+    console.log('[videoComposer] ✅ MediaRecorder created with VP8/Opus codec');
   } catch {
     recorder = new MediaRecorder(stream);
+    console.log('[videoComposer] ✅ MediaRecorder created with default codec');
   }
 
   recorder.ondataavailable = (event) => {
-    if (event.data.size > 0) chunks.push(event.data);
+    if (event.data.size > 0) {
+      console.log('[videoComposer] 📦 Data chunk available:', event.data.size, 'bytes');
+      chunks.push(event.data);
+    }
   };
 
   // Start recording
   const recordingPromise = new Promise<Blob>((resolve) => {
     recorder.onstop = () => {
+      console.log('[videoComposer] ⏹️ Recording stopped, creating blob...');
       const blob = new Blob(chunks, { type: 'video/webm' });
+      console.log('[videoComposer] ✅ Blob created:', blob.size, 'bytes');
       resolve(blob);
     };
   });
 
-  recorder.start();
+  console.log('[videoComposer] ▶️ Starting recording with 100ms timeslice...');
+  recorder.start(100);
 
   // Render sequence: intro → main → outro
   const sequence: Array<{ url?: string; slide?: PresentationSlideConfig; type: 'intro' | 'main' | 'outro' }> = [];
@@ -88,29 +105,33 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
   sequence.push({ url: mainVideoUrl, type: 'main' });
   if (outroSlide) sequence.push({ slide: outroSlide, type: 'outro' });
   else if (outroUrl) sequence.push({ url: outroUrl, type: 'outro' });
+  console.log('[videoComposer] 📋 Render sequence:', sequence.map(i => i.type));
 
   for (const item of sequence) {
+    console.log('[videoComposer] 🎬 Rendering', item.type, '...');
     if (item.slide) {
       await renderPresentationSlide(ctx, item.slide, canvas.width, canvas.height, format, (progress) => {
         onProgress?.(item.type, progress);
       });
-      continue;
-    }
-
-    if (item.url) {
+    } else if (item.url) {
       await renderMedia(ctx, item.url, item.type, canvas.width, canvas.height, (progress) => {
         onProgress?.(item.type, progress);
       });
     }
+    console.log('[videoComposer] ✅', item.type, 'rendered');
   }
 
   // Stop recording
+  console.log('[videoComposer] ⏹️ Stopping recording...');
   recorder.stop();
   onProgress?.('finalizing', 100);
 
   // Wait for the blob
+  console.log('[videoComposer] ⏳ Waiting for recording blob...');
   const blob = await recordingPromise;
-  return URL.createObjectURL(blob);
+  const finalUrl = URL.createObjectURL(blob);
+  console.log('[videoComposer] 🎉 Composition complete! Final URL:', finalUrl);
+  return finalUrl;
 }
 
 

@@ -70,8 +70,7 @@ async function resolveMusicStartOffset(
     ]);
     const processedVideoDuration = speed === 1 ? videoDuration : videoDuration / speed;
     return computeMusicStartOffset(processedVideoDuration, musicDuration, highlightAt);
-  } catch (err) {
-    console.warn('[useSlowMotion] Impossible de caler la musique, départ à 0s:', err);
+  } catch {
     return 0;
   }
 }
@@ -112,12 +111,67 @@ function createMediaElement<T extends HTMLMediaElement>(tag: 'audio' | 'video', 
   return element;
 }
 
+async function waitVideoReady(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= 2 && Number.isFinite(video.duration)) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const onMetadata = () => resolve();
+    const onError = () => reject(new Error('Failed to load video metadata'));
+
+    video.addEventListener('loadedmetadata', onMetadata, { once: true });
+    video.addEventListener('error', onError, { once: true });
+
+    // Timeout after 10 seconds
+    const timeout = setTimeout(() => {
+      video.removeEventListener('loadedmetadata', onMetadata);
+      video.removeEventListener('error', onError);
+      reject(new Error('Video metadata loading timed out'));
+    }, 10000);
+
+    // Cleanup on resolve
+    const originalResolve = resolve;
+    resolve = () => {
+      clearTimeout(timeout);
+      video.removeEventListener('error', onError);
+      originalResolve();
+    };
+  });
+
+  if (!Number.isFinite(video.duration)) {
+    throw new Error('Invalid video duration (Infinity)');
+  }
+}
+
 function waitForMetadata(element: HTMLMediaElement): Promise<void> {
-  if (Number.isFinite(element.duration) && element.duration > 0) return Promise.resolve();
+  // Check if metadata is already loaded
+  if (element.readyState >= HTMLMediaElement.HAVE_METADATA) {
+    return Promise.resolve();
+  }
 
   return new Promise((resolve, reject) => {
-    element.onloadedmetadata = () => resolve();
-    element.onerror = () => reject(new Error('Échec chargement métadonnées média'));
+    const onMetadata = () => {
+      cleanup();
+      resolve();
+    };
+    
+    const onError = () => {
+      cleanup();
+      reject(new Error('Échec chargement métadonnées média'));
+    };
+    
+    const cleanup = () => {
+      element.removeEventListener('loadedmetadata', onMetadata);
+      element.removeEventListener('error', onError);
+    };
+    
+    element.addEventListener('loadedmetadata', onMetadata, { once: true });
+    element.addEventListener('error', onError, { once: true });
+    
+    // Add a timeout in case metadata never loads (e.g., infinite duration videos)
+    setTimeout(() => {
+      cleanup();
+      resolve(); // Resolve anyway to continue processing
+    }, 5000);
   });
 }
 
@@ -147,25 +201,37 @@ async function encodeWithBrowser({
   mixWithVideoAudio,
   musicStartOffset,
   onProgress,
-}: BrowserEncodeOptions): Promise<string> {
+}: BrowserEncodeOptions): Promise<{ url: string; blobSize: number }> {
+  console.log('[encodeWithBrowser] 🎬 Starting browser encoding with params:', { inputUrl, speed, format, music, musicVolume, mixWithVideoAudio, musicStartOffset });
   if (!('MediaRecorder' in window)) {
     throw new Error('MediaRecorder indisponible');
   }
 
+  console.log('[encodeWithBrowser] 🎥 Loading video...');
   const video = createMediaElement<HTMLVideoElement>('video', inputUrl);
   video.muted = music !== 'none' || !mixWithVideoAudio;
   video.playsInline = true;
   video.playbackRate = speed;
-  await waitForMetadata(video);
+  
+  try {
+    await waitVideoReady(video);
+    console.log('[encodeWithBrowser] ✅ Video loaded, duration:', video.duration, 's, size:', video.videoWidth, 'x', video.videoHeight);
+  } catch (error) {
+    console.warn('[encodeWithBrowser] ⚠️ Video metadata issue, falling back to waitForMetadata:', error);
+    await waitForMetadata(video);
+    console.log('[encodeWithBrowser] ✅ Video loaded (fallback), duration:', video.duration, 's, size:', video.videoWidth, 'x', video.videoHeight);
+  }
 
   const dimensions = format === '16:9'
     ? { width: video.videoWidth || 1280, height: video.videoHeight || 720 }
     : getExportDimensions('720p', format);
+  console.log('[encodeWithBrowser] 🖼️ Output dimensions:', dimensions);
   const canvas = document.createElement('canvas');
   canvas.width = dimensions.width;
   canvas.height = dimensions.height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('Canvas indisponible');
+  console.log('[encodeWithBrowser] ✅ Canvas created');
 
   const stream = canvas.captureStream(30);
   const audioContext = typeof AudioContext !== 'undefined' ? new AudioContext() : undefined;
@@ -174,11 +240,13 @@ async function encodeWithBrowser({
 
   if (audioContext && audioDestination) {
     if (music !== 'none') {
+      console.log('[encodeWithBrowser] 🎵 Loading music...');
       const track = getTrackById(music);
       musicElement = createMediaElement<HTMLAudioElement>('audio', track.file);
       musicElement.loop = true;
       await waitForMetadata(musicElement);
       musicElement.currentTime = Math.min(musicStartOffset, Math.max(0, musicElement.duration - 0.1));
+      console.log('[encodeWithBrowser] ✅ Music loaded, duration:', musicElement.duration, 's');
 
       const musicSource = audioContext.createMediaElementSource(musicElement);
       const gain = audioContext.createGain();
@@ -188,10 +256,11 @@ async function encodeWithBrowser({
 
     if (mixWithVideoAudio) {
       try {
+        console.log('[encodeWithBrowser] 🎵 Adding video audio...');
         const videoAudioSource = audioContext.createMediaElementSource(video);
         videoAudioSource.connect(audioDestination);
-      } catch (err) {
-        console.warn('[useSlowMotion] Impossible de mixer l’audio caméra dans l’export navigateur:', err);
+      } catch {
+        console.warn('[encodeWithBrowser] ⚠️ Could not mix video audio, skipping');
       }
     }
 
@@ -200,49 +269,99 @@ async function encodeWithBrowser({
 
   const chunks: Blob[] = [];
   const recorderOptions = getRecorderMimeType();
+  console.log('[encodeWithBrowser] 🎥 Creating MediaRecorder with options:', recorderOptions);
   const recorder = recorderOptions
     ? new MediaRecorder(stream, { mimeType: recorderOptions })
     : new MediaRecorder(stream);
 
   const recordingPromise = new Promise<Blob>((resolve, reject) => {
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunks.push(event.data);
+      if (event.data.size > 0) {
+        console.log('[encodeWithBrowser] 📦 Data chunk:', event.data.size, 'bytes');
+        chunks.push(event.data);
+      }
     };
-    recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+    recorder.onstop = () => {
+      console.log('[encodeWithBrowser] ⏹️ Recording stopped');
+      resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+    };
     recorder.onerror = () => reject(new Error('Échec enregistrement navigateur'));
   });
 
-  recorder.start();
+  console.log('[encodeWithBrowser] ▶️ Starting recording with 100ms timeslice...');
+  recorder.start(100); // Start with timeslice to get periodic data chunks
   await audioContext?.resume();
+  console.log('[encodeWithBrowser] ▶️ Starting playback...');
   await Promise.all([
     video.play(),
     musicElement?.play() ?? Promise.resolve(),
   ]);
 
   await new Promise<void>((resolve) => {
-    const drawFrame = () => {
+    const startTime = Date.now();
+    let lastBufferedCheck = 0;
+    let noNewDataCount = 0;
+    
+    // Draw frames at 30fps to match MediaRecorder stream
+    const interval = setInterval(() => {
       drawVideoCover(ctx, video, canvas.width, canvas.height);
-      if (video.duration > 0) {
+      
+      // Update progress
+      if (Number.isFinite(video.duration) && video.duration > 0) {
         onProgress(Math.min(99, Math.round((video.currentTime / video.duration) * 100)));
+      } else {
+        // For infinite duration videos, use elapsed time as fallback
+        const elapsed = (Date.now() - startTime) / 1000;
+        onProgress(Math.min(99, Math.round(Math.min(elapsed / 60, 1) * 100))); // Cap at 60s
       }
 
+      // Check if video has ended
       if (video.ended) {
-        resolve();
+        console.log('[encodeWithBrowser] ⏹️ Video ended, waiting 500ms to collect all data...');
+        clearInterval(interval);
+        setTimeout(resolve, 500);
         return;
       }
-
-      requestAnimationFrame(drawFrame);
-    };
-    drawFrame();
+      
+      // Handle infinite duration videos - check buffered ranges
+      if (!Number.isFinite(video.duration)) {
+        const now = Date.now();
+        if (now - lastBufferedCheck > 1000) { // Check every second
+          lastBufferedCheck = now;
+          
+          if (video.buffered.length > 0) {
+            const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+            const timeSinceBufferedEnd = video.currentTime - bufferedEnd;
+            
+            // If we're close to the end of buffered data and not getting new data
+            if (timeSinceBufferedEnd > -0.5 && video.currentTime > 1) {
+              noNewDataCount++;
+              if (noNewDataCount >= 3) { // No new data for 3 seconds
+                console.log('[encodeWithBrowser] ⏹️ End of buffered data reached, stopping...');
+                clearInterval(interval);
+                setTimeout(resolve, 500);
+                return;
+              }
+            } else {
+              noNewDataCount = 0;
+            }
+          }
+        }
+      }
+    }, 1000 / 30); // 30fps
   });
 
+  console.log('[encodeWithBrowser] ⏹️ Stopping recorder...');
   recorder.stop();
   musicElement?.pause();
   video.pause();
   audioContext?.close().catch(() => undefined);
 
+  console.log('[encodeWithBrowser] ⏳ Waiting for final blob...');
   const blob = await recordingPromise;
-  return URL.createObjectURL(blob);
+  const finalUrl = URL.createObjectURL(blob);
+  console.log('[encodeWithBrowser] 🎉 Browser encoding complete! Blob size:', blob.size, 'bytes, URL:', finalUrl);
+  return { url: finalUrl, blobSize: blob.size };
 }
 
 
@@ -258,8 +377,10 @@ export function useSlowMotion(): UseSlowMotionReturn {
     format: ExportFormat = '16:9',
     options: ProcessVideoOptions = {},
   ): Promise<string | null> => {
+    console.log('[useSlowMotion] 🎬 Starting video processing with params:', { inputUrl, speed, format, options });
     const { music = 'none', musicVolume = 35, mixWithVideoAudio = false } = options;
     const hasMusic = music !== 'none';
+    console.log('[useSlowMotion] 🎵 Music settings:', { hasMusic, music, musicVolume, mixWithVideoAudio });
 
     cancelledRef.current = false;
     setStatus('loading');
@@ -267,6 +388,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
     setErrorMessage('');
 
     if (!needsProcessing(speed, format, music)) {
+      console.log('[useSlowMotion] ✅ No processing needed, returning input URL directly');
       setProgress(100);
       setStatus('done');
       return inputUrl;
@@ -275,13 +397,18 @@ export function useSlowMotion(): UseSlowMotionReturn {
     try {
       let musicStartOffset = 0;
       if (hasMusic) {
+        console.log('[useSlowMotion] 🎵 Calculating music start offset...');
         const track = getTrackById(music);
         musicStartOffset = await resolveMusicStartOffset(inputUrl, track.file, track.highlightAt, speed);
+        console.log('[useSlowMotion] 🎵 Music start offset:', musicStartOffset, 'seconds');
       }
 
+      let useFFmpeg = false;
+      let browserResult: { url: string; blobSize: number } | null = null;
       try {
+        console.log('[useSlowMotion] 🌐 Trying browser encoding first...');
         setStatus('processing');
-        const browserUrl = await encodeWithBrowser({
+        browserResult = await encodeWithBrowser({
           inputUrl,
           speed,
           format,
@@ -290,53 +417,76 @@ export function useSlowMotion(): UseSlowMotionReturn {
           mixWithVideoAudio,
           musicStartOffset,
           onProgress: (p) => {
+            // console.log('[useSlowMotion] ⏳ Browser encoding progress:', p + '%');
             if (!cancelledRef.current) setProgress(p);
           },
         });
 
         if (cancelledRef.current) {
+          console.log('[useSlowMotion] ⛔ Processing cancelled');
           setStatus('idle');
           return null;
         }
 
-        setProgress(100);
-        setStatus('done');
-        return browserUrl;
-      } catch (browserError) {
-        console.warn('[useSlowMotion] Encodage navigateur indisponible, fallback FFmpeg:', browserError);
+        // Check if the blob is large enough (at least 10KB)
+        if (browserResult.blobSize < 10000) {
+          console.warn('[useSlowMotion] ⚠️ Browser encoding produced invalid blob (', browserResult.blobSize, 'bytes), falling back to FFmpeg');
+          useFFmpeg = true;
+          // Revoke the invalid blob URL
+          URL.revokeObjectURL(browserResult.url);
+        } else {
+          console.log('[useSlowMotion] ✅ Browser encoding successful:', browserResult.url);
+          setProgress(100);
+          setStatus('done');
+          return browserResult.url;
+        }
+      } catch (err) {
+        console.warn('[useSlowMotion] ❌ Browser encoding failed, falling back to FFmpeg:', err);
+        useFFmpeg = true;
       }
 
+      console.log('[useSlowMotion] 🎬 Starting FFmpeg encoding...');
       const ff = await getFFmpeg((p) => {
+        console.log('[useSlowMotion] ⏳ FFmpeg progress:', p + '%');
         if (!cancelledRef.current) setProgress(p);
       });
 
       if (cancelledRef.current) {
+        console.log('[useSlowMotion] ⛔ Processing cancelled');
         setStatus('idle');
         return null;
       }
 
       setStatus('processing');
 
+      console.log('[useSlowMotion] 🗑️ Cleaning up old files...');
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
+      console.log('[useSlowMotion] 📥 Writing input video to FFmpeg...');
       await ff.writeFile('input.webm', await fetchFile(inputUrl));
+      console.log('[useSlowMotion] ✅ Input video written');
 
       if (hasMusic) {
         const track = getTrackById(music);
+        console.log('[useSlowMotion] 🎵 Writing music file to FFmpeg...');
         await ff.writeFile('music.mp3', await fetchFile(track.file));
+        console.log('[useSlowMotion] ✅ Music file written');
       }
 
       if (cancelledRef.current) {
+        console.log('[useSlowMotion] ⛔ Processing cancelled');
         setStatus('idle');
         return null;
       }
 
       const musicInputArgs = hasMusic ? buildMusicInputArgs(musicStartOffset) : [];
+      console.log('[useSlowMotion] 🎵 Music input args:', musicInputArgs);
 
       const videoFilters = [
         ...(format !== '16:9' ? [buildCropFilter(format)] : []),
         ...(getSlowMotionVideoFilter(speed) ? [getSlowMotionVideoFilter(speed) as string] : []),
       ];
       const videoFilter = videoFilters.length > 0 ? videoFilters.join(',') : null;
+      console.log('[useSlowMotion] 🎬 Video filters:', videoFilter);
 
       let outputArgs: string[];
 
@@ -433,6 +583,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
           'output.webm',
         ];
       }
+      console.log('[useSlowMotion] 🎬 FFmpeg args:', outputArgs);
 
       const buildVideoOnlySlowMotionArgs = (): string[] => [
         '-i', 'input.webm',
@@ -475,9 +626,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
       };
 
       try {
+        console.log('[useSlowMotion] 🎬 Executing FFmpeg...');
         await ff.exec(outputArgs);
+        console.log('[useSlowMotion] ✅ FFmpeg execution complete');
       } catch (execError) {
         if (cancelledRef.current) {
+          console.log('[useSlowMotion] ⛔ Processing cancelled');
           setStatus('idle');
           return null;
         }
@@ -485,37 +639,49 @@ export function useSlowMotion(): UseSlowMotionReturn {
         const canRetryWithoutSourceAudio = (hasMusic && mixWithVideoAudio) || (!hasMusic && speed !== 1);
         if (!canRetryWithoutSourceAudio) throw execError;
 
-        console.warn('[useSlowMotion] Piste audio source indisponible, nouvel essai sans audio caméra:', execError);
+        console.warn('[useSlowMotion] ⚠️ FFmpeg failed with source audio, retrying without:', execError);
         await cleanupFiles(ff, ['output.webm']);
-        await ff.exec(hasMusic ? buildMusicOnlyArgs() : buildVideoOnlySlowMotionArgs());
+        const retryArgs = hasMusic ? buildMusicOnlyArgs() : buildVideoOnlySlowMotionArgs();
+        console.log('[useSlowMotion] 🔄 Retrying with args:', retryArgs);
+        await ff.exec(retryArgs);
+        console.log('[useSlowMotion] ✅ Retry successful');
       }
 
       if (cancelledRef.current) {
+        console.log('[useSlowMotion] ⛔ Processing cancelled');
         setStatus('idle');
         return null;
       }
 
+      console.log('[useSlowMotion] 📁 Checking for output file...');
       const filesAfter = await ff.listDir('/');
       const outputExists = filesAfter.some((f) => f.name === 'output.webm');
       if (!outputExists) {
         throw new Error('FFmpeg did not create output.webm');
       }
+      console.log('[useSlowMotion] ✅ Output file found');
 
+      console.log('[useSlowMotion] 📥 Reading output file...');
       const data = await ff.readFile('output.webm');
-      const blob = new Blob([data], { type: 'video/webm' });
+      const blob = new Blob([data as any], { type: 'video/webm' });
+      console.log('[useSlowMotion] ✅ Blob created:', blob.size, 'bytes');
       const outputUrl = URL.createObjectURL(blob);
+      console.log('[useSlowMotion] 🎉 Output URL created:', outputUrl);
 
+      console.log('[useSlowMotion] 🗑️ Cleaning up FFmpeg files...');
       await cleanupFiles(ff, ['input.webm', 'output.webm', 'music.mp3']);
 
       setProgress(100);
       setStatus('done');
+      console.log('[useSlowMotion] 🎉 Processing complete!');
       return outputUrl;
     } catch (err) {
+      console.error('[useSlowMotion] ❌ Processing failed:', err);
       if (cancelledRef.current) {
+        console.log('[useSlowMotion] ⛔ Processing cancelled');
         setStatus('idle');
         return null;
       }
-      console.error('[useSlowMotion]', err);
       setErrorMessage('Le traitement a échoué. Réessayez.');
       setStatus('error');
       resetFFmpeg();
@@ -524,6 +690,7 @@ export function useSlowMotion(): UseSlowMotionReturn {
   }, []);
 
   const cancel = useCallback(() => {
+    console.log('[useSlowMotion] ⛔ Cancelling processing...');
     cancelledRef.current = true;
     setStatus('idle');
     setProgress(0);
