@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { 
   CheckCircle2, 
@@ -74,64 +74,78 @@ export default function ScreenPage() {
   const [showActivation, setShowActivation] = useState(false);
   const [hasNoVideos, setHasNoVideos] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
   const bg = useMemo(() => getPresentationBackground(appSettings?.appBackground || "midnight"), [appSettings]);
-  const accentColors = getAccentColors(accentColor);
-  const backgroundStyle = appSettings?.appBackgroundUrl
-    ? { backgroundImage: `url(${appSettings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
-    : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
+  const accentColors = useMemo(() => getAccentColors(accentColor), [accentColor]);
+  const backgroundStyle = useMemo(() => {
+    return appSettings?.appBackgroundUrl
+      ? { backgroundImage: `url(${appSettings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
+      : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
+  }, [appSettings, bg]);
+
+  const triggerActivation = useCallback(() => {
+    setShowActivation(true);
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      setShowActivation(false);
+    }, 2000);
+  }, []);
+
+  const updateCapture = useCallback(
+    (next: ScreenCapturePayload) => {
+      setCapture((current) => {
+        const merged = newerCapture(current, next);
+        if (merged !== current) triggerActivation();
+        return merged;
+      });
+    },
+    [triggerActivation]
+  );
 
   useEffect(() => {
     loadSettings().then((settings) => setAppSettings(settings)).catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    subscribeScreenCapture((payload) => {
-      setCapture((current) => {
-        const newCapture = newerCapture(current, payload);
-        if (newCapture !== current) {
-          setShowActivation(true);
-          setTimeout(() => setShowActivation(false), 2000);
-        }
-        return newCapture;
-      });
-    });
-  }, []);
+    const unsubscribe = subscribeScreenCapture(updateCapture);
+    return () => {
+      unsubscribe?.();
+    };
+  }, [updateCapture]);
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadLatestCloudVideo = async (silent = false) => {
+    const sync = async (silent = false) => {
       if (!SUPABASE_CONFIGURED) return;
-      if (!silent) setIsPolling(true);
+
+      setIsPolling(!silent);
+
       try {
         const videos = await listVideosFromBucket();
         if (cancelled) return;
-        
-        if (videos.length === 0) {
+
+        if (!videos.length) {
           setHasNoVideos(true);
           setCapture(null);
-        } else {
-          setHasNoVideos(false);
-          const latest = videos[0];
-          if (latest?.url) {
-            setCapture((current) => {
-              const newCapture = newerCapture(current, {
-                videoUrl: latest.url,
-                shareUrl: buildCloudShareUrl(latest.url),
-                source: "cloud",
-                updatedAt: latest.createdAt || new Date().toISOString(),
-              });
-              if (newCapture !== current) {
-                setShowActivation(true);
-                setTimeout(() => setShowActivation(false), 2000);
-              }
-              return newCapture;
-            });
-            setHasCloudError(false);
-          }
+          return;
         }
+
+        setHasNoVideos(false);
+
+        const latest = videos[0];
+        if (!latest?.url) return;
+
+        updateCapture({
+          videoUrl: latest.url,
+          shareUrl: buildCloudShareUrl(latest.url),
+          source: "cloud",
+          updatedAt: latest.createdAt ?? new Date().toISOString(),
+        });
+
+        setHasCloudError(false);
         setLastSyncAt(new Date().toISOString());
       } catch {
         if (!cancelled) setHasCloudError(true);
@@ -140,21 +154,33 @@ export default function ScreenPage() {
       }
     };
 
-    loadLatestCloudVideo();
-    const interval = window.setInterval(() => loadLatestCloudVideo(true), POLL_INTERVAL_MS);
+    sync(false);
+    const id = window.setInterval(() => sync(true), POLL_INTERVAL_MS);
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      window.clearInterval(id);
+      if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [updateCapture]);
 
   useEffect(() => {
-    videoRef.current?.load();
-    void videoRef.current?.play().catch(() => undefined);
-    if (videoRef.current && appSettings) {
-      videoRef.current.playbackRate = appSettings.slowMotionEnabled ? appSettings.slowMotionSpeed : 1;
-    }
+    const video = videoRef.current;
+    if (!video || !capture?.videoUrl) return;
+
+    video.load();
+
+    const play = async () => {
+      try {
+        await video.play();
+      } catch {}
+    };
+
+    play();
+
+    video.playbackRate = appSettings?.slowMotionEnabled
+      ? appSettings.slowMotionSpeed
+      : 1;
   }, [capture?.videoUrl, appSettings]);
 
   const syncLabel = useMemo(() => {
