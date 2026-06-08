@@ -283,7 +283,7 @@ export default function ScreenPage() {
                 key={capture.videoUrl}
                 ref={videoRef}
                 src={capture.videoUrl}
-                className="relative h-full w-full object-cover"
+                className="relative h-full w-full object-contain"
                 autoPlay
                 muted
                 loop
