@@ -15,12 +15,15 @@ export default function PlaybackView({ videoUrl, eventName, slowMotionEnabled, s
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.playbackRate = slowMotionEnabled ? slowMotionSpeed : 1;
+      videoRef.current.play().catch(() => {
+        // Autoplay might be blocked, it's okay
+      });
     }
   }, [videoUrl, slowMotionEnabled, slowMotionSpeed]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
-      <video ref={videoRef} src={videoUrl} autoPlay loop playsInline controls className="h-full w-full object-cover" aria-label="Aperçu de la vidéo capturée" />
+      <video key={videoUrl} ref={videoRef} src={videoUrl} autoPlay loop playsInline controls className="h-full w-full object-cover" aria-label="Aperçu de la vidéo capturée" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/80 via-black/20 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
 
