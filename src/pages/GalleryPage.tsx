@@ -21,10 +21,12 @@ function VideoCard({
   video,
   index,
   onClick,
+  settings,
 }: {
   video: VideoItem;
   index: number;
   onClick: () => void;
+  settings: any;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -32,6 +34,7 @@ function VideoCard({
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+    el.playbackRate = settings.slowMotionEnabled ? settings.slowMotionSpeed : 1;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) el.play().catch(() => undefined);
@@ -41,7 +44,7 @@ function VideoCard({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [settings]);
 
   return (
     <motion.button
@@ -102,6 +105,7 @@ function VideoModal({
   onClose,
   onPrev,
   onNext,
+  settings,
 }: {
   video: VideoItem;
   index: number;
@@ -109,6 +113,7 @@ function VideoModal({
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
+  settings: any;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [shareTab, setShareTab] = useState<"qr" | "download">("qr");
@@ -116,6 +121,10 @@ function VideoModal({
   const hasNext = index < total - 1;
 
   useEffect(() => {
+    const el = videoRef.current;
+    if (el) {
+      el.playbackRate = settings.slowMotionEnabled ? settings.slowMotionSpeed : 1;
+    }
     void videoRef.current?.play().catch(() => undefined);
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -124,7 +133,7 @@ function VideoModal({
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, settings]);
 
   // Swipe horizontal pour naviguer
   const handleDragEnd = (_: unknown, info: PanInfo) => {
@@ -430,6 +439,7 @@ export default function GalleryPage() {
                 video={video}
                 index={index}
                 onClick={() => setSelectedIndex(index)}
+                settings={settings}
               />
             ))}
           </div>
@@ -447,6 +457,7 @@ export default function GalleryPage() {
             onClose={() => setSelectedIndex(null)}
             onPrev={() => setSelectedIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
             onNext={() => setSelectedIndex((i) => (i !== null && i < videos.length - 1 ? i + 1 : i))}
+            settings={settings}
           />
         )}
       </AnimatePresence>
