@@ -21,8 +21,8 @@ export async function getFFmpeg(onProgress?: (p: number) => void): Promise<FFmpe
     // Load FFmpeg from official CDN
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
     ffmpegLoadPromise = ff.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js', 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
     }).then(() => undefined);
   }
 
