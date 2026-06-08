@@ -327,10 +327,22 @@ export default function GalleryPage() {
     ? { backgroundImage: `url(${settings.appBackgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }
     : { background: `radial-gradient(circle at 50% 20%, ${bg.colors[1]}55, transparent 55%), linear-gradient(135deg, ${bg.colors.join(", ")})` };
 
+  // Cleanup function to revoke object URLs
+  const cleanupVideos = useCallback((videoList: VideoItem[]) => {
+    videoList.forEach(video => {
+      if (video.url.startsWith('blob:')) {
+        URL.revokeObjectURL(video.url);
+      }
+    });
+  }, []);
+
   const loadVideos = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
+      // Cleanup previous videos before loading new ones
+      cleanupVideos(videos);
+      
       if (SUPABASE_CONFIGURED) {
         const remoteVideos = await listVideosFromBucket();
         setVideos(remoteVideos.map((video, i) => ({ id: `bucket-${i}`, url: video.url, shareUrl: video.url })));
@@ -343,9 +355,16 @@ export default function GalleryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [videos, cleanupVideos]);
 
   useEffect(() => { loadVideos(); }, [loadVideos]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanupVideos(videos);
+    };
+  }, [videos, cleanupVideos]);
 
   const selectedVideo = selectedIndex !== null ? videos[selectedIndex] : null;
 

@@ -97,8 +97,8 @@ interface BrowserEncodeOptions {
 
 function getRecorderMimeType(): string | undefined {
   const candidates = [
-    'video/webm;codecs=vp8,opus',
     'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
     'video/webm',
   ];
   return candidates.find((type) => MediaRecorder.isTypeSupported(type));
@@ -208,7 +208,13 @@ async function encodeWithBrowser({
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
     };
-    recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+    recorder.onstop = () => {
+      try {
+        resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
+      } catch (err) {
+        reject(err);
+      }
+    };
     recorder.onerror = () => reject(new Error('Échec enregistrement navigateur'));
   });
 
@@ -237,8 +243,20 @@ async function encodeWithBrowser({
   });
 
   recorder.stop();
+  
+  // Cleanup
   musicElement?.pause();
+  musicElement?.removeAttribute('src');
+  musicElement?.load();
   video.pause();
+  video.removeAttribute('src');
+  video.load();
+  
+  // Stop all tracks on streams
+  stream.getTracks().forEach(track => track.stop());
+  audioDestination?.stream.getTracks().forEach(track => track.stop());
+  
+  // Close AudioContext
   audioContext?.close().catch(() => undefined);
 
   const blob = await recordingPromise;
@@ -347,9 +365,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-filter_complex', buildAudioFilter(musicVolume, mixWithVideoAudio),
           '-map', '0:v:0',
           '-map', '[a]',
-          '-c:v', 'copy',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
           '-shortest',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       } else if (hasMusic && speed !== 1 && format === '16:9') {
@@ -366,10 +387,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-filter_complex', audioFilter,
           '-map', '0:v:0',
           '-map', '[a]',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
           '-shortest',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       } else if (hasMusic) {
@@ -393,10 +416,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
           `[0:v]${videoFilter}[v];${audioFilter}`,
           '-map', '[v]',
           '-map', '[a]',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
           '-shortest',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       } else if (speed === 1) {
@@ -405,9 +430,11 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-vf', buildCropFilter(format),
           '-map', '0:v:0',
           '-map', '0:a?',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
-          '-c:a', 'copy',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
+          '-c:a', 'libvorbis',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       } else if (format !== '16:9') {
@@ -417,9 +444,11 @@ export function useSlowMotion(): UseSlowMotionReturn {
           `[0:v]${videoFilter}[v];[0:a]${getSlowMotionAudioFilter(speed)}[a]`,
           '-map', '[v]',
           '-map', '[a]',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       } else {
@@ -427,9 +456,11 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-i', 'input.webm',
           '-filter:v', getSlowMotionVideoFilter(speed) as string,
           '-filter:a', getSlowMotionAudioFilter(speed),
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       }
@@ -438,8 +469,10 @@ export function useSlowMotion(): UseSlowMotionReturn {
         '-i', 'input.webm',
         '-vf', videoFilter ?? (getSlowMotionVideoFilter(speed) as string),
         '-an',
-        '-c:v', 'libvpx',
-        '-b:v', '2M',
+        '-c:v', 'libvpx-vp9',
+        '-b:v', '1.5M',
+        '-crf', '30',
+        '-movflags', '+faststart',
         'output.webm',
       ];
 
@@ -453,9 +486,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
             '-filter_complex', musicFilter,
             '-map', '0:v:0',
             '-map', '[a]',
-            '-c:v', 'copy',
+            '-c:v', 'libvpx-vp9',
+            '-b:v', '1.5M',
+            '-crf', '30',
             '-c:a', 'libvorbis',
             '-shortest',
+            '-movflags', '+faststart',
             'output.webm',
           ];
         }
@@ -466,10 +502,12 @@ export function useSlowMotion(): UseSlowMotionReturn {
           '-filter_complex', `[0:v]${videoFilter}[v];${musicFilter}`,
           '-map', '[v]',
           '-map', '[a]',
-          '-c:v', 'libvpx',
-          '-b:v', '2M',
+          '-c:v', 'libvpx-vp9',
+          '-b:v', '1.5M',
+          '-crf', '30',
           '-c:a', 'libvorbis',
           '-shortest',
+          '-movflags', '+faststart',
           'output.webm',
         ];
       };

@@ -59,6 +59,18 @@ export default function SharePage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { processVideo, status, progress } = useSlowMotion();
   const { composeWithJingles, compositionStage, compositionProgress } = useVideoComposer();
+  
+  // Cleanup object URLs on unmount or when they change
+  useEffect(() => {
+    return () => {
+      if (originalUrl && originalUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(originalUrl);
+      }
+      if (downloadUrl && downloadUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    };
+  }, [originalUrl, downloadUrl]);
 
   const accentColor = useMemo(() => appSettings?.accentColor || "indigo", [appSettings]);
   const accentClass = ACCENT_COLOR_MAP[accentColor];

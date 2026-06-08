@@ -18,6 +18,7 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
   const [countdown, setCountdown] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -45,6 +46,8 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
   }, []);
 
   const beginRecording = useCallback(async (stream: MediaStream, durationMs: number) => {
+    streamRef.current = stream;
+    
     if (onBeforeRecord) {
       setIsSyncing(true);
       try {
@@ -65,8 +68,15 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
       };
 
       rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'video/webm' });
         const url = URL.createObjectURL(blob);
+        
+        // Cleanup stream
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        
         mediaRecorderRef.current = null;
         setIsRecording(false);
         onRecordingComplete(url, blob);
@@ -84,12 +94,19 @@ export function useRecorder({ onRecordingComplete, onRecordingStart, onBeforeRec
 
     try {
       const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8,opus',
+        mimeType: 'video/webm;codecs=vp9,opus',
       });
       startMediaRecorder(recorder);
     } catch {
-      const recorder = new MediaRecorder(stream);
-      startMediaRecorder(recorder);
+      try {
+        const recorder = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp8,opus',
+        });
+        startMediaRecorder(recorder);
+      } catch {
+        const recorder = new MediaRecorder(stream);
+        startMediaRecorder(recorder);
+      }
     }
   }, [onBeforeRecord, onRecordingComplete, onRecordingStart, stopRecording]);
 

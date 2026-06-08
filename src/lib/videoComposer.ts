@@ -42,13 +42,14 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
 
   // Create MediaRecorder
   const stream = canvas.captureStream(30); // 30 fps
+  let mainVideoElement: HTMLVideoElement | null = null;
   
   // Add audio track if needed
   if (recordAudio) {
     try {
-      const mainVideo = await loadVideo(mainVideoUrl);
-      if (mainVideo.srcObject instanceof MediaStream) {
-        const audioTracks = (mainVideo.srcObject as MediaStream).getAudioTracks();
+      mainVideoElement = await loadVideo(mainVideoUrl);
+      if (mainVideoElement.srcObject instanceof MediaStream) {
+        const audioTracks = (mainVideoElement.srcObject as MediaStream).getAudioTracks();
         audioTracks.forEach(track => stream.addTrack(track));
       }
     } catch (err) {
@@ -61,10 +62,16 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
 
   try {
     recorder = new MediaRecorder(stream, {
-      mimeType: 'video/webm;codecs=vp8,opus',
+      mimeType: 'video/webm;codecs=vp9,opus',
     });
   } catch {
-    recorder = new MediaRecorder(stream);
+    try {
+      recorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp8,opus',
+      });
+    } catch {
+      recorder = new MediaRecorder(stream);
+    }
   }
 
   recorder.ondataavailable = (event) => {
@@ -72,11 +79,16 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
   };
 
   // Start recording
-  const recordingPromise = new Promise<Blob>((resolve) => {
+  const recordingPromise = new Promise<Blob>((resolve, reject) => {
     recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'video/webm' });
-      resolve(blob);
+      try {
+        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
+        resolve(blob);
+      } catch (err) {
+        reject(err);
+      }
     };
+    recorder.onerror = (event) => reject(event.error || new Error('MediaRecorder error'));
   });
 
   recorder.start();
@@ -107,6 +119,14 @@ export async function composeVideo(options: ComposerOptions): Promise<string> {
   // Stop recording
   recorder.stop();
   onProgress?.('finalizing', 100);
+
+  // Cleanup
+  stream.getTracks().forEach(track => track.stop());
+  if (mainVideoElement) {
+    mainVideoElement.pause();
+    mainVideoElement.src = '';
+    mainVideoElement.load();
+  }
 
   // Wait for the blob
   const blob = await recordingPromise;
