@@ -152,7 +152,10 @@ export default function ScreenPage() {
   useEffect(() => {
     videoRef.current?.load();
     void videoRef.current?.play().catch(() => undefined);
-  }, [capture?.videoUrl]);
+    if (videoRef.current && appSettings) {
+      videoRef.current.playbackRate = appSettings.slowMotionEnabled ? appSettings.slowMotionSpeed : 1;
+    }
+  }, [capture?.videoUrl, appSettings]);
 
   const syncLabel = useMemo(() => {
     if (isPolling) return "Recherche de la dernière capture…";
@@ -293,14 +296,25 @@ export default function ScreenPage() {
               
               {/* Video badges */}
               <div className="pointer-events-none absolute left-5 top-5 z-20 flex flex-wrap gap-3">
-                <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/50 backdrop-blur-xl px-4 py-2 shadow-lg">
-                  <Film className="h-4 w-4" style={{ color: accentColors.primary }} />
-                  <span className="text-xs font-bold uppercase tracking-[0.15em] text-white/90">Vidéo originale</span>
-                </div>
-                <div className="flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 backdrop-blur-xl px-4 py-2 shadow-lg">
-                  <Sparkles className="h-4 w-4 text-amber-300" />
-                  <span className="text-xs font-bold uppercase tracking-[0.15em] text-amber-100">Sans effets</span>
-                </div>
+                {appSettings?.slowMotionEnabled ? (
+                  <div className="flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 backdrop-blur-xl px-4 py-2 shadow-lg">
+                    <Sparkles className="h-4 w-4 text-amber-300" />
+                    <span className="text-xs font-bold uppercase tracking-[0.15em] text-amber-100">
+                      Slow-motion {appSettings.slowMotionSpeed === 0.5 ? '½×' : '¼×'}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/50 backdrop-blur-xl px-4 py-2 shadow-lg">
+                      <Film className="h-4 w-4" style={{ color: accentColors.primary }} />
+                      <span className="text-xs font-bold uppercase tracking-[0.15em] text-white/90">Vidéo originale</span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-400/10 backdrop-blur-xl px-4 py-2 shadow-lg">
+                      <Sparkles className="h-4 w-4 text-amber-300" />
+                      <span className="text-xs font-bold uppercase tracking-[0.15em] text-amber-100">Sans effets</span>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
 
