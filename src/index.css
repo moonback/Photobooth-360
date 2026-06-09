@@ -165,6 +165,15 @@ a,
   touch-action: manipulation;
 }
 
+/* Mode PWA standalone */
+.is-standalone body {
+  overscroll-behavior: none;
+}
+
+.is-mobile.is-standalone {
+  -webkit-overflow-scrolling: touch;
+}
+
 .safe-top { padding-top: env(safe-area-inset-top); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 .pb-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

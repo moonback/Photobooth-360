@@ -1,6 +1,7 @@
 import type { MusicSelection } from "../../lib/backgroundMusic";
 import type { TriggerSoundId } from "../../lib/triggerSounds";
 import type { PresentationBackgroundId, PresentationTemplateId } from "../../lib/presentationTemplates";
+import type { ExportFormat } from "../../hooks/useSlowMotion";
 
 export interface AppSettings {
   eventName: string;
@@ -51,6 +52,11 @@ export interface AppSettings {
   triggerSoundUrl?: string;
   slowMotionEnabled: boolean;
   slowMotionSpeed: 0.5 | 0.25;
+  socialShareEnabled: boolean;
+  socialHashtags: string;
+  socialSponsorMention: string;
+  socialShareMessage: string;
+  defaultExportFormat: ExportFormat | "auto";
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -102,6 +108,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   triggerSoundUrl: "",
   slowMotionEnabled: true,
   slowMotionSpeed: 0.5,
+  socialShareEnabled: true,
+  socialHashtags: "#NeuroBooth360 #Photobooth",
+  socialSponsorMention: "",
+  socialShareMessage: "",
+  defaultExportFormat: "auto",
 };
 
 export const ACCENT_COLORS: { value: AppSettings["accentColor"]; label: string; bg: string }[] = [
@@ -135,4 +146,5 @@ export type SettingsPanel =
   | "music"
   | "trigger-sound"
   | "intro"
-  | "outro";
+  | "outro"
+  | "social";

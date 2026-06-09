@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Download, Loader2, AlertCircle, Gauge, CheckCircle, Wifi, WifiOff, RectangleHorizontal, RectangleVertical, Square, Music, Sparkles, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,6 +8,10 @@ import { BACKGROUND_TRACKS, type MusicSelection } from '../lib/backgroundMusic';
 import { getPresentationBackground } from '../lib/presentationTemplates';
 import { useSlowMotion, SlowMotionSpeed, ExportFormat } from '../hooks/useSlowMotion';
 import { useVideoComposer } from '../hooks/useVideoComposer';
+import { useMobileOptimizations, useHapticFeedback } from '../hooks/useMobileOptimizations';
+import { resolveDefaultExportFormat } from '../lib/socialShare';
+import { trackDownload } from '../lib/analytics';
+import SocialSharePanel from '../components/SocialSharePanel';
 import type { AppSettings } from '../components/SettingsModal';
 
 type Speed = 1 | SlowMotionSpeed;
@@ -44,6 +48,8 @@ const ACCENT_COLOR_MAP: Record<AppSettings["accentColor"], string> = {
 export default function SharePage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const mobile = useMobileOptimizations();
+  const haptic = useHapticFeedback();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [source, setSource] = useState<Source>('local');
@@ -73,6 +79,7 @@ export default function SharePage() {
   useEffect(() => {
     loadSettings().then((settings: AppSettings) => {
       setAppSettings(settings);
+      setSelectedFormat(resolveDefaultExportFormat(settings.defaultExportFormat, mobile.isMobile));
       setMusicEnabled(settings.backgroundMusicEnabled);
       setMusicVolume(settings.backgroundMusicVolume);
       setRecordAudio(settings.recordAudio);
@@ -85,7 +92,17 @@ export default function SharePage() {
         setSelectedSpeed(1);
       }
     }).catch(() => undefined);
-  }, []);
+  }, [mobile.isMobile]);
+
+  const sharePageUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    return window.location.href;
+  }, [phase, id, searchParams]);
+
+  const handleDownloadClick = useCallback(() => {
+    haptic.medium();
+    trackDownload(id || `share_${Date.now()}`, appSettings?.eventName || 'default');
+  }, [haptic, id, appSettings?.eventName]);
 
   useEffect(() => {
     if (!id) {
@@ -194,7 +211,7 @@ export default function SharePage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen h-screen text-zinc-100 flex flex-col items-center font-sans overflow-y-auto"
+      className="min-h-screen h-screen text-zinc-100 flex flex-col items-center font-sans overflow-y-auto no-bounce smooth-scroll safe-top pb-safe-bottom"
       style={backgroundStyle}
     >
       {/* Animated Background Effects */}
@@ -789,6 +806,7 @@ export default function SharePage() {
                 whileTap={{ scale: 0.97 }}
                 href={downloadUrl}
                 download={filename}
+                onClick={handleDownloadClick}
                 className={`w-full flex items-center justify-center gap-3 py-4 text-white font-bold rounded-2xl transition-all shadow-2xl ${
                   accentClass === "indigo" ? "bg-gradient-to-r from-indigo-500 to-indigo-600 shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:shadow-[0_0_40px_rgba(99,102,241,0.5)]" :
                   accentClass === "rose" ? "bg-gradient-to-r from-rose-500 to-rose-600 shadow-[0_0_30px_rgba(244,63,94,0.3)] hover:shadow-[0_0_40px_rgba(244,63,94,0.5)]" :
@@ -799,6 +817,23 @@ export default function SharePage() {
                 <Download className="w-6 h-6" />
                 Télécharger sur mon téléphone
               </motion.a>
+
+              {appSettings && (
+                <SocialSharePanel
+                  settings={appSettings}
+                  shareUrl={sharePageUrl}
+                  videoId={id || filename}
+                  videoBlobUrl={downloadUrl}
+                  filename={filename}
+                  eventId={appSettings.eventName || 'default'}
+                  accentClass={
+                    accentClass === "indigo" ? "bg-gradient-to-r from-indigo-500 to-indigo-600" :
+                    accentClass === "rose" ? "bg-gradient-to-r from-rose-500 to-rose-600" :
+                    accentClass === "amber" ? "bg-gradient-to-r from-amber-500 to-amber-600" :
+                    accentClass === "emerald" ? "bg-gradient-to-r from-emerald-500 to-emerald-600" : "bg-gradient-to-r from-cyan-500 to-cyan-600"
+                  }
+                />
+              )}
 
               <motion.button
                 whileHover={{ scale: 1.03 }}

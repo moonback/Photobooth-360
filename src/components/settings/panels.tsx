@@ -1,5 +1,5 @@
 import { Fragment, type RefObject } from "react";
-import { Image, Lock, Mail, Music, Play, RefreshCw, RotateCcw, RotateCw, Smartphone, Upload, Volume2 } from "lucide-react";
+import { Image, Lock, Mail, Music, Play, RefreshCw, RotateCcw, RotateCw, Share2, Smartphone, Upload, Volume2 } from "lucide-react";
 import { BACKGROUND_TRACKS } from "../../lib/backgroundMusic";
 import { TRIGGER_SOUNDS } from "../../lib/triggerSounds";
 import { SUPABASE_CONFIGURED } from "../../lib/supabase";
@@ -529,6 +529,79 @@ export function IntroOutroPanel(props: IntroOutroPanelProps) {
   );
 }
 
+const EXPORT_FORMAT_OPTIONS: { value: AppSettings["defaultExportFormat"]; label: string; sub: string }[] = [
+  { value: "auto", label: "Auto", sub: "9:16 mobile · 16:9 desktop" },
+  { value: "9:16", label: "9:16", sub: "Stories / Reels / TikTok" },
+  { value: "1:1", label: "1:1", sub: "Feed Instagram" },
+  { value: "16:9", label: "16:9", sub: "Écrans & projection" },
+];
+
+export function SocialPanel({ draft, update }: PanelProps) {
+  return (
+    <div className="space-y-3">
+      <PanelBlock className="p-0 overflow-hidden">
+        <Toggle
+          label="Partage social guidé"
+          checked={draft.socialShareEnabled}
+          onChange={() => update("socialShareEnabled", !draft.socialShareEnabled)}
+        />
+        <p className="px-3.5 pb-3 text-[10px] text-neuro-muted">
+          Boutons Instagram, TikTok, WhatsApp sur la page de récupération mobile.
+        </p>
+      </PanelBlock>
+
+      {draft.socialShareEnabled && (
+        <>
+          <PanelBlock className="p-3 space-y-3">
+            <SectionLabel>Format d&apos;export par défaut</SectionLabel>
+            <div className="grid grid-cols-2 gap-2">
+              {EXPORT_FORMAT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => update("defaultExportFormat", opt.value)}
+                  className={`flex min-h-[4rem] flex-col items-start justify-center rounded-xl border px-3 py-2 text-left touch-manipulation ${
+                    draft.defaultExportFormat === opt.value
+                      ? "border-white bg-white/10 text-white"
+                      : "border-white/10 bg-white/5 text-neuro-muted"
+                  }`}
+                >
+                  <span className="text-[12px] font-bold">{opt.label}</span>
+                  <span className="text-[10px] opacity-70">{opt.sub}</span>
+                </button>
+              ))}
+            </div>
+          </PanelBlock>
+
+          <PanelBlock className="p-3 space-y-3">
+            <SectionLabel>Message de partage</SectionLabel>
+            <FieldInput
+              value={draft.socialShareMessage}
+              onChange={(v) => update("socialShareMessage", v)}
+              placeholder="Ma super vidéo 360° 🎉 (vide = message auto)"
+            />
+            <SectionLabel>Hashtags</SectionLabel>
+            <FieldInput
+              value={draft.socialHashtags}
+              onChange={(v) => update("socialHashtags", v)}
+              placeholder="#NeuroBooth360 #Mariage2026"
+            />
+            <SectionLabel>Mention sponsor</SectionLabel>
+            <FieldInput
+              value={draft.socialSponsorMention}
+              onChange={(v) => update("socialSponsorMention", v)}
+              placeholder="@marque ou lien sponsor"
+            />
+            <InfoNote>
+              Le texte est proposé sur la page QR avec boutons de copie et partage natif (Web Share API).
+            </InfoNote>
+          </PanelBlock>
+        </>
+      )}
+    </div>
+  );
+}
+
 export function hubSummaries(draft: AppSettings) {
   return {
     identity: `${draft.eventName}${draft.logoUrl ? " · Logo" : ""}`,
@@ -552,6 +625,9 @@ export function hubSummaries(draft: AppSettings) {
       ? (draft.triggerSound === "none"
         ? "Activé · sans son"
         : `Activé · ${TRIGGER_SOUNDS.find((s) => s.id === draft.triggerSound)?.label ?? "Son"}`)
+      : "Désactivé",
+    social: draft.socialShareEnabled
+      ? `Actif · ${draft.defaultExportFormat === "auto" ? "format auto" : draft.defaultExportFormat}${draft.socialHashtags ? " · hashtags" : ""}`
       : "Désactivé",
   };
 }

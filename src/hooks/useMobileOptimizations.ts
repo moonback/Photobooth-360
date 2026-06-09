@@ -7,8 +7,24 @@ interface MobileOptimizations {
   hasNotch: boolean;
   supportsVibration: boolean;
   supportsOrientation: boolean;
+  supportsWebShare: boolean;
+  supportsShareFiles: boolean;
+  isStandalone: boolean;
   orientation: 'portrait' | 'landscape';
   installPromptSupported: boolean;
+}
+
+interface LegacyScreen extends Screen {
+  mozOrientation?: number;
+}
+
+interface LegacyDocument extends Document {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void>;
+}
+
+interface LegacyHTMLElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void>;
 }
 
 export function useMobileOptimizations(): MobileOptimizations {
@@ -28,6 +44,15 @@ export function useMobileOptimizations(): MobileOptimizations {
   // Support des fonctionnalités
   const supportsVibration = 'vibrate' in navigator;
   const supportsOrientation = 'orientation' in window.screen || 'mozOrientation' in window.screen;
+  const supportsWebShare = typeof navigator.share === 'function';
+  const supportsShareFiles =
+    supportsWebShare &&
+    (typeof navigator.canShare !== 'function' ||
+      navigator.canShare({ files: [new File([], 'probe.webm', { type: 'video/webm' })] }));
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    ('standalone' in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true);
   const installPromptSupported = 'BeforeInstallPromptEvent' in window || isIOS;
 
   useEffect(() => {
@@ -52,7 +77,8 @@ export function useMobileOptimizations(): MobileOptimizations {
 
     // Gérer l'orientation
     const handleOrientationChange = () => {
-      const angle = window.screen.orientation?.angle ?? (window as any).orientation ?? 0;
+      const legacyScreen = window.screen as LegacyScreen;
+      const angle = window.screen.orientation?.angle ?? legacyScreen.mozOrientation ?? 0;
       setOrientation(Math.abs(angle) === 90 ? 'landscape' : 'portrait');
     };
 
@@ -65,6 +91,7 @@ export function useMobileOptimizations(): MobileOptimizations {
       document.documentElement.classList.add('is-mobile');
       if (isIOS) document.documentElement.classList.add('is-ios');
       if (isAndroid) document.documentElement.classList.add('is-android');
+      if (isStandalone) document.documentElement.classList.add('is-standalone');
     }
 
     if (supportsOrientation) {
@@ -88,7 +115,7 @@ export function useMobileOptimizations(): MobileOptimizations {
       window.removeEventListener('orientationchange', handleOrientationChange);
       window.screen.orientation?.removeEventListener('change', handleOrientationChange);
     };
-  }, [isMobile, isIOS, isAndroid, supportsOrientation]);
+  }, [isMobile, isIOS, isAndroid, isStandalone, supportsOrientation]);
 
   return {
     isMobile,
@@ -97,6 +124,9 @@ export function useMobileOptimizations(): MobileOptimizations {
     hasNotch,
     supportsVibration,
     supportsOrientation,
+    supportsWebShare,
+    supportsShareFiles,
+    isStandalone,
     orientation,
     installPromptSupported,
   };
@@ -126,10 +156,11 @@ export function useFullscreen() {
 
   const enterFullscreen = async () => {
     try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      } else if ((document.documentElement as any).webkitRequestFullscreen) {
-        await (document.documentElement as any).webkitRequestFullscreen();
+      const element = document.documentElement as LegacyHTMLElement;
+      if (element.requestFullscreen) {
+        await element.requestFullscreen();
+      } else if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
       }
       setIsFullscreen(true);
     } catch (err) {
@@ -139,10 +170,11 @@ export function useFullscreen() {
 
   const exitFullscreen = async () => {
     try {
+      const legacyDocument = document as LegacyDocument;
       if (document.exitFullscreen) {
         await document.exitFullscreen();
-      } else if ((document as any).webkitExitFullscreen) {
-        await (document as any).webkitExitFullscreen();
+      } else if (legacyDocument.webkitExitFullscreen) {
+        await legacyDocument.webkitExitFullscreen();
       }
       setIsFullscreen(false);
     } catch (err) {
@@ -160,7 +192,8 @@ export function useFullscreen() {
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
+      const legacyDocument = document as LegacyDocument;
+      setIsFullscreen(Boolean(document.fullscreenElement || legacyDocument.webkitFullscreenElement));
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);

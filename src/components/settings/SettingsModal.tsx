@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, BarChart3, Check, Download, ExternalLink, Film, Mail, MonitorPlay, Music, Palette, RefreshCw, RotateCcw, Smartphone, Trash2, Type, Video, Volume2, X, CheckCircle2
+  ArrowLeft, BarChart3, Check, Download, ExternalLink, Film, Mail, MonitorPlay, Music, Palette, RefreshCw, RotateCcw, Share2, Smartphone, Trash2, Type, Video, Volume2, X, CheckCircle2
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { uploadLogo } from "../../lib/uploadLogo";
@@ -14,7 +14,7 @@ import { clearEmailCaptures } from "../../lib/emailCapture";
 import { AnalyticsDashboard } from "../AnalyticsDashboard";
 import EmailListDashboard from "../EmailListDashboard";
 import {
-  CapturePanel, EmailPanel, hubSummaries, IdentityPanel, IntroOutroPanel, JinglePanel, KioskPanel, MotorPanel, MusicPanel, TriggerSoundPanel,
+  CapturePanel, EmailPanel, hubSummaries, IdentityPanel, IntroOutroPanel, JinglePanel, KioskPanel, MotorPanel, MusicPanel, SocialPanel, TriggerSoundPanel,
 } from "./panels";
 import type { UploadState } from "./PresentationEditor";
 import { HubRow, PanelBlock } from "./ui";
@@ -38,6 +38,7 @@ const PANEL_TITLES: Record<Exclude<SettingsPanel, "hub">, string> = {
   intro: "Intro (pré-roll)",
   outro: "Outro (post-roll)",
   "trigger-sound": "Son de déclenchement",
+  social: "Mobile & réseaux sociaux",
 };
 
 export default function SettingsModal({ isOpen, onClose, settings, onSave }: SettingsModalProps) {
@@ -265,6 +266,8 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
         return <MusicPanel {...props} />;
       case "trigger-sound":
         return <TriggerSoundPanel {...props} />;
+      case "social":
+        return <SocialPanel {...props} />;
       case "intro":
       case "outro":
         return (
@@ -439,6 +442,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onSave }: Set
                         <HubRow icon={<Film className="h-4 w-4" />} title="Intro / Outro" summary={summaries.jingle} onClick={() => setPanel("jingle")} />
                         <HubRow icon={<Music className="h-4 w-4" />} title="Musique de fond" summary={summaries.music} onClick={() => setPanel("music")} />
                         <HubRow icon={<Volume2 className="h-4 w-4" />} title="Son de déclenchement" summary={summaries["trigger-sound"]} onClick={() => setPanel("trigger-sound")} />
+                        <HubRow icon={<Share2 className="h-4 w-4" />} title="Mobile & réseaux sociaux" summary={summaries.social} onClick={() => setPanel("social")} />
                       </PanelBlock>
 
                       <PanelBlock>

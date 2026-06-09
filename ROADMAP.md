@@ -16,6 +16,7 @@
 | 5 | Mode Kiosque & Opérateur | ✅ Livrée | 100% |
 | 6 | Matériel & Moteur ESP32 | ✅ Livrée | 100% |
 | 7 | Effets & Post-Traitement In-Browser | 🚧 En cours | ~60% |
+| 2B | Optimisation Mobile & Réseaux Sociaux | ✅ Livrée | 100% |
 | 8 | Analytics Avancés & Rapport | 📋 Planifiée | 0% |
 | 9 | Expérience Invité Premium | 📋 Planifiée | 0% |
 | 10 | Intégrations & API | 📋 Planifiée | 0% |
@@ -103,6 +104,23 @@ Contrôle d'un plateau motorisé pour des captures 360°.
 - [x] Panneau de contrôle moteur in-app
 - [x] Firmware Arduino open-source (`firmware/esp32_photobooth360/`)
 - [x] [Documentation matériel](./firmware/WIRING.md)
+
+---
+
+## ✅ Phase 2B — Optimisation Mobile & Réseaux Sociaux *(Livrée)*
+
+Expérience mobile optimisée et partage guidé vers les réseaux sociaux.
+
+- [x] Détection mobile avancée (Web Share, PWA standalone, safe areas)
+- [x] Format d'export par défaut intelligent (9:16 mobile · 16:9 desktop)
+- [x] Safe areas iOS (encoches, barre d'accueil)
+- [x] Retour haptique sur actions de partage
+- [x] Panneau de partage social guidé (Instagram, TikTok, WhatsApp)
+- [x] Web Share API native avec fichier vidéo
+- [x] Texte prérempli configurable (hashtags, sponsor, message)
+- [x] Copie lien / copie texte en un tap
+- [x] Réglages admin « Mobile & réseaux sociaux »
+- [x] Tracking analytics par canal de partage
 
 ---
 
